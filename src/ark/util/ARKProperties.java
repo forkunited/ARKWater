@@ -25,8 +25,10 @@ public abstract class ARKProperties {
 	
 	protected String loadProperty(String property) {
 		String propertyValue = this.properties.getProperty(property);
-		for (Entry<String, String> envEntry : this.env.entrySet())
-			propertyValue = propertyValue.replace("${" + envEntry.getKey() + "}", envEntry.getValue());
+		if (this.env != null) {
+			for (Entry<String, String> envEntry : this.env.entrySet())
+				propertyValue = propertyValue.replace("${" + envEntry.getKey() + "}", envEntry.getValue());
+		}
 		return propertyValue;
 	}
 }
