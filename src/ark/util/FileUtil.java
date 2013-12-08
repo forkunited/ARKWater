@@ -10,6 +10,9 @@ public class FileUtil {
 		try {
 			if (localFile.exists())
 				return new BufferedReader(new FileReader(localFile));
+			localFile = new File(path.replace("/user/", "/home/")); // FIXME: This is a hack. Tries variations on path on occ-y
+			if (localFile.exists())
+				return new BufferedReader(new FileReader(localFile));
 		} catch (Exception e) { }
 		return HadoopUtil.getFileReader(path);
 	}
