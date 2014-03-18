@@ -20,7 +20,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	protected List<L> validLabels;
 	protected Map<String, Double> hyperParameters;
 		
-	public abstract boolean deserialize(String modelPath, DataTools dataTools, Datum<L>.AnnotationTools<D> annotationTools);
+	public abstract boolean deserialize(String modelPath, DataTools dataTools, Datum.Tools<D, L> datumTools);
 	public abstract boolean train(FeaturizedDataSet<D, L> data, String outputPath);
 	public abstract Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data);
 	public abstract SupervisedModel<D, L> clone();
@@ -88,7 +88,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
         } catch (IOException e) { e.printStackTrace(); return false; }
 	}
 	
-	protected boolean deserializeParameters(Datum<L>.AnnotationTools<D> annotationTools) {
+	protected boolean deserializeParameters(Datum.Tools<D, L> annotationTools) {
 		if (this.modelPath == null)
 			return false;
 		

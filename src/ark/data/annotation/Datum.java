@@ -30,39 +30,39 @@ public abstract class Datum<L> {
 		return datum.id == this.id;
 	}
 	
-	public interface StringExtractor<D extends Datum<L>, L> {
-		String toString();
-		String[] extract(D datum);
-	}
-	
-	public interface TokenSpanExtractor<D extends Datum<L>, L> {
-		String toString();
-		TokenSpan[] extract(D datum);
-	}
-	
-	public abstract class AnnotationTools<D extends Datum<L>> {
-		protected Map<String, Datum.TokenSpanExtractor<D, L>> tokenSpanExtractors;
-		protected Map<String, Datum.StringExtractor<D, L>> stringExtractors;
-
-		public AnnotationTools() {
-			this.tokenSpanExtractors = new HashMap<String, Datum.TokenSpanExtractor<D, L>>();
-			this.stringExtractors = new HashMap<String, Datum.StringExtractor<D, L>>();
+	public static abstract class Tools<D extends Datum<L>, L> {
+		public static interface StringExtractor<D extends Datum<L>, L> {
+			String toString();
+			String[] extract(D datum);
 		}
 		
-		public Datum.TokenSpanExtractor<D, L> getTokenSpanExtractor(String name) {
+		public static interface TokenSpanExtractor<D extends Datum<L>, L> {
+			String toString();
+			TokenSpan[] extract(D datum);
+		}
+		
+		protected Map<String, TokenSpanExtractor<D, L>> tokenSpanExtractors;
+		protected Map<String, StringExtractor<D, L>> stringExtractors;
+
+		public Tools() {
+			this.tokenSpanExtractors = new HashMap<String, TokenSpanExtractor<D, L>>();
+			this.stringExtractors = new HashMap<String, StringExtractor<D, L>>();
+		}
+		
+		public TokenSpanExtractor<D, L> getTokenSpanExtractor(String name) {
 			return this.tokenSpanExtractors.get(name);
 		}
 		
-		public Datum.StringExtractor<D, L> getStringExtractor(String name) {
+		public StringExtractor<D, L> getStringExtractor(String name) {
 			return this.stringExtractors.get(name);
 		}
 		
-		public boolean addTokenSpanExtractor(Datum.TokenSpanExtractor<D, L> tokenSpanExtractor) {
+		public boolean addTokenSpanExtractor(TokenSpanExtractor<D, L> tokenSpanExtractor) {
 			this.tokenSpanExtractors.put(tokenSpanExtractor.toString(), tokenSpanExtractor);
 			return true;
 		}
 		
-		public boolean addStringExtractor(Datum.StringExtractor<D, L> stringExtractor) {
+		public boolean addStringExtractor(StringExtractor<D, L> stringExtractor) {
 			this.stringExtractors.put(stringExtractor.toString(), stringExtractor);
 			return true;
 		}
