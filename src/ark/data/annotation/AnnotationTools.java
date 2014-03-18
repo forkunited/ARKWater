@@ -28,7 +28,7 @@ public abstract class AnnotationTools<D extends Datum<L>, L> {
 		return this.tokenSpanExtractors.get(name);
 	}
 	
-	public AnnotationTools.StringExtractor<D, L> getStringxtractor(String name) {
+	public AnnotationTools.StringExtractor<D, L> getStringExtractor(String name) {
 		return this.stringExtractors.get(name);
 	}
 	
@@ -37,7 +37,7 @@ public abstract class AnnotationTools<D extends Datum<L>, L> {
 		return true;
 	}
 	
-	public boolean addTokenSpanExtractor(AnnotationTools.StringExtractor<D, L> stringExtractor) {
+	public boolean addStringExtractor(AnnotationTools.StringExtractor<D, L> stringExtractor) {
 		this.stringExtractors.put(stringExtractor.toString(), stringExtractor);
 		return true;
 	}
