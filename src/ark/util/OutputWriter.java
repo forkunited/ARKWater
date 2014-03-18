@@ -4,6 +4,16 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 
+/**
+ * 
+ * OutputWriter provides methods for writing output to several file
+ * streams.  It's useful when training and evaluating models, and you want 
+ * to write logging information, results, data, and models to separate files
+ * while running experiments.
+ * 
+ * @author Bill McDowell
+ *
+ */
 public class OutputWriter {
 	private BufferedWriter debugWriter;
 	private BufferedWriter resultsWriter;

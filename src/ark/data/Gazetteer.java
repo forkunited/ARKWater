@@ -6,10 +6,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import ark.util.FileUtil;
-import ark.util.StringUtil;
 
 /**
- * Gazette is a dictionary which tells us some NERs which we do know there names beforehand.
+ * Gazetteer represents a deserialized dictionary of strings
+ * mapped to IDs.  The file in which the gazetteer is stored
+ * should contain lines of the form:
+ * 
+ * [ID]	[string_1]	[string_2]	...	[string_n]
+ * 
+ * Each ID should only occur on a single line, but a string
+ * can occur across multiple lines, to be mapped to multiple 
+ * IDs.  The strings are cleaned by a specified clean function
+ * as they are loaded into memory.  
  * 
  * @authors Lingpeng Kong, Bill McDowell
  *
@@ -17,9 +25,9 @@ import ark.util.StringUtil;
 public class Gazetteer {
 	private HashMap<String, List<String>> gazetteer;
 	private String name;
-	private StringUtil.StringTransform cleanFn;
+	private DataTools.StringTransform cleanFn;
 	
-	public Gazetteer(String name, String sourceFilePath, StringUtil.StringTransform cleanFn) {
+	public Gazetteer(String name, String sourceFilePath, DataTools.StringTransform cleanFn) {
 		this.cleanFn = cleanFn;
 		this.gazetteer = new HashMap<String, List<String>>();
 		this.name = name;
@@ -50,10 +58,6 @@ public class Gazetteer {
 			e.printStackTrace();
 		}
 	}
-	
-	public Gazetteer(String name, String sourceFilePath) {
-		this(name, sourceFilePath, StringUtil.getDefaultCleanFn());
-	}
 
 	public String getName() {
 		return this.name;
@@ -75,7 +79,7 @@ public class Gazetteer {
 			return null;
 	}
 	
-	public double min(String str, StringUtil.StringPairMeasure fn) {
+	public double min(String str, DataTools.StringPairMeasure fn) {
 		double min = Double.POSITIVE_INFINITY;
 		String cleanStr = cleanString(str);
 		for (String gStr : this.gazetteer.keySet()) {
@@ -85,7 +89,7 @@ public class Gazetteer {
 		return min;
 	}
 	
-	public double max(String str, StringUtil.StringPairMeasure fn) {
+	public double max(String str, DataTools.StringPairMeasure fn) {
 		double max = Double.NEGATIVE_INFINITY;
 		String cleanStr = cleanString(str);
 		for (String gStr : this.gazetteer.keySet()) {

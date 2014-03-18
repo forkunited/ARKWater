@@ -6,6 +6,14 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+/**
+ * CounterTable represents a histogram of strings.  It allows incrementing 
+ * and decrementing counts for each string, and transforming the histogram
+ * into various data-structures.
+ * 
+ * @author Lingpeng Kong, Bill McDowell
+ * 
+ */
 public class CounterTable{
 	public HashMap<String, Integer> counts;
 	

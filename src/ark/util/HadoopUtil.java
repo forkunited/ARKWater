@@ -7,6 +7,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+/**
+ * HadoopUtil provides utilities for working with Hadoop.
+ * 
+ * @author Bill McDowell
+ * 
+ */
 public class HadoopUtil {
 	public static BufferedReader getFileReader(String path) {
 		try {

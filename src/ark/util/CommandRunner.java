@@ -4,6 +4,14 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 
+/**
+ * 
+ * CommandRunner executes a command-line program.  It is written to 
+ * support both Windows (cygwin) and typical UNIX environments.
+ * 
+ * @author Bill McDowell
+ *
+ */
 public class CommandRunner {
 
 	/**

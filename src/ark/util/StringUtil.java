@@ -4,68 +4,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import ark.data.Gazetteer;
-
+/**
+ * 
+ * StringUtil contains various utilities for dealing with strings.  
+ * 
+ * @author Bill McDowell
+ * 
+ */
 public class StringUtil {
-	/* String cleaning and measure helpers... maybe move these to separate classes later. */
-	
-	public interface StringTransform {
-		String transform(String str);
-		String toString(); // Return constant name for this transformation (used in feature names)
-	}
-	
-	public interface StringPairMeasure {
-		double compute(String str1, String str2);
-	}
-	
-	public interface StringCollectionTransform {
-		Collection<String> transform(String str);
-		String toString();
-	}
-	
-	public static StringUtil.StringTransform getDefaultCleanFn() {
-		return new StringUtil.StringTransform() {
-			public String toString() {
-				return "DefaultCleanFn";
-			}
-			
-			public String transform(String str) {
-				return StringUtil.clean(str);
-			}
-		};	
-	}
-	
-	public static StringUtil.StringTransform getStopWordsCleanFn(final Gazetteer stopWords) {
-		final String stopWordsName = stopWords.getName();
-		
-		return new StringUtil.StringTransform() {
-			public String toString() {
-				return "StopWordsCleanFn_" + stopWordsName;
-			}
-			
-			public String transform(String str) {
-				str = StringUtil.clean(str);
-				String stoppedStr = stopWords.removeTerms(str);
-				if (stoppedStr.length() > 0)
-					return stoppedStr;
-				else 
-					return str;
-			}
-		};
-	}
-	
-	public static StringUtil.StringCollectionTransform getPrefixesFn() {
-		return new StringUtil.StringCollectionTransform() {
-			public String toString() {
-				return "Prefixes";
-			}
-			
-			public Collection<String> transform(String str) {
-				return StringUtil.prefixes(str);
-			}
-		};	
-	}
-	
 	/**
 	 * @param str1
 	 * @param str2

@@ -9,6 +9,18 @@ import java.util.Map;
 import ark.util.CommandRunner;
 import ark.util.OutputWriter;
 
+/**
+ * 
+ * BrownClusterer is a wrapper for the Brown clustering implementation from
+ * https://github.com/percyliang/brown-cluster.
+ * 
+ * FIXME: This currently takes a pre-cleaned document with special characters
+ * removed and numbers replaced with "[NUMBER]".  The cleaning step should be
+ * added to this class.
+ * 
+ * @author Bill McDowell 
+ * 
+ */
 public class BrownClusterer {
 	private String name;
 	private File sourceDocument;

@@ -24,16 +24,17 @@ import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
 
 /**
- * Wrappers for making Stanford CoreNLP easier to use.  There are static wrapper methods for the following purposes:
- * 	- Calling CorenNLP functions which require specifying a class to extract from a deserialized object
- * 		- This is useful because it's difficult to remember all of the classes, and they don't auto-complete
- *	- Serializing and deserializing document annotations
- * @author Bill
+ * StanfordUtil contains wrappers for making the Stanford CoreNLP a bit easier
+ * to work with.  There are static wrapper methods for serializing and
+ * deserializing annotations, and calling functions which require specifying
+ * a class to extract from a deserialized annotation object.  This is useful
+ * because it can be hard to remember the right classes to use within the 
+ * Stanford library to get the various annotations.
+ * 
+ * @author Bill McDowell
  *
  */
 public class StanfordUtil {
-	/* Wrapper functions */
-	
 	public static Map<Integer, CorefChain> getDocumentCorefChain(Annotation documentAnnotation) {
 		return documentAnnotation.get(CorefChainAnnotation.class);
 	}

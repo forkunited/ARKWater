@@ -8,6 +8,25 @@ import java.util.Map.Entry;
 
 import edu.stanford.nlp.util.Pair;
 
+/**
+ *
+ * SerializationUtil provides methods for serializing and deserializing 
+ * model configurations and features, assuming that they are represented
+ * by:
+ * 
+ * Lists of the form: l_1, l_2, l_3,..., l_n
+ * Argument lists of the form: a_1=v_1, a_2=v_2, a_3=v_3,...,a_n=v_n
+ * Assignments of the form: a=v
+ * 
+ * To see an example of how this is used, see the corp.experiment classes
+ * that are used to deserialize model configurations for training and 
+ * evaluation.  You could just use something like JSON to do the same thing,
+ * but this alternative was developed so that the model configurations could
+ * be a bit easier to read.  It's not really necessary.
+ * 
+ * @author Bill McDowell
+ *
+ */
 public class SerializationUtil {
 	public static Map<String, String> deserializeArguments(String argumentsStr) {
 		String[] argumentStrs = argumentsStr.split(",");
