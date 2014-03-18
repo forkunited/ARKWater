@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import ark.data.DataTools;
-import ark.data.annotation.AnnotationTools;
 import ark.data.annotation.Datum;
 import ark.data.feature.FeaturizedDataSet;
 import ark.util.FileUtil;
@@ -21,7 +20,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	protected List<L> validLabels;
 	protected Map<String, Double> hyperParameters;
 		
-	public abstract boolean deserialize(String modelPath, DataTools dataTools, AnnotationTools<D, L> annotationTools);
+	public abstract boolean deserialize(String modelPath, DataTools dataTools, Datum<L>.AnnotationTools<D> annotationTools);
 	public abstract boolean train(FeaturizedDataSet<D, L> data, String outputPath);
 	public abstract Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data);
 	public abstract SupervisedModel<D, L> clone();
@@ -89,7 +88,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
         } catch (IOException e) { e.printStackTrace(); return false; }
 	}
 	
-	protected boolean deserializeParameters(AnnotationTools<D, L> annotationTools) {
+	protected boolean deserializeParameters(Datum<L>.AnnotationTools<D> annotationTools) {
 		if (this.modelPath == null)
 			return false;
 		
