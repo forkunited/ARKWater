@@ -1,5 +1,8 @@
 package ark.util;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,78 +19,95 @@ import java.util.Map.Entry;
  * Argument lists of the form: a_1=v_1, a_2=v_2, a_3=v_3,...,a_n=v_n
  * Assignments of the form: a=v
  * 
- * To see an example of how this is used, see the corp.experiment classes
- * that are used to deserialize model configurations for training and 
- * evaluation.  You could just use something like JSON to do the same thing,
- * but this alternative was developed so that the model configurations could
- * be a bit easier to read.  It's not really necessary.
+ * The methods for serializing and deserializing are written so that other
+ * classes can call them on large inputs without running out of memory. That's
+ * the main advantage of using this instead of something like JSON.  
+ * 
+ * See the ark.data.feature.Feature class for examples of how this is used.
  * 
  * @author Bill McDowell
  *
  */
 public class SerializationUtil {
-	public static Map<String, String> deserializeArguments(String argumentsStr) {
-		String[] argumentStrs = argumentsStr.split(",");
+	public static Map<String, String> deserializeArguments(Reader reader) throws IOException {
 		Map<String, String> arguments = new HashMap<String, String>();
-		for (String argumentStr : argumentStrs) {
-			Pair<String, String> assignment = SerializationUtil.deserializeAssignment(argumentStr);
-			if (assignment == null)
-				continue;
-			arguments.put(assignment.getFirst(), assignment.getSecond());
-		}
+		Pair<String, String> assignment = null;		
+		do {
+			assignment = SerializationUtil.deserializeAssignment(reader);
+			if (assignment != null)
+				arguments.put(assignment.getFirst(), assignment.getSecond());
+		} while(assignment != null);
+		
 		return arguments;
 	}
 	
-	public static List<String> deserializeList(String listStr) {
-		String[] valueStrs = listStr.split(",");
-		List<String> values = new ArrayList<String>();
-		for (int i = 0; i < valueStrs.length; i++)
-			values.add(valueStrs[i].trim());
-		return values;
+	public static List<String> deserializeList(Reader reader) throws IOException {
+		List<String> list = new ArrayList<String>();
+		int cInt = reader.read();
+		char c = (char)cInt;
+		StringBuilder item = new StringBuilder();
+		while (cInt != -1 && c != '\n') {
+			while (cInt != -1 && c != ',' && c != '\n'&& c != ')') {
+				item = item.append(c);
+				cInt = reader.read();
+				c = (char)cInt;
+			}
+			list.add(item.toString().trim());
+			item = new StringBuilder();
+			cInt = reader.read();
+			c = (char)cInt;
+		}
+		
+		return list;
 	}
 	
-	public static Pair<String, String> deserializeAssignment(String assignmentStr) {
-		int equalsIndex = assignmentStr.indexOf("=");
-		if (!(equalsIndex >= 0 && equalsIndex < assignmentStr.length()))
+	public static Pair<String, String> deserializeAssignment(Reader reader) throws IOException {
+		int cInt = reader.read();
+		char c = (char)cInt;
+		StringBuilder first = new StringBuilder();
+		while (cInt != -1 && c != '=') {
+			first = first.append(c);
+			cInt = reader.read();
+			c = (char)cInt;
+		}
+		
+		if (cInt == -1)
 			return null;
 		
-		String first = assignmentStr.substring(0, equalsIndex).trim();
-		String second = null;
-		if (equalsIndex == assignmentStr.length() - 1)
-			second = "";
-		else
-			second = assignmentStr.substring(equalsIndex + 1).trim();
+		cInt = reader.read();
+		c = (char)cInt;
+		StringBuilder second = new StringBuilder();
+		while (cInt != -1 && c != ',' && c != '\n' && c != ')') {
+			second = second.append(c);
+			c = (char)reader.read();
+		}
 		
-		/*if (!first.matches("[A-Za-z0-9]*"))
-			return null;*/
-		
-		return new Pair<String, String>(first,second);
+		return new Pair<String, String>(first.toString().trim(),second.toString().trim());
 	}
 	
-	public static <T> String serializeArguments(Map<String, T> arguments) {
-		StringBuilder str = new StringBuilder();
+	public static <T> boolean serializeArguments(Map<String, T> arguments, Writer writer) throws IOException {
+		int i = 0;
 		for (Entry<String, T> argument : arguments.entrySet()) {
-			str.append(argument.getKey() + "=" + argument.getValue() + ",");
+			writer.write(argument.getKey() + "=" + argument.getValue());
+			if (i != arguments.size() - 1)
+				writer.write(",");
+			i++;
 		}
-		if (arguments.size() > 0)
-			str = str.delete(str.length()-1, str.length());
 		
-		return str.toString();
+		return true;
 	}
 	
-	public static <T> String serializeList(List<T> list) {
-		StringBuilder str = new StringBuilder();
-		
-		for (T item : list) {
-			str.append(item).append(",");
+	public static <T> boolean serializeList(List<T> list, Writer writer) throws IOException {		
+		for (int i = 0; i < list.size(); i++) {
+			writer.write(list.get(i).toString());
+			if (i != list.size() - 1)
+				writer.write(",");
 		}
-		if (list.size() > 0)
-			str.delete(str.length() - 1, str.length());
-		
-		return str.toString();
+		return true;
 	}
 	
-	public static <T> String serializeAssignment(Pair<String, T> assignment) {
-		return assignment.getFirst() + "=" + assignment.getSecond();
+	public static <T> boolean serializeAssignment(Pair<String, T> assignment, Writer writer) throws IOException {
+		writer.write(assignment.getFirst() + "=" + assignment.getSecond());
+		return true;
 	}
 }
