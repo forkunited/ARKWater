@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import edu.stanford.nlp.util.Pair;
-
 /**
  *
  * SerializationUtil provides methods for serializing and deserializing 
@@ -35,7 +33,7 @@ public class SerializationUtil {
 			Pair<String, String> assignment = SerializationUtil.deserializeAssignment(argumentStr);
 			if (assignment == null)
 				continue;
-			arguments.put(assignment.first(), assignment.second());
+			arguments.put(assignment.getFirst(), assignment.getSecond());
 		}
 		return arguments;
 	}
@@ -90,6 +88,6 @@ public class SerializationUtil {
 	}
 	
 	public static <T> String serializeAssignment(Pair<String, T> assignment) {
-		return assignment.first() + "=" + assignment.second();
+		return assignment.getFirst() + "=" + assignment.getSecond();
 	}
 }
