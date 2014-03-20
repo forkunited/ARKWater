@@ -64,7 +64,7 @@ public class DataSet<D extends Datum<L>, L> implements Iterable<D> {
 	
 	private Map<L, List<Integer>> labeledData;
 	private List<Integer> unlabeledData;
-	private TreeMap<Integer, D> data;
+	protected TreeMap<Integer, D> data;
 	
 	private Comparator<L> labelComparator = new Comparator<L>() {
 	      @Override

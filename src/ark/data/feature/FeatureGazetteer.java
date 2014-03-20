@@ -83,7 +83,7 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	}
 
 	@Override
-	protected int getVocabularySize() {
-		return 0;
+	public int getVocabularySize() {
+		return 1;
 	}
 }

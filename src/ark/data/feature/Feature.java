@@ -21,10 +21,11 @@ public abstract class Feature<D extends Datum<L>, L> {
 	public abstract boolean init(DataSet<D, L> dataSet);
 	public abstract Map<Integer, Double> computeVector(D datum);
 	public abstract String getGenericName();
+	public abstract int getVocabularySize();
 
 	protected abstract String getVocabularyTerm(int index); 
 	protected abstract boolean setVocabularyTerm(int index, String term);
-	protected abstract int getVocabularySize();
+	
 	protected abstract String[] getParameterNames();
 	protected abstract String getParameterValue(String parameter);
 	protected abstract boolean setParameterValue(String parameter, String parameterValue, DataTools dataTools, Datum.Tools<D, L> datumTools);
@@ -44,8 +45,10 @@ public abstract class Feature<D extends Datum<L>, L> {
 		String prefix = getSpecificShortNamePrefix();
 		int vocabularySize = getVocabularySize();
 		List<String> specificShortNames = new ArrayList<String>(vocabularySize);
-		for (int i = 0; i < vocabularySize; i++)
-			specificShortNames.add(prefix + getVocabularyTerm(i));
+		for (int i = 0; i < vocabularySize; i++) {
+			String vocabularyTerm = getVocabularyTerm(i);
+			specificShortNames.add(prefix + ((vocabularyTerm == null) ? "" : vocabularyTerm));
+		}
 		
 		return specificShortNames;
 	}
@@ -91,11 +94,13 @@ public abstract class Feature<D extends Datum<L>, L> {
 	public boolean serialize(Writer writer) throws IOException {
 		int vocabularySize = getVocabularySize();
 		writer.write(toString(false));
-		if (vocabularySize > 0)
-			writer.write("\t");
+		writer.write("\t");
 		
 		for (int i = 0; i < vocabularySize; i++) {
-			Pair<String, Integer> v = new Pair<String, Integer>(getVocabularyTerm(i), i);
+			String vocabularyTerm = getVocabularyTerm(i);
+			if (vocabularyTerm == null)
+				continue;
+			Pair<String, Integer> v = new Pair<String, Integer>(vocabularyTerm, i);
 			if (!SerializationUtil.serializeAssignment(v, writer))
 				return false;
 			if (i != vocabularySize - 1)
