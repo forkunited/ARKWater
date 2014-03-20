@@ -22,6 +22,8 @@ public class FeatureGazetteerInitialism<D extends Datum<L>, L> extends FeatureGa
 			}
 		};
 		
+		this.allowPrefix = false;
+		
 		this.parameterNames = Arrays.copyOf(this.parameterNames, this.parameterNames.length + 1);
 		this.parameterNames[this.parameterNames.length - 1] = "allowPrefix";
 	}

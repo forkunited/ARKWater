@@ -19,6 +19,8 @@ public class FeatureGazetteerPrefixTokens<D extends Datum<L>, L> extends Feature
 			}
 		};
 		
+		this.minTokens = 2;
+		
 		this.parameterNames = Arrays.copyOf(this.parameterNames, this.parameterNames.length + 1);
 		this.parameterNames[this.parameterNames.length - 1] = "minTokens";
 	}

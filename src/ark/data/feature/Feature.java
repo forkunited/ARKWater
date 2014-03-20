@@ -12,12 +12,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import ark.data.DataTools;
+import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
 public abstract class Feature<D extends Datum<L>, L> {
-	public abstract boolean init(List<D> data, boolean append);
+	public abstract boolean init(DataSet<D, L> dataSet);
 	public abstract Map<Integer, Double> computeVector(D datum);
 	public abstract String getGenericName();
 
@@ -47,10 +48,6 @@ public abstract class Feature<D extends Datum<L>, L> {
 			specificShortNames.add(prefix + getVocabularyTerm(i));
 		
 		return specificShortNames;
-	}
-	
-	public boolean init(List<D> data) {
-		return init(data, false);
 	}
 	
 	public Feature<D, L> clone(DataTools dataTools, Datum.Tools<D, L> datumTools) {

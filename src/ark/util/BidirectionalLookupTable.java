@@ -27,8 +27,16 @@ public class BidirectionalLookupTable<S, T> {
 		return this.forwardLookup.get(key);
 	}
 	
-	public S reverseGet(T key) {
-		return this.reverseLookup.get(key);
+	public S reverseGet(T value) {
+		return this.reverseLookup.get(value);
 	}
 	
+	public T put(S key, T value) {
+		this.reverseLookup.put(value, key);
+		return this.forwardLookup.put(key, value);
+	}
+	
+	public int size() {
+		return this.forwardLookup.size();
+	}
 }
