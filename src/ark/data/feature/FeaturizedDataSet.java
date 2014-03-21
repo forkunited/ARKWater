@@ -19,7 +19,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	
 	private TreeMap<Integer, Feature<D, L>> features; // Maps from the feature's starting vocabulary index to the feature
 	private Map<Integer, String> featureVocabularyNames; // Sparse map from indices to names
-	private Map<Integer, Map<Integer, Double>> featureVocabularyValues; // Map from data to indices to values
+	private Map<D, Map<Integer, Double>> featureVocabularyValues; // Map from data to indices to values
 	private int featureVocabularySize;
 	
 	public FeaturizedDataSet(String name, OutputWriter output) {
@@ -42,7 +42,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 			addFeature(feature);
 		
 		this.featureVocabularyNames = new ConcurrentHashMap<Integer, String>();
-		this.featureVocabularyValues = new ConcurrentHashMap<Integer, Map<Integer, Double>>();
+		this.featureVocabularyValues = new ConcurrentHashMap<D, Map<Integer, Double>>();
 	}
 	
 	public String getName() {
@@ -85,7 +85,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 				Integer featureIndex = this.features.floorKey(index);
 				if (!featuresToIndices.containsKey(featureIndex))
 					featuresToIndices.put(featureIndex, new ArrayList<Integer>());
-				featuresToIndices.get(featureIndex).add(index % featureIndex);
+				featuresToIndices.get(featureIndex).add((featureIndex != 0) ? index % featureIndex : index);
 			}
 		}
 		
@@ -123,8 +123,13 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 			}
 		}
 		
-		this.featureVocabularyValues.put(datum.getId(), values);
+		this.featureVocabularyValues.put(datum, values);
 		
 		return values;
+	}
+	
+	public boolean precomputeFeatures() {
+		/* FIXME: Implement threaded. Also maybe implement serialization methods */
+		return true;
 	}
 }

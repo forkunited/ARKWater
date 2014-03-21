@@ -1,5 +1,6 @@
 package ark.data.feature;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -159,7 +160,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 		String genericName = shortenName(getGenericName());
 		String[] parameterNames = getParameterNames();
 		
-		shortNamePrefixBuilder = shortNamePrefixBuilder.append(genericName);
+		shortNamePrefixBuilder = shortNamePrefixBuilder.append(genericName).append("_");
 		for (int i = 0; i < parameterNames.length; i++)
 			shortNamePrefixBuilder = shortNamePrefixBuilder.append(shortenName(parameterNames[i]))
 														.append("-")
@@ -181,7 +182,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 			if (Character.isUpperCase(name.charAt(i))) {
 				shortenedName.append(name.charAt(i));
 				curWordSize = 1;
-			} else if (curWordSize <= 4) {
+			} else if (curWordSize < 4) {
 				shortenedName.append(name.charAt(i));
 				curWordSize++;
 			}

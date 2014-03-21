@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,18 +14,60 @@ import java.util.Map.Entry;
 
 import ark.data.DataTools;
 import ark.data.annotation.Datum;
+import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.util.FileUtil;
+import ark.util.SerializationUtil;
 
 public abstract class SupervisedModel<D extends Datum<L>, L> {
 	protected String modelPath;
 	protected List<L> validLabels;
-	protected Map<String, Double> hyperParameters;
-		
-	public abstract boolean deserialize(String modelPath, DataTools dataTools, Datum.Tools<D, L> datumTools);
+	
+	protected abstract String[] getHyperParameterNames();
+	protected abstract SupervisedModel<D, L> makeInstance();
+	protected abstract boolean deserializeParameters(BufferedReader reader, DataTools dataTools, Datum.Tools<D, L> datumTools);	
+	
+	public abstract String getGenericName();
+	public abstract String getHyperParameterValue(String parameter);
+	public abstract boolean setHyperParameterValue(String parameter, String parameterValue, DataTools dataTools, Datum.Tools<D, L> datumTools);
+
 	public abstract boolean train(FeaturizedDataSet<D, L> data, String outputPath);
 	public abstract Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data);
-	public abstract SupervisedModel<D, L> clone();
+	
+	
+	public boolean deserialize(BufferedReader reader, boolean readGenericName, DataTools dataTools, Datum.Tools<D, L> datumTools) throws IOException {
+		int cInt = -1;
+		char c = 0;
+		if (readGenericName) {
+			cInt = reader.read();
+			c = (char)cInt;
+			while (cInt != -1 && c != '(') {
+				cInt = reader.read();
+				c = (char)cInt;
+			}
+			
+			if (cInt == -1)
+				return false;
+		} // FIXME: Put in serialization util.  Add serialize, toString, fromString methods.
+		
+		Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
+		for (Entry<String, String> entry : parameters.entrySet())
+			this.setHyperParameterValue(entry.getKey(), entry.getValue(), dataTools, datumTools);
+		
+		reader.readLine();
+		
+		deserializeParameters(reader, dataTools, datumTools);	
+		
+		return true;
+	}
+	
+	public SupervisedModel<D, L> clone(DataTools dataTools, Datum.Tools<D, L> datumTools) {
+		SupervisedModel<D, L> clone = makeInstance();
+		String[] parameterNames = getHyperParameterNames();
+		for (int i = 0; i < parameterNames.length; i++)
+			clone.setHyperParameterValue(parameterNames[i], getHyperParameterValue(parameterNames[i]), dataTools, datumTools);
+		return clone;
+	}
 	
 	public List<L> getValidLabels() {
 		return this.validLabels;
@@ -48,69 +92,13 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 		return classifiedData;
 	}
-		
-	public void setHyperParameters(Map<String, Double> values) {
-		for (Entry<String, Double> entry : values.entrySet()) {
-			setHyperParameter(entry.getKey(), entry.getValue());
+	
+	public boolean setParameterValues(Map<String, String> values, DataTools dataTools, Datum.Tools<D, L> datumTools) {
+		for (Entry<String, String> entry : values.entrySet()) {
+			if (!setHyperParameterValue(entry.getKey(), entry.getValue(), dataTools, datumTools))
+				return false;
 		}
-	}
-	
-	public void setHyperParameter(String parameter, double value) {
-		this.hyperParameters.put(parameter, value);
-	}
-	
-	public double getHyperParameter(String parameter) {
-		return this.hyperParameters.get(parameter);
-	}
-	
-	public boolean hasHyperParameter(String parameter) {
-		return this.hyperParameters.containsKey(parameter);
-	}
-	
-	protected boolean serializeParameters() {
-		if (this.modelPath == null)
-			return false;
 		
-        try {
-    		BufferedWriter w = new BufferedWriter(new FileWriter(this.modelPath + ".p"));  		
-    		
-    		for (L label : this.validLabels) {
-    			w.write(label.toString() + "\t");
-    		}
-    		w.write("\n");
-    		
-    		for (Entry<String, Double> hyperParameter : this.hyperParameters.entrySet()) {
-    			w.write(hyperParameter.getKey() + "\t" + hyperParameter.getValue() + "\n");
-    		}
-    		
-            w.close();
-            return true;
-        } catch (IOException e) { e.printStackTrace(); return false; }
-	}
-	
-	protected boolean deserializeParameters(Datum.Tools<D, L> annotationTools) {
-		if (this.modelPath == null)
-			return false;
-		
-        try {
-    		BufferedReader r = FileUtil.getFileReader(this.modelPath + ".p");		
-    		
-    		String validLabelsLine = r.readLine();
-    		String[] validLabelStrs = validLabelsLine.trim().split("\t");
-    		this.validLabels = new ArrayList<L>();
-    		for (String validLabelStr : validLabelStrs) {
-    			this.validLabels.add(annotationTools.labelFromString(validLabelStr));
-    		}
-    		
-    		String hyperParameterLine = null;
-    		this.hyperParameters = new HashMap<String, Double>();
-    		while ((hyperParameterLine = r.readLine()) != null) {
-    			String[] hyperParameterParts = hyperParameterLine.split("\t");
-    			setHyperParameter(hyperParameterParts[0], Double.parseDouble(hyperParameterParts[1]));
-    		}
-
-    		r.close();
-            return true;
-        } catch (IOException e) { e.printStackTrace(); return false; }
+		return true;
 	}
 }
