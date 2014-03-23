@@ -1,6 +1,5 @@
 package ark.data.feature;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import ark.data.DataTools;
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.util.Pair;
@@ -29,7 +27,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 	
 	protected abstract String[] getParameterNames();
 	protected abstract String getParameterValue(String parameter);
-	protected abstract boolean setParameterValue(String parameter, String parameterValue, DataTools dataTools, Datum.Tools<D, L> datumTools);
+	protected abstract boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
 	protected abstract Feature<D, L> makeInstance();
 	
 	public Map<Integer, String> getSpecificShortNamesForIndices(Iterable<Integer> indices) {
@@ -54,32 +52,21 @@ public abstract class Feature<D extends Datum<L>, L> {
 		return specificShortNames;
 	}
 	
-	public Feature<D, L> clone(DataTools dataTools, Datum.Tools<D, L> datumTools) {
+	public Feature<D, L> clone(Datum.Tools<D, L> datumTools) {
 		Feature<D, L> clone = makeInstance();
 		String[] parameterNames = getParameterNames();
 		for (int i = 0; i < parameterNames.length; i++)
-			clone.setParameterValue(parameterNames[i], getParameterValue(parameterNames[i]), dataTools, datumTools);
+			clone.setParameterValue(parameterNames[i], getParameterValue(parameterNames[i]), datumTools);
 		return clone;
 	}
 
-	public boolean deserialize(Reader reader, boolean readGenericName, DataTools dataTools, Datum.Tools<D, L> datumTools) throws IOException {
-		int cInt = -1;
-		char c = 0;
-		if (readGenericName) {
-			cInt = reader.read();
-			c = (char)cInt;
-			while (cInt != -1 && c != '(') {
-				cInt = reader.read();
-				c = (char)cInt;
-			}
-			
-			if (cInt == -1)
-				return false;
-		}
+	public boolean deserialize(Reader reader, boolean readGenericName, Datum.Tools<D, L> datumTools) throws IOException {
+		if (readGenericName && SerializationUtil.deserializeGenericName(reader) == null)
+			return false;
 		
 		Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
 		for (Entry<String, String> entry : parameters.entrySet())
-			this.setParameterValue(entry.getKey(), entry.getValue(), dataTools, datumTools);
+			this.setParameterValue(entry.getKey(), entry.getValue(), datumTools);
 		
 		Pair<String, String> assignment = null;		
 		do {
@@ -146,9 +133,9 @@ public abstract class Feature<D extends Datum<L>, L> {
 	}
 	
 	
-	public boolean fromString(String str, DataTools dataTools, Datum.Tools<D, L> datumTools) {
+	public boolean fromString(String str, Datum.Tools<D, L> datumTools) {
 		try {
-			return deserialize(new StringReader(str), true, dataTools, datumTools);
+			return deserialize(new StringReader(str), true, datumTools);
 		} catch (IOException e) {
 			
 		}

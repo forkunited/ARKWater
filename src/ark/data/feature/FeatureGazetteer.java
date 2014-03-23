@@ -3,7 +3,6 @@ package ark.data.feature;
 import java.util.HashMap;
 import java.util.Map;
 
-import ark.data.DataTools;
 import ark.data.Gazetteer;
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
@@ -57,9 +56,9 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, DataTools dataTools, Datum.Tools<D, L> datumTools) {
+	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
 		if (parameter.equals("gazetteer"))
-			this.gazetteer = dataTools.getGazetteer(parameterValue);
+			this.gazetteer = datumTools.getDataTools().getGazetteer(parameterValue);
 		else if (parameter.equals("stringExtractor"))
 			this.stringExtractor = datumTools.getStringExtractor(parameterValue);
 		else 

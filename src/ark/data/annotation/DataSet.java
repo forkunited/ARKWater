@@ -1,15 +1,18 @@
 package ark.data.annotation;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
+import java.util.Random;
 import java.util.TreeMap;
 
-public class DataSet<D extends Datum<L>, L> implements Iterable<D> {
+public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	private enum DataFilter {
 		All,
 		OnlyLabeled,
@@ -62,6 +65,9 @@ public class DataSet<D extends Datum<L>, L> implements Iterable<D> {
 		
 	}
 	
+	private Datum.Tools<D, L> datumTools;
+	private Datum.Tools.LabelMapping<L> labelMapping;
+	
 	private Map<L, List<Integer>> labeledData;
 	private List<Integer> unlabeledData;
 	protected TreeMap<Integer, D> data;
@@ -80,7 +86,7 @@ public class DataSet<D extends Datum<L>, L> implements Iterable<D> {
           }
 	};
 	
-	public DataSet() {
+	public DataSet(Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
 		// Used treemap to ensure same ordering when iterating over data across
 		// multiple runs.  HashMap might not give consistent ordering if L.hashCode()
 		// is based on the Object reference (for example if L is an enum)
@@ -91,17 +97,20 @@ public class DataSet<D extends Datum<L>, L> implements Iterable<D> {
 		
 		// For iterating in order by ID
 		this.data = new TreeMap<Integer, D>();
+		
+		this.labelMapping = labelMapping;
+		this.datumTools = datumTools;
 	}
 	
-	public boolean addData(List<D> data) {
+	public boolean addAll(Collection<? extends D> data) {
 		for (D datum : data)
-			if (!addDatum(datum))
+			if (!add(datum))
 				return false;
 		return true;
 	}
 	
-	public boolean addDatum(D datum) {
-		L label = datum.getLabel();
+	public boolean add(D datum) {
+		L label = (this.labelMapping == null) ? datum.getLabel() : this.labelMapping.map(datum.getLabel());
 		if (label == null) {
 			this.unlabeledData.add(datum.getId());
 			return true;
@@ -117,6 +126,8 @@ public class DataSet<D extends Datum<L>, L> implements Iterable<D> {
 	}
 	
 	public List<D> getDataForLabel(L label) {
+		if (this.labelMapping != null)
+			label = this.labelMapping.map(label);
 		List<D> labelData = new ArrayList<D>();
 		if (!this.labeledData.containsKey(label))
 			return labelData;
@@ -125,7 +136,37 @@ public class DataSet<D extends Datum<L>, L> implements Iterable<D> {
 			labelData.add(this.data.get(datumId));
 		return labelData;
 	}
+	
+	public List<DataSet<D, L>> makePartition(double[] distribution, Random random) {
+		List<Integer> dataPermutation = randomDataPermutation(random);
+		List<DataSet<D, L>> partition = new ArrayList<DataSet<D, L>>(distribution.length);
+		
+		int offset = 0;
+		for (int i = 0; i < distribution.length; i++) {
+			int partSize = (int)Math.floor(this.data.size()*distribution[i]);
+			if (i == distribution.length - 1 && offset + partSize < this.data.size())
+				partSize = this.data.size() - offset;
+			
+			DataSet<D, L> part = new DataSet<D, L>(this.datumTools, this.labelMapping);
+			for (int j = offset; j < offset + partSize; j++) {
+				part.add(this.data.get(dataPermutation.get(j)));
+			}
+			
+			offset += partSize;
+			partition.add(part);
+		}
+		
+		return partition;
+	} 
+	
+	public Datum.Tools<D, L> getDatumTools() {
+		return this.datumTools;
+	}
 
+	public Datum.Tools.LabelMapping<L> getLabelMapping() {
+		return this.labelMapping;
+	}
+	
 	@Override
 	public Iterator<D> iterator() {
 		return iterator(DataFilter.All);
@@ -133,5 +174,94 @@ public class DataSet<D extends Datum<L>, L> implements Iterable<D> {
 	
 	public Iterator<D> iterator(DataFilter dataFilter) {
 		return new DataIterator(dataFilter, this.data);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public boolean contains(Object obj) {
+		Datum<L> datum = (Datum<L>)obj;
+		return this.data.containsKey(datum.getId());
+	}
+
+	@Override
+	public boolean containsAll(Collection<?> collection) {
+		for (Object datum : collection)
+			if (!contains(datum))
+				return false;
+		return true;
+	}
+
+	@Override
+	public boolean isEmpty() {
+		return this.data.isEmpty();
+	}
+
+	@Override
+	public int size() {
+		return this.data.size();
+	}
+
+	@Override
+	public Object[] toArray() {
+		Object[] array = new Object[this.data.size()];
+		int i = 0;
+		for (Entry<Integer, D> entry : this.data.entrySet()) {
+			array[i] = entry.getValue();
+			i++;
+		}
+
+		return array;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T> T[] toArray(T[] array) {
+		if (array.length < this.data.size())
+			array = (T[])Array.newInstance(array.getClass().getComponentType(), this.data.size());
+		
+		int i = 0;
+		for (Entry<Integer, D> entry : this.data.entrySet()) {
+			array[i] = (T)entry.getValue();
+			i++;
+		}
+		
+		if (i < array.length)
+			array[i] = null;
+
+		return array;
+	}
+	
+	@Override
+	public void clear() {
+		throw new UnsupportedOperationException();
+	}
+	
+	@Override
+	public boolean remove(Object arg0) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public boolean removeAll(Collection<?> arg0) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public boolean retainAll(Collection<?> arg0) {
+		throw new UnsupportedOperationException();
+	}
+	
+	private List<Integer> randomDataPermutation(Random random) {
+		List<Integer> permutation = new ArrayList<Integer>(this.data.size());
+		for (Integer dataKey : this.data.keySet())
+			permutation.add(dataKey);
+		
+		for (int i = 0; i < permutation.size(); i++) {
+			int j = random.nextInt(i+1);
+			int temp = permutation.get(i);
+			permutation.set(i, permutation.get(j));
+			permutation.set(j, temp);
+		}
+		return permutation;
 	}
 }

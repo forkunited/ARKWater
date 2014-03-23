@@ -54,8 +54,8 @@ public class FeatureGazetteerInitialism<D extends Datum<L>, L> extends FeatureGa
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, DataTools dataTools, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, dataTools, datumTools))
+	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
 		else if (parameter.equals("allowPrefix"))
 			this.allowPrefix = Boolean.valueOf(parameterValue);

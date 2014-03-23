@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import ark.data.DataTools;
 import ark.data.annotation.Datum;
 import ark.data.annotation.nlp.TokenSpan;
 
@@ -60,8 +59,8 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, DataTools dataTools, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, dataTools, datumTools))
+	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
 		else if (parameter.equals("contextWindowSize"))
 			this.contextWindowSize = Integer.valueOf(parameterValue);

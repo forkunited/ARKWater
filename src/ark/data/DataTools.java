@@ -6,6 +6,7 @@ import java.util.Map;
 
 import ark.wrapper.BrownClusterer;
 
+import ark.util.OutputWriter;
 import ark.util.StringUtil;
 import ark.data.Gazetteer;
 
@@ -43,11 +44,15 @@ public class DataTools {
 	protected Map<String, DataTools.StringCollectionTransform> collectionFns;
 	protected Map<String, BrownClusterer> brownClusterers;
 	
-	public DataTools() {
+	protected OutputWriter outputWriter;
+	
+	public DataTools(OutputWriter outputWriter) {
 		this.gazetteers = new HashMap<String, Gazetteer>();
 		this.cleanFns = new HashMap<String, DataTools.StringTransform>();
 		this.collectionFns = new HashMap<String, DataTools.StringCollectionTransform>();
 		this.brownClusterers = new HashMap<String, BrownClusterer>();
+		
+		this.outputWriter = outputWriter;
 		
 		this.cleanFns.put("DefaultCleanFn", new DataTools.StringTransform() {
 			public String toString() {
@@ -87,6 +92,10 @@ public class DataTools {
 	
 	public BrownClusterer getBrownClusterer(String name) {
 		return this.brownClusterers.get(name);
+	}
+	
+	public OutputWriter getOutputWriter() {
+		return this.outputWriter;
 	}
 	
 	public boolean addGazetteer(Gazetteer gazetteer) {

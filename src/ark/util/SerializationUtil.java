@@ -85,6 +85,54 @@ public class SerializationUtil {
 		return new Pair<String, String>(first.toString().trim(),second.toString().trim());
 	}
 	
+	public static String deserializeGenericName(Reader reader) throws IOException {
+		int cInt = -1;
+		char c = 0;
+		StringBuilder genericName = new StringBuilder();
+		
+		do {
+			cInt = reader.read();
+			c = (char)cInt;
+			
+			if (cInt != -1 && c != '(')
+				genericName.append(c);
+		} while (cInt != -1 && c != '(');
+		
+		return genericName.toString();
+	}
+	
+	public static String deserializeAssignmentLeft(Reader reader) throws IOException {
+		int cInt = -1;
+		char c = 0;
+		StringBuilder genericName = new StringBuilder();
+		
+		do {
+			cInt = reader.read();
+			c = (char)cInt;
+			
+			if (cInt != -1 && c != '=')
+				genericName.append(c);
+		} while (cInt != -1 && c != '=');
+		
+		return genericName.toString();
+	}
+	
+	public static String deserializeAssignmentRight(Reader reader) throws IOException {
+		int cInt = -1;
+		char c = 0;
+		StringBuilder genericName = new StringBuilder();
+		
+		do {
+			cInt = reader.read();
+			c = (char)cInt;
+			
+			if (cInt != -1 && c != '\n' && c != ')')
+				genericName.append(c);
+		} while (cInt != -1 && c != '\n' && c != ')');
+		
+		return genericName.toString();
+	}
+	
 	public static <T> boolean serializeArguments(Map<String, T> arguments, Writer writer) throws IOException {
 		int i = 0;
 		for (Entry<String, T> argument : arguments.entrySet()) {
@@ -97,7 +145,11 @@ public class SerializationUtil {
 		return true;
 	}
 	
-	public static <T> boolean serializeList(List<T> list, Writer writer) throws IOException {		
+	public static <T> boolean serializeList(Iterable<T> iterable, Writer writer) throws IOException {		
+		List<T> list = new ArrayList<T>();
+		for (T item : iterable)
+			list.add(item);
+		
 		for (int i = 0; i < list.size(); i++) {
 			writer.write(list.get(i).toString());
 			if (i != list.size() - 1)

@@ -133,15 +133,15 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> 
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, DataTools dataTools, Datum.Tools<D, L> datumTools) {
+	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
 		if (parameter.equals("minFeatureOccurrence")) 
 			this.minFeatureOccurrence = Integer.valueOf(parameterValue);
 		else if (parameter.equals("n"))
 			this.n = Integer.valueOf(parameterValue);
 		else if (parameter.equals("cleanFn"))
-			this.cleanFn = dataTools.getCleanFn(parameterValue);
+			this.cleanFn = datumTools.getDataTools().getCleanFn(parameterValue);
 		else if (parameter.equals("clusterer"))
-			this.clusterer = dataTools.getBrownClusterer(parameterValue);
+			this.clusterer = datumTools.getDataTools().getBrownClusterer(parameterValue);
 		else if (parameter.equals("tokenExtractor"))
 			this.tokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
 		else

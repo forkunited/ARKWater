@@ -1,0 +1,54 @@
+package ark.experiment;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.Random;
+
+import ark.data.annotation.DataSet;
+import ark.data.annotation.Datum;
+import ark.util.FileUtil;
+import ark.util.SerializationUtil;
+
+public abstract class Experiment<D extends Datum<L>, L> {
+	protected String name;
+	protected String inputPath;
+	protected Datum.Tools<D, L> datumTools;
+	
+	protected Random random;
+	protected int maxThreads;
+	
+	public Experiment(String name, String inputPath, Datum.Tools<D, L> datumTools) {
+		this.name = name;
+		this.inputPath = inputPath;
+		this.datumTools = datumTools;
+	}
+	
+	protected abstract boolean execute(DataSet<D, L> data);
+	protected abstract boolean deserializeNext(Reader reader, String nextName) throws IOException;
+	
+	public boolean run(DataSet<D, L> data) {
+		try {
+			return deserialize() && execute(data);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+	
+	protected boolean deserialize() throws IOException {
+		BufferedReader reader = FileUtil.getFileReader(this.inputPath);
+		String assignmentLeft = null;
+		
+		while ((assignmentLeft = SerializationUtil.deserializeAssignmentLeft(reader)) != null) {
+			if (assignmentLeft.equals("randomSeed"))
+				this.random = new Random(Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader)));
+			else if (assignmentLeft.equals("maxThreads"))
+				this.maxThreads = Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
+			else if (!deserializeNext(reader, assignmentLeft))
+				return false;
+		}
+		
+		return true;
+	}
+}

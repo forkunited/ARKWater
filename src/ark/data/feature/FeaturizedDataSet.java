@@ -10,32 +10,29 @@ import java.util.TreeMap;
 
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
-import ark.util.OutputWriter;
 
 public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	private String name;
 	private int maxThreads;
-	//private OutputWriter output;
 	
 	private TreeMap<Integer, Feature<D, L>> features; // Maps from the feature's starting vocabulary index to the feature
 	private Map<Integer, String> featureVocabularyNames; // Sparse map from indices to names
 	private Map<D, Map<Integer, Double>> featureVocabularyValues; // Map from data to indices to values
 	private int featureVocabularySize;
 	
-	public FeaturizedDataSet(String name, OutputWriter output) {
-		this(name, 1, output);
+	public FeaturizedDataSet(String name, Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
+		this(name, 1, datumTools, labelMapping);
 	}
 	
-	public FeaturizedDataSet(String name, int maxThreads, OutputWriter output) {
-		this(name, new ArrayList<Feature<D, L>>(), maxThreads, output);
+	public FeaturizedDataSet(String name, int maxThreads, Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
+		this(name, new ArrayList<Feature<D, L>>(), maxThreads, datumTools, labelMapping);
 	}
 	
-	public FeaturizedDataSet(String name, List<Feature<D, L>> features, int maxThreads, OutputWriter output) {
-		super();
+	public FeaturizedDataSet(String name, List<Feature<D, L>> features, int maxThreads, Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
+		super(datumTools, labelMapping);
 		this.name = name;
 		this.features = new TreeMap<Integer, Feature<D, L>>();
 		this.maxThreads = maxThreads;
-		//this.output = output;
 		 
 		this.featureVocabularySize = 0;
 		for (Feature<D, L> feature : features)

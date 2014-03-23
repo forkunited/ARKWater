@@ -56,8 +56,8 @@ public class FeatureGazetteerPrefixTokens<D extends Datum<L>, L> extends Feature
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, DataTools dataTools, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, dataTools, datumTools))
+	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
 		else if (parameter.equals("minTokens"))
 			this.minTokens = Integer.valueOf(parameterValue);
