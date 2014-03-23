@@ -203,7 +203,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			/*
 			 * Perform a grid search using the training and dev data for this fold
 			 */
-			SupervisedModel<D, L> foldModel = model.clone(datumTools);
+			SupervisedModel<D, L> foldModel = model.clone(datumTools, model.getValidLabels(), model.getLabelMapping());
 			List<Pair<HyperParameterGridSearch.GridPosition, Double>> gridEvaluation = null;
 			HyperParameterGridSearch.GridPosition bestParameters = null;
 			if (possibleParameterValues != null && possibleParameterValues.size() > 0) {

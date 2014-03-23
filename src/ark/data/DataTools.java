@@ -43,6 +43,7 @@ public class DataTools {
 	protected Map<String, DataTools.StringTransform> cleanFns;
 	protected Map<String, DataTools.StringCollectionTransform> collectionFns;
 	protected Map<String, BrownClusterer> brownClusterers;
+	protected Map<String, String> paths;
 	
 	protected OutputWriter outputWriter;
 	
@@ -51,6 +52,7 @@ public class DataTools {
 		this.cleanFns = new HashMap<String, DataTools.StringTransform>();
 		this.collectionFns = new HashMap<String, DataTools.StringCollectionTransform>();
 		this.brownClusterers = new HashMap<String, BrownClusterer>();
+		this.paths = new HashMap<String, String>();
 		
 		this.outputWriter = outputWriter;
 		
@@ -94,6 +96,10 @@ public class DataTools {
 		return this.brownClusterers.get(name);
 	}
 	
+	public String getPath(String name) {
+		return this.paths.get(name);
+	}
+	
 	public OutputWriter getOutputWriter() {
 		return this.outputWriter;
 	}
@@ -135,6 +141,11 @@ public class DataTools {
 	
 	public boolean addBrownClusterer(BrownClusterer brownClusterer) {
 		this.brownClusterers.put(brownClusterer.toString(), brownClusterer);
+		return true;
+	}
+	
+	public boolean addPath(String name, String path) {
+		this.paths.put(name, path);
 		return true;
 	}
 }

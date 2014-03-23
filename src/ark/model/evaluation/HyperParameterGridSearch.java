@@ -159,7 +159,7 @@ public class HyperParameterGridSearch<D extends Datum<L>, L> {
 		
 		output.debugWriteln("Grid search evaluating model (" + this.name + " " + position.toString() + ")");
 		
-		SupervisedModel<D, L> positionModel = this.model.clone(this.trainData.getDatumTools());
+		SupervisedModel<D, L> positionModel = this.model.clone(this.trainData.getDatumTools(), this.model.getValidLabels(), this.model.getLabelMapping());
 		Map<String, String> parameterValues = position.getCoordinates();
 		for (Entry<String, String> entry : parameterValues.entrySet()) {
 			positionModel.setHyperParameterValue(entry.getKey(), entry.getValue(), this.trainData.getDatumTools());	

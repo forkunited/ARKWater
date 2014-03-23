@@ -56,11 +56,11 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 			this.crossValidationFolds = Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
 		
 		} else if (nextName.equals("model")) {
-			String featureName = SerializationUtil.deserializeGenericName(reader);
-			Feature<D, L> feature = this.datumTools.makeFeatureInstance(featureName);
-			if (!feature.deserialize(reader, false, this.datumTools))
+			String modelName = SerializationUtil.deserializeGenericName(reader);
+			SupervisedModel<D, L> model = this.datumTools.makeModelInstance(modelName);
+			if (!model.deserialize(reader, false, false, this.datumTools))
 				return false;
-			this.features.add(feature);
+			this.model = model;
 		
 		} else if (nextName.equals("feature")) {
 			String modelName = SerializationUtil.deserializeGenericName(reader);
@@ -75,6 +75,7 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 			String parameterName = SerializationUtil.deserializeGenericName(reader);
 			List<String> parameterValues = SerializationUtil.deserializeList(reader);
 			this.gridSearchParameterValues.put(parameterName, parameterValues);
+		
 		}
 		
 		return false;

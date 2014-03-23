@@ -142,8 +142,8 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		return true;
 	}
 	
-	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools) {
-		SupervisedModel<D, L> clone = makeInstance();
+	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Set<L> validLabels, LabelMapping<L> labelMapping) {
+		SupervisedModel<D, L> clone = makeInstance(validLabels, labelMapping);
 		String[] parameterNames = getHyperParameterNames();
 		for (int i = 0; i < parameterNames.length; i++)
 			clone.setHyperParameterValue(parameterNames[i], getHyperParameterValue(parameterNames[i]), datumTools);
