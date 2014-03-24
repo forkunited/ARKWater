@@ -2,6 +2,7 @@ package ark.util;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,13 +32,15 @@ import java.util.Map.Entry;
 public class SerializationUtil {
 	public static Map<String, String> deserializeArguments(Reader reader) throws IOException {
 		Map<String, String> arguments = new HashMap<String, String>();
-		Pair<String, String> assignment = null;		
-		do {
-			assignment = SerializationUtil.deserializeAssignment(reader);
-			if (assignment != null)
-				arguments.put(assignment.getFirst(), assignment.getSecond());
-		} while(assignment != null);
-		
+		List<String> assignments = SerializationUtil.deserializeList(reader);
+		for (String assignmentStr : assignments) {
+			// Slow... optimize this if necessary
+			Pair<String, String> assignment = SerializationUtil.deserializeAssignment(new StringReader(assignmentStr));
+			if (assignment == null)
+				return null;
+			arguments.put(assignment.getFirst(), assignment.getSecond());
+		}
+				
 		return arguments;
 	}
 	
@@ -79,7 +82,8 @@ public class SerializationUtil {
 		StringBuilder second = new StringBuilder();
 		while (cInt != -1 && c != ',' && c != '\n' && c != ')') {
 			second = second.append(c);
-			c = (char)reader.read();
+			cInt = reader.read();
+			c = (char)cInt;
 		}
 		
 		return new Pair<String, String>(first.toString().trim(),second.toString().trim());
@@ -104,33 +108,33 @@ public class SerializationUtil {
 	public static String deserializeAssignmentLeft(Reader reader) throws IOException {
 		int cInt = -1;
 		char c = 0;
-		StringBuilder genericName = new StringBuilder();
+		StringBuilder left = new StringBuilder();
 		
 		do {
 			cInt = reader.read();
 			c = (char)cInt;
 			
 			if (cInt != -1 && c != '=')
-				genericName.append(c);
+				left.append(c);
 		} while (cInt != -1 && c != '=');
 		
-		return genericName.toString();
+		return (cInt == -1) ? null : left.toString().trim();
 	}
 	
 	public static String deserializeAssignmentRight(Reader reader) throws IOException {
 		int cInt = -1;
 		char c = 0;
-		StringBuilder genericName = new StringBuilder();
+		StringBuilder right = new StringBuilder();
 		
 		do {
 			cInt = reader.read();
 			c = (char)cInt;
 			
 			if (cInt != -1 && c != '\n' && c != ')')
-				genericName.append(c);
+				right.append(c);
 		} while (cInt != -1 && c != '\n' && c != ')');
 		
-		return genericName.toString();
+		return right.toString().trim();
 	}
 	
 	public static <T> boolean serializeArguments(Map<String, T> arguments, Writer writer) throws IOException {

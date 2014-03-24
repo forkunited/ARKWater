@@ -43,7 +43,7 @@ public class CommandRunner {
 	
 	private static String[] constructCommandsBySystem(String cmd) {
 		if (System.getProperty("os.name").contains("Windows"))
-			return new String[]{"C:\\cygwin\\bin\\bash.exe", "-c", cmd};
+			return new String[]{"C:\\cygwin64\\bin\\bash.exe", "-c", cmd};
 		else 
 			return new String[]{"/bin/bash", "-c", cmd};
 			
@@ -51,7 +51,7 @@ public class CommandRunner {
 	
 	private static String[] constructEnvironmentBySystem() {
 		if (System.getProperty("os.name").contains("Windows"))
-			return new String[]{"PATH=%PATH%;C:/cygwin/bin"};
+			return new String[]{"PATH=%PATH%;C:/cygwin64/bin"};
 		else
 			return null;
 	}

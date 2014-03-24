@@ -39,11 +39,29 @@ public class DataTools {
 		String toString();
 	}
 	
+	public class Path {
+		private String name;
+		private String value;
+		
+		public Path(String name, String value) {
+			this.name = name;
+			this.value = value;
+		}
+		
+		public String getValue() {
+			return this.value;
+		}
+		
+		public String getName() {
+			return this.name;
+		}
+	}
+	
 	protected Map<String, Gazetteer> gazetteers;
 	protected Map<String, DataTools.StringTransform> cleanFns;
 	protected Map<String, DataTools.StringCollectionTransform> collectionFns;
 	protected Map<String, BrownClusterer> brownClusterers;
-	protected Map<String, String> paths;
+	protected Map<String, Path> paths;
 	
 	protected OutputWriter outputWriter;
 	
@@ -52,7 +70,7 @@ public class DataTools {
 		this.cleanFns = new HashMap<String, DataTools.StringTransform>();
 		this.collectionFns = new HashMap<String, DataTools.StringCollectionTransform>();
 		this.brownClusterers = new HashMap<String, BrownClusterer>();
-		this.paths = new HashMap<String, String>();
+		this.paths = new HashMap<String, Path>();
 		
 		this.outputWriter = outputWriter;
 		
@@ -96,7 +114,7 @@ public class DataTools {
 		return this.brownClusterers.get(name);
 	}
 	
-	public String getPath(String name) {
+	public Path getPath(String name) {
 		return this.paths.get(name);
 	}
 	
@@ -144,7 +162,7 @@ public class DataTools {
 		return true;
 	}
 	
-	public boolean addPath(String name, String path) {
+	public boolean addPath(String name, Path path) {
 		this.paths.put(name, path);
 		return true;
 	}

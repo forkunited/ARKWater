@@ -1,7 +1,7 @@
 package ark.data.feature;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -53,14 +53,24 @@ public abstract class Feature<D extends Datum<L>, L> {
 	}
 	
 	public Feature<D, L> clone(Datum.Tools<D, L> datumTools) {
+		return clone(datumTools, null);
+	}
+	
+	public Feature<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
 		Feature<D, L> clone = makeInstance();
 		String[] parameterNames = getParameterNames();
-		for (int i = 0; i < parameterNames.length; i++)
-			clone.setParameterValue(parameterNames[i], getParameterValue(parameterNames[i]), datumTools);
+		for (int i = 0; i < parameterNames.length; i++) {
+			String parameterValue = getParameterValue(parameterNames[i]);
+			if (environment != null) {
+				for (Entry<String, String> entry : environment.entrySet())
+					parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
+			}
+			clone.setParameterValue(parameterNames[i], parameterValue, datumTools);
+		}
 		return clone;
 	}
 
-	public boolean deserialize(Reader reader, boolean readGenericName, Datum.Tools<D, L> datumTools) throws IOException {
+	public boolean deserialize(BufferedReader reader, boolean readGenericName, boolean readVocabulary, Datum.Tools<D, L> datumTools) throws IOException {
 		if (readGenericName && SerializationUtil.deserializeGenericName(reader) == null)
 			return false;
 		
@@ -68,13 +78,16 @@ public abstract class Feature<D extends Datum<L>, L> {
 		for (Entry<String, String> entry : parameters.entrySet())
 			this.setParameterValue(entry.getKey(), entry.getValue(), datumTools);
 		
-		Pair<String, String> assignment = null;		
-		do {
-			assignment = SerializationUtil.deserializeAssignment(reader);
-			if (assignment != null)
-				if (!setVocabularyTerm(Integer.valueOf(assignment.getSecond()), assignment.getFirst()))
+		if (readVocabulary) {
+			Map<String, String> vocabulary = SerializationUtil.deserializeArguments(reader);
+			if (vocabulary == null)
+				return true;
+			
+			for (Entry<String, String> entry : vocabulary.entrySet()) {
+				if (!setVocabularyTerm(Integer.valueOf(entry.getValue()), entry.getKey()))
 					return false;
-		} while(assignment != null);
+			}
+		}
 
 		return true;
 	}
@@ -135,7 +148,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 	
 	public boolean fromString(String str, Datum.Tools<D, L> datumTools) {
 		try {
-			return deserialize(new StringReader(str), true, datumTools);
+			return deserialize(new BufferedReader(new StringReader(str)), true, true, datumTools);
 		} catch (IOException e) {
 			
 		}

@@ -49,9 +49,9 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	@Override
 	protected String getParameterValue(String parameter) {
 		if (parameter.equals("gazetteer"))
-			return this.gazetteer.getName();
+			return (this.gazetteer == null) ? null : this.gazetteer.getName();
 		else if (parameter.equals("stringExtractor"))
-			return this.stringExtractor.toString();
+			return (this.stringExtractor == null) ? null : this.stringExtractor.toString();
 		return null;
 	}
 

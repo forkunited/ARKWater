@@ -27,6 +27,10 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> 
 	
 	protected abstract Set<String> getNGramsForDatum(D datum);
 	
+	public FeatureNGram() {
+		this.vocabulary = new BidirectionalLookupTable<String, Integer>();
+	}
+	
 	@Override
 	public boolean init(DataSet<D, L> dataSet) {
 		CounterTable<String> counter = new CounterTable<String>();
@@ -124,11 +128,11 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> 
 		else if (parameter.equals("n"))
 			return String.valueOf(this.n);
 		else if (parameter.equals("cleanFn"))
-			return this.cleanFn.toString();
+			return (this.cleanFn == null) ? null : this.cleanFn.toString();
 		else if (parameter.equals("clusterer"))
 			return (this.clusterer == null) ? "None" : this.clusterer.getName();
 		else if (parameter.equals("tokenExtractor"))
-			return this.tokenExtractor.toString();
+			return (this.tokenExtractor == null) ? null : this.tokenExtractor.toString();
 		return null;
 	}
 

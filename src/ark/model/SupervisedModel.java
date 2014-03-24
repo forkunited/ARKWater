@@ -17,7 +17,6 @@ import java.util.TreeSet;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.data.feature.FeaturizedDataSet;
-import ark.util.Pair;
 import ark.util.SerializationUtil;
 
 public abstract class SupervisedModel<D extends Datum<L>, L> {
@@ -26,8 +25,8 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 	protected abstract String[] getHyperParameterNames();
 	protected abstract SupervisedModel<D, L> makeInstance();
-	protected abstract boolean deserializeExtraInfo(Reader reader, Datum.Tools<D, L> datumTools);
-	protected abstract boolean deserializeParameters(Reader reader, Datum.Tools<D, L> datumTools);	
+	protected abstract boolean deserializeExtraInfo(BufferedReader reader, Datum.Tools<D, L> datumTools);
+	protected abstract boolean deserializeParameters(BufferedReader reader, Datum.Tools<D, L> datumTools);	
 	protected abstract boolean serializeParameters(Writer writer);
 	protected abstract boolean serializeExtraInfo(Writer writer);
 	
@@ -47,36 +46,36 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		return instance;
 	}
 	
-	public boolean deserialize(Reader reader, boolean readGenericName, boolean readParameters, Datum.Tools<D, L> datumTools) throws IOException {
-		BufferedReader bufferedReader = new BufferedReader(reader);
-		
-		if (readGenericName && SerializationUtil.deserializeGenericName(bufferedReader) == null)
+	public boolean deserialize(BufferedReader reader, boolean readGenericName, boolean readParameters, Datum.Tools<D, L> datumTools) throws IOException {		
+		if (readGenericName && SerializationUtil.deserializeGenericName(reader) == null)
 			return false;
 		
-		Map<String, String> parameters = SerializationUtil.deserializeArguments(bufferedReader);
+		Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
 		for (Entry<String, String> entry : parameters.entrySet())
-			this.setHyperParameterValue(entry.getKey(), entry.getValue(), datumTools);
+			if (!this.setHyperParameterValue(entry.getKey(), entry.getValue(), datumTools))
+				return false;
 		
-		bufferedReader.readLine(); // Read "{"
+		reader.readLine(); // Read "{"
 		
 		String line = null;
-		while (!(line = bufferedReader.readLine()).contains("}")) {
-			Pair<String, String> assignment = SerializationUtil.deserializeAssignment(new StringReader(line));
-			if (assignment.getFirst().equals("labelMapping"))
-				this.labelMapping = datumTools.getLabelMapping(assignment.getSecond());
-			else if (assignment.getFirst().equals("validLabels")) {
+		while (!(line = reader.readLine()).contains("}")) {
+			Reader lineReader = new StringReader(line);
+			String assignmentLeft = SerializationUtil.deserializeAssignmentLeft(lineReader);
+			if (assignmentLeft.equals("labelMapping"))
+				this.labelMapping = datumTools.getLabelMapping(SerializationUtil.deserializeAssignmentRight(lineReader));
+			else if (assignmentLeft.equals("validLabels")) {
 				this.validLabels = new TreeSet<L>();
-				List<String> validLabelStrs = SerializationUtil.deserializeList(new StringReader(assignment.getSecond()));
+				List<String> validLabelStrs = SerializationUtil.deserializeList(lineReader);
 				for (String validLabelStr : validLabelStrs)
 					this.validLabels.add(datumTools.labelFromString(validLabelStr));
 			} else {
-				if (!deserializeExtraInfo(reader, datumTools))
+				if (!deserializeExtraInfo(reader, datumTools)) // FIXME: Skips a line... Not right... do this later
 					return false;
 			}
 		}
 		
 		if (readParameters)
-			deserializeParameters(bufferedReader, datumTools);	
+			deserializeParameters(reader, datumTools);	
 	
 		return true;
 	}
@@ -143,10 +142,20 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	}
 	
 	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools) {
+		return clone(datumTools, null);
+	}
+	
+	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
 		SupervisedModel<D, L> clone = makeInstance(this.validLabels, this.labelMapping);
 		String[] parameterNames = getHyperParameterNames();
-		for (int i = 0; i < parameterNames.length; i++)
-			clone.setHyperParameterValue(parameterNames[i], getHyperParameterValue(parameterNames[i]), datumTools);
+		for (int i = 0; i < parameterNames.length; i++) {
+			String parameterValue = getHyperParameterValue(parameterNames[i]);
+			if (environment != null) {
+				for (Entry<String, String> entry : environment.entrySet())
+					parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
+			}
+			clone.setHyperParameterValue(parameterNames[i], parameterValue, datumTools);
+		}
 		return clone;
 	}
 	

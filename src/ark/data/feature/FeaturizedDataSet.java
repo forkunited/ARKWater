@@ -51,9 +51,6 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	}
 	
 	public boolean addFeature(Feature<D, L> feature) {
-		if (!feature.init(this))
-			return false;
-		
 		this.features.put(this.featureVocabularySize, feature);
 		this.featureVocabularySize += feature.getVocabularySize();
 		

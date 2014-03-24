@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Reader;
 import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +13,7 @@ import java.util.Map.Entry;
 
 import net.sf.json.JSONObject;
 
+import ark.data.DataTools;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
@@ -21,8 +21,8 @@ import ark.util.CommandRunner;
 import ark.util.OutputWriter;
 
 public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<D, L> {
-	private String cmdPath;
-	private String modelPath;
+	private DataTools.Path cmdPath;
+	private DataTools.Path modelPath;
 	private double l1;
 	private double l2;
 	private boolean warmRestart;
@@ -32,32 +32,32 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	public boolean train(FeaturizedDataSet<D, L> data) {
 		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
 		
-		String trainXPath = this.modelPath + ".train.x";
-		String trainYPath = this.modelPath + ".train.y";
+		String trainXPath = this.modelPath.getValue() + ".train.x";
+		String trainYPath = this.modelPath.getValue() + ".train.y";
 		
-		output.debugWriteln("Creg outputting training data for (" + this.modelPath + ")");
+		output.debugWriteln("Creg outputting training data (" + this.modelPath.getName() + ")");
 		
 		if (!outputXData(trainXPath, data, true))
 			return false;
 		if (!outputYData(trainYPath, data))
 			return false;
 		
-		output.debugWriteln("Creg training model for (" + this.modelPath + ")");
+		output.debugWriteln("Creg training model (" + this.modelPath.getName() + ")");
 		
-		File outputFile = new File(this.modelPath);
+		File outputFile = new File(this.modelPath.getValue());
 		
-		String trainCmd = this.cmdPath + 
+		String trainCmd = this.cmdPath.getValue() + 
 						" -x " + trainXPath + 
 						" -y " + trainYPath + 
 						" --l1 " + this.l1 + 
 						" --l2 " + this.l2 + 
-						((this.warmRestart && outputFile.exists()) ? " --weights " + this.modelPath : "") +
-						" --z " + this.modelPath;
+						((this.warmRestart && outputFile.exists()) ? " --weights " + this.modelPath.getValue() : "") +
+						" --z " + this.modelPath.getValue();
 		trainCmd = trainCmd.replace("\\", "/"); 
 		if (!CommandRunner.run(trainCmd))
 			return false;
 		
-		output.debugWriteln("Creg finished training model (" + this.modelPath + ")");
+		output.debugWriteln("Creg finished training model (" + this.modelPath.getName() + ")");
 		
 		return true;
 	}
@@ -93,7 +93,7 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
     								   .append(", ");
     			}
     			
-    			if (datumStr.length() > 0) {
+    			if (featureValues.size() > 0) {
     				datumStr = datumStr.delete(datumStr.length() - 2, datumStr.length());
     			}
     			
@@ -181,30 +181,30 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	
 	private String predict(FeaturizedDataSet<D, L> data) {
 		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
-		String predictXPath = this.modelPath + ".predict.x";
-		String predictOutPath = this.modelPath + ".predict.y";
+		String predictXPath = this.modelPath.getValue() + ".predict.x";
+		String predictOutPath = this.modelPath.getValue() + ".predict.y";
 		
-		output.debugWriteln("Creg outputting prediction data (" + this.modelPath + ")");
+		output.debugWriteln("Creg outputting prediction data (" + this.modelPath.getName() + ")");
 		
 		if (!outputXData(predictXPath, data, false)) {
-			output.debugWriteln("Error: Creg failed to output feature data (" + this.modelPath + ")");
+			output.debugWriteln("Error: Creg failed to output feature data (" + this.modelPath.getName() + ")");
 			return null;
 		}
 		
-		String predictCmd = this.cmdPath + " -w " + this.modelPath + " -W -D --tx " + predictXPath + " > " + predictOutPath;
+		String predictCmd = this.cmdPath.getValue() + " -w " + this.modelPath.getValue() + " -W -D --tx " + predictXPath + " > " + predictOutPath;
 		predictCmd = predictCmd.replace("\\", "/"); 
 		if (!CommandRunner.run(predictCmd)) {
-			output.debugWriteln("Error: Creg failed to run on output data (" + this.modelPath + ")");
+			output.debugWriteln("Error: Creg failed to run on output data (" + this.modelPath.getName() + ")");
 			return null;
 		}
 		
-		output.debugWriteln("Creg predicting data (" + this.modelPath + ")");
+		output.debugWriteln("Creg predicting data (" + this.modelPath.getName() + ")");
 		
 		return predictOutPath;
 	}
 	
 	@Override
-	protected boolean deserializeParameters(Reader reader, Tools<D, L> datumTools) {
+	protected boolean deserializeParameters(BufferedReader reader, Tools<D, L> datumTools) {
 		return true;
 	}
 
@@ -226,9 +226,9 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	@Override
 	public String getHyperParameterValue(String parameter) {
 		if (parameter.equals("cmdPath"))
-			return this.cmdPath;
+			return (this.cmdPath == null) ? null : this.cmdPath.getName();
 		else if (parameter.equals("modelPath"))
-			return this.modelPath;
+			return (this.modelPath == null) ? null : this.modelPath.getName();
 		else if (parameter.equals("l1"))
 			return String.valueOf(this.l1);
 		else if (parameter.equals("l2"))
@@ -267,7 +267,7 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	}
 
 	@Override
-	protected boolean deserializeExtraInfo(Reader reader, Tools<D, L> datumTools) {
+	protected boolean deserializeExtraInfo(BufferedReader reader, Tools<D, L> datumTools) {
 		return true;
 	}
 

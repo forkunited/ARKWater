@@ -12,6 +12,8 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	private int contextWindowSize;
 	
 	public FeatureNGramContext() {
+		super();
+		
 		this.contextWindowSize = 0;
 		this.parameterNames = Arrays.copyOf(this.parameterNames, this.parameterNames.length + 1);
 		this.parameterNames[this.parameterNames.length - 1] = "contextWindowSize";

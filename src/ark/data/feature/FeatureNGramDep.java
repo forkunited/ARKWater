@@ -20,6 +20,8 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	private boolean useRelationTypes;
 	
 	public FeatureNGramDep() {
+		super();
+		
 		this.mode = Mode.ParentsAndChildren;
 		this.useRelationTypes = true;
 		
@@ -97,7 +99,7 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 		if (parameterValue != null)
 			return parameterValue;
 		else if (parameter.equals("mode"))
-			return this.mode.toString();
+			return this.mode == null ? null : this.mode.toString();
 		else if (parameter.equals("useRelationTypes"))
 			return String.valueOf(this.useRelationTypes);
 		return null;

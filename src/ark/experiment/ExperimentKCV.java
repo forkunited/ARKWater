@@ -1,7 +1,7 @@
 package ark.experiment;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,22 +51,21 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 		return true;
 	}
 	@Override
-	protected boolean deserializeNext(Reader reader, String nextName) throws IOException {
+	protected boolean deserializeNext(BufferedReader reader, String nextName) throws IOException {
 		if (nextName.equals("crossValidationFolds")) {
 			this.crossValidationFolds = Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
 		
 		} else if (nextName.equals("model")) {
 			String modelName = SerializationUtil.deserializeGenericName(reader);
-			SupervisedModel<D, L> model = this.datumTools.makeModelInstance(modelName);
-			if (!model.deserialize(reader, false, false, this.datumTools))
-				return false;
-			this.model = model;
-		
-		} else if (nextName.equals("feature")) {
-			String modelName = SerializationUtil.deserializeGenericName(reader);
 			this.model = this.datumTools.makeModelInstance(modelName);
 			if (!this.model.deserialize(reader, false, false, this.datumTools))
 				return false;
+		} else if (nextName.equals("feature")) {
+			String featureName = SerializationUtil.deserializeGenericName(reader);
+			Feature<D, L> feature = this.datumTools.makeFeatureInstance(featureName);
+			if (!feature.deserialize(reader, false, false, this.datumTools))
+				return false;
+			this.features.add(feature);
 		} else if (nextName.equals("errorExampleExtractor")) {
 			this.errorExampleExtractor = this.datumTools.getTokenSpanExtractor(
 					SerializationUtil.deserializeAssignmentRight(reader));
@@ -78,6 +77,6 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 		
 		}
 		
-		return false;
+		return true;
 	}
 }

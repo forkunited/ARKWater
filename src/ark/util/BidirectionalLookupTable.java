@@ -8,11 +8,21 @@ public class BidirectionalLookupTable<S, T> {
 	private Map<S, T> forwardLookup;
 	private Map<T, S> reverseLookup;
 	
+	public BidirectionalLookupTable() {
+		this(null);
+	}
+	
 	public BidirectionalLookupTable(Map<S, T> forwardLookup) {
-		this.forwardLookup = forwardLookup;
-		this.reverseLookup = new HashMap<T, S>(forwardLookup.size());
-		for (Entry<S, T> entry : forwardLookup.entrySet())
-			this.reverseLookup.put(entry.getValue(), entry.getKey());
+		if (forwardLookup == null) {
+			this.forwardLookup = new HashMap<S, T>();
+			this.reverseLookup = new HashMap<T, S>();
+		} else {
+			this.forwardLookup = forwardLookup;
+			this.reverseLookup = new HashMap<T, S>(forwardLookup.size());
+
+			for (Entry<S, T> entry : forwardLookup.entrySet())
+				this.reverseLookup.put(entry.getValue(), entry.getKey());
+		}
 	}
 	
 	public boolean containsKey(S key) {

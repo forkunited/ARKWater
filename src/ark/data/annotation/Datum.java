@@ -90,9 +90,9 @@ public abstract class Datum<L> {
 			this.genericFeatures.put("GazetteerEditDistance", new FeatureGazetteerEditDistance<D, L>());
 			this.genericFeatures.put("GazetteerInitialism", new FeatureGazetteerInitialism<D, L>());
 			this.genericFeatures.put("GazetteerPrefixTokens", new FeatureGazetteerPrefixTokens<D, L>());
-			this.genericFeatures.put("GazetteerNGramContext", new FeatureNGramContext<D, L>());
-			this.genericFeatures.put("GazetteerNGramSentence", new FeatureNGramSentence<D, L>());
-			this.genericFeatures.put("GazetteerNGramDep", new FeatureNGramDep<D, L>());
+			this.genericFeatures.put("NGramContext", new FeatureNGramContext<D, L>());
+			this.genericFeatures.put("NGramSentence", new FeatureNGramSentence<D, L>());
+			this.genericFeatures.put("NGramDep", new FeatureNGramDep<D, L>());
 			
 			this.genericModels.put("Creg", new SupervisedModelCreg<D, L>());
 		}

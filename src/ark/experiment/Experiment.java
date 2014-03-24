@@ -2,7 +2,6 @@ package ark.experiment;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.util.Random;
 
 import ark.data.annotation.DataSet;
@@ -25,7 +24,7 @@ public abstract class Experiment<D extends Datum<L>, L> {
 	}
 	
 	protected abstract boolean execute(DataSet<D, L> data);
-	protected abstract boolean deserializeNext(Reader reader, String nextName) throws IOException;
+	protected abstract boolean deserializeNext(BufferedReader reader, String nextName) throws IOException;
 	
 	public boolean run(DataSet<D, L> data) {
 		try {

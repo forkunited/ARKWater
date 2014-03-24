@@ -71,6 +71,8 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 			for (Future<ValidationResult> futureResult : results) {
 				ValidationResult result = futureResult.get();
+				if (result == null)
+					return -1.0;
 				validationResults.set(result.getFoldIndex(), result);
 			}
 		} catch (Exception e) {
@@ -158,11 +160,15 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 		private int foldIndex;
 		private int maxThreads;
 		private Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor;
+		private Map<String, String> parameterEnvironment;
 		
 		public ValidationThread(int foldIndex, int maxThreads, Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor) {
 			this.foldIndex = foldIndex;
 			this.maxThreads = maxThreads;
 			this.errorExampleExtractor = errorExampleExtractor;
+			
+			this.parameterEnvironment = new HashMap<String, String>(1);
+			this.parameterEnvironment.put("FOLD", String.valueOf(this.foldIndex));
 		}
 		
 		public ValidationResult call() {
@@ -188,22 +194,23 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 				}
 			}
 			
-			
 			/* Need cloned bunch of features for each fold so that they can be 
 			 * reinitialized for each training set */
 			output.debugWriteln("Initializing features for CV fold " + this.foldIndex);
 			for (Feature<D, L> feature : features) {
-				Feature<D, L> foldFeature = feature.clone(datumTools);
-				foldFeature.init(trainData);
+				Feature<D, L> foldFeature = feature.clone(datumTools, this.parameterEnvironment);
+				if (!foldFeature.init(trainData))
+					return null;
 				
 				trainData.addFeature(foldFeature);
+				devData.addFeature(foldFeature);
 				testData.addFeature(foldFeature);
 			}
 			
 			/*
 			 * Perform a grid search using the training and dev data for this fold
 			 */
-			SupervisedModel<D, L> foldModel = model.clone(datumTools);
+			SupervisedModel<D, L> foldModel = model.clone(datumTools, this.parameterEnvironment);
 			List<Pair<HyperParameterGridSearch.GridPosition, Double>> gridEvaluation = null;
 			HyperParameterGridSearch.GridPosition bestParameters = null;
 			if (possibleParameterValues != null && possibleParameterValues.size() > 0) {
