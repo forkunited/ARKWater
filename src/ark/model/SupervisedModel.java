@@ -130,7 +130,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	}
 	
 	public String toString() {
-		return toString(false);
+		return toString(true);
 	}
 	
 	public boolean fromString(String str, Datum.Tools<D, L> datumTools) {
