@@ -1,8 +1,8 @@
 package ark.data;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.HashMap;
 
 import ark.wrapper.BrownClusterer;
 
@@ -62,6 +62,7 @@ public class DataTools {
 	protected Map<String, DataTools.StringCollectionTransform> collectionFns;
 	protected Map<String, BrownClusterer> brownClusterers;
 	protected Map<String, Path> paths;
+	protected Map<String, String> parameterEnvironment;
 	
 	protected OutputWriter outputWriter;
 	
@@ -71,6 +72,7 @@ public class DataTools {
 		this.collectionFns = new HashMap<String, DataTools.StringCollectionTransform>();
 		this.brownClusterers = new HashMap<String, BrownClusterer>();
 		this.paths = new HashMap<String, Path>();
+		this.parameterEnvironment = new HashMap<String, String>();
 		
 		this.outputWriter = outputWriter;
 		
@@ -116,6 +118,10 @@ public class DataTools {
 	
 	public Path getPath(String name) {
 		return this.paths.get(name);
+	}
+	
+	public Map<String, String> getParameterEnvironment() {
+		return this.parameterEnvironment;
 	}
 	
 	public OutputWriter getOutputWriter() {
@@ -164,6 +170,11 @@ public class DataTools {
 	
 	public boolean addPath(String name, Path path) {
 		this.paths.put(name, path);
+		return true;
+	}
+	
+	public boolean addToParameterEnvironment(String name, String value) {
+		this.parameterEnvironment.put(name, value);
 		return true;
 	}
 }

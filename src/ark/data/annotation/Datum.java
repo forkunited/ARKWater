@@ -15,6 +15,12 @@ import ark.data.feature.FeatureNGramDep;
 import ark.data.feature.FeatureNGramSentence;
 import ark.model.SupervisedModel;
 import ark.model.SupervisedModelCreg;
+import ark.model.SupervisedModelLabelDistribution;
+import ark.model.evaluation.metric.ClassificationEvaluation;
+import ark.model.evaluation.metric.ClassificationEvaluationAccuracy;
+import ark.model.evaluation.metric.ClassificationEvaluationF;
+import ark.model.evaluation.metric.ClassificationEvaluationPrecision;
+import ark.model.evaluation.metric.ClassificationEvaluationRecall;
 
 public abstract class Datum<L> {	
 	protected int id;
@@ -65,6 +71,7 @@ public abstract class Datum<L> {
 		
 		protected Map<String, Feature<D, L>> genericFeatures;
 		protected Map<String, SupervisedModel<D, L>> genericModels;
+		protected Map<String, ClassificationEvaluation<D, L>> genericEvaluations;
 
 		public Tools(DataTools dataTools) {
 			this.dataTools = dataTools;
@@ -74,6 +81,7 @@ public abstract class Datum<L> {
 			this.labelMappings = new HashMap<String, LabelMapping<L>>();
 			this.genericFeatures = new HashMap<String, Feature<D, L>>();
 			this.genericModels = new HashMap<String, SupervisedModel<D, L>>();
+			this.genericEvaluations = new HashMap<String, ClassificationEvaluation<D, L>>();
 			
 			this.labelMappings.put("Identity", new LabelMapping<L>() {
 				public String toString() {
@@ -95,6 +103,12 @@ public abstract class Datum<L> {
 			this.genericFeatures.put("NGramDep", new FeatureNGramDep<D, L>());
 			
 			this.genericModels.put("Creg", new SupervisedModelCreg<D, L>());
+			this.genericModels.put("LabelDistribution", new SupervisedModelLabelDistribution<D, L>());
+			
+			this.genericEvaluations.put("Accuracy", new ClassificationEvaluationAccuracy<D, L>());
+			this.genericEvaluations.put("Precision", new ClassificationEvaluationPrecision<D, L>());
+			this.genericEvaluations.put("Recall", new ClassificationEvaluationRecall<D, L>());
+			this.genericEvaluations.put("F", new ClassificationEvaluationF<D, L>());
 		}
 		
 		public DataTools getDataTools() {
@@ -114,11 +128,15 @@ public abstract class Datum<L> {
 		}
 		
 		public Feature<D, L> makeFeatureInstance(String genericFeatureName) {
-			return this.genericFeatures.get(genericFeatureName).clone(this);
+			return this.genericFeatures.get(genericFeatureName).clone(this, this.dataTools.getParameterEnvironment());
 		}
 		
 		public SupervisedModel<D, L> makeModelInstance(String genericModelName) {
-			return this.genericModels.get(genericModelName).clone(this);
+			return this.genericModels.get(genericModelName).clone(this, this.dataTools.getParameterEnvironment());
+		}
+		
+		public ClassificationEvaluation<D, L> makeEvaluationInstance(String genericEvaluationName) {
+			return this.genericEvaluations.get(genericEvaluationName).clone(this, this.dataTools.getParameterEnvironment());
 		}
 		
 		public boolean addTokenSpanExtractor(TokenSpanExtractor<D, L> tokenSpanExtractor) {

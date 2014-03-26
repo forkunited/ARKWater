@@ -14,6 +14,7 @@ import ark.data.annotation.Datum.Tools;
 import ark.data.feature.Feature;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.KFoldCrossValidation;
+import ark.model.evaluation.metric.ClassificationEvaluation;
 import ark.util.SerializationUtil;
 
 public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
@@ -22,12 +23,14 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected int crossValidationFolds;
 	protected Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor;
 	protected Map<String, List<String>> gridSearchParameterValues;
+	protected List<ClassificationEvaluation<D, L>> evaluations;
 	
 	public ExperimentKCV(String name, String inputPath, Tools<D, L> datumTools) {
 		super(name, inputPath, datumTools);
 		
 		this.features = new ArrayList<Feature<D, L>>();
 		this.gridSearchParameterValues = new HashMap<String, List<String>>();
+		this.evaluations = new ArrayList<ClassificationEvaluation<D, L>>();
 	}
 	
 	@Override
@@ -36,6 +39,7 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 			this.name,
 			this.model,
 			this.features,
+			this.evaluations,
 			data,
 			this.crossValidationFolds, 
 			this.random
@@ -55,26 +59,32 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 		if (nextName.equals("crossValidationFolds")) {
 			this.crossValidationFolds = Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
 		
-		} else if (nextName.equals("model")) {
+		} else if (nextName.startsWith("model")) {
 			String modelName = SerializationUtil.deserializeGenericName(reader);
 			this.model = this.datumTools.makeModelInstance(modelName);
 			if (!this.model.deserialize(reader, false, false, this.datumTools))
 				return false;
-		} else if (nextName.equals("feature")) {
+		} else if (nextName.startsWith("feature")) {
 			String featureName = SerializationUtil.deserializeGenericName(reader);
 			Feature<D, L> feature = this.datumTools.makeFeatureInstance(featureName);
 			if (!feature.deserialize(reader, false, false, this.datumTools))
 				return false;
 			this.features.add(feature);
-		} else if (nextName.equals("errorExampleExtractor")) {
+		} else if (nextName.startsWith("errorExampleExtractor")) {
 			this.errorExampleExtractor = this.datumTools.getTokenSpanExtractor(
 					SerializationUtil.deserializeAssignmentRight(reader));
 			
-		} else if (nextName.equals("gridSearchParameterValues")) {
+		} else if (nextName.startsWith("gridSearchParameterValues")) {
 			String parameterName = SerializationUtil.deserializeGenericName(reader);
 			List<String> parameterValues = SerializationUtil.deserializeList(reader);
 			this.gridSearchParameterValues.put(parameterName, parameterValues);
 		
+		} else if (nextName.startsWith("evaluation")) {
+			String evaluationName = SerializationUtil.deserializeGenericName(reader);
+			ClassificationEvaluation<D, L> evaluation = this.datumTools.makeEvaluationInstance(evaluationName);
+			if (!evaluation.deserialize(reader, false, this.datumTools))
+				return false;
+			this.evaluations.add(evaluation);
 		}
 		
 		return true;

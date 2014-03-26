@@ -97,7 +97,7 @@ public class ConfusionMatrix<D extends Datum<L>, L> {
 		}
 		confusionMatrixStr.append("Total\tIncorrect\t% Incorrect\n");
 		
-		DecimalFormat cleanDouble = new DecimalFormat("0.00");
+		DecimalFormat cleanDouble = new DecimalFormat("0"); // FIXME: Pass as argument
 		
 		double[] colTotals = new double[this.validLabels.size()];
 		double[] colIncorrects = new double[this.validLabels.size()];

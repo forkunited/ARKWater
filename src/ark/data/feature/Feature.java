@@ -61,7 +61,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 		String[] parameterNames = getParameterNames();
 		for (int i = 0; i < parameterNames.length; i++) {
 			String parameterValue = getParameterValue(parameterNames[i]);
-			if (environment != null) {
+			if (environment != null && parameterValue != null) {
 				for (Entry<String, String> entry : environment.entrySet())
 					parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
 			}
@@ -75,8 +75,9 @@ public abstract class Feature<D extends Datum<L>, L> {
 			return false;
 		
 		Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
-		for (Entry<String, String> entry : parameters.entrySet())
-			this.setParameterValue(entry.getKey(), entry.getValue(), datumTools);
+		if (parameters != null)
+			for (Entry<String, String> entry : parameters.entrySet())
+				this.setParameterValue(entry.getKey(), entry.getValue(), datumTools);
 		
 		if (readVocabulary) {
 			Map<String, String> vocabulary = SerializationUtil.deserializeArguments(reader);

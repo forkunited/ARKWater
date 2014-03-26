@@ -1,5 +1,6 @@
 package ark.model.evaluation;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +17,7 @@ import ark.data.annotation.Datum;
 import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
+import ark.model.evaluation.metric.ClassificationEvaluation;
 import ark.util.OutputWriter;
 import ark.util.Pair;
 
@@ -23,18 +25,22 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 	private String name;
 	private SupervisedModel<D, L> model;
 	private List<Feature<D, L>> features;
+	private List<ClassificationEvaluation<D, L>> evaluations;
 	private List<DataSet<D, L>> folds;
 	private Map<String, List<String>> possibleParameterValues; // Hyper-parameter values
+	private DecimalFormat cleanDouble;
 	
 	public KFoldCrossValidation(String name,
 								SupervisedModel<D, L> model, 
 								List<Feature<D, L>> features,
+								List<ClassificationEvaluation<D, L>> evaluations,
 								DataSet<D, L> data,
 								int k,
 								Random random) {
 		this.name = name;
 		this.model = model;
 		this.features = features;
+		this.evaluations = evaluations;
 		
 		double[] foldDistribution = new double[k];
 		for (int i = 0; i < k; i++)
@@ -42,6 +48,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 
 		this.folds = data.makePartition(foldDistribution, random);
 		this.possibleParameterValues = new HashMap<String, List<String>>();
+		this.cleanDouble = new DecimalFormat("0.00");
 	}
 	
 	public boolean addPossibleHyperParameterValue(String parameter, String parameterValue) {
@@ -53,10 +60,11 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 	}
 	
 	public double run(int maxThreads, Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor) {
-		double avgAccuracy = 0.0;
-		
 		ConfusionMatrix<D, L> aggregateConfusions = new ConfusionMatrix<D, L>(this.model.getValidLabels(), this.model.getLabelMapping());
 		
+		/*
+		 * Get results, using a separate thread for each fold
+		 */
 		ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
 		List<ValidationThread> tasks = new ArrayList<ValidationThread>();
 		List<ValidationResult> validationResults = new ArrayList<ValidationResult>(this.folds.size());
@@ -80,18 +88,48 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			return -1.0;
 		}
 		
+		/* 
+		 * Output results for each fold
+		 */
 		OutputWriter output = this.folds.get(0).getDatumTools().getDataTools().getOutputWriter();
-		output.resultsWriteln("Fold\tAccuracy\t" + ((this.possibleParameterValues != null) ? validationResults.get(0).getBestParameters().toKeyString("\t") : ""));
+		String gridSearchParameters = ((this.possibleParameterValues.size() > 0) ? validationResults.get(0).getBestParameters().toKeyString("\t") + "\t" : "");
+		String evaluationsStr = "";
+		List<Double> averageEvaluations = new ArrayList<Double>(this.evaluations.size());
+		for (int i = 0; i < this.evaluations.size(); i++) {
+			evaluationsStr += this.evaluations.get(i).toString() + "\t";
+			averageEvaluations.add(0.0);
+		}
+		output.resultsWriteln("Fold\t" + gridSearchParameters + "\t" + evaluationsStr);
+		
 		for (int i = 0; i < validationResults.size(); i++) {
-			output.resultsWriteln(i + "\t" + validationResults.get(i).getAccuracy() + "\t" + ((this.possibleParameterValues != null) ? validationResults.get(i).getBestParameters().toValueString("\t") : ""));
-			avgAccuracy += validationResults.get(i).getAccuracy();
+			String gridSearchParameterValues = ((this.possibleParameterValues.size() > 0) ? validationResults.get(i).getBestParameters().toValueString("\t") + "\t" : "");
+			List<Double> evaluationValues = validationResults.get(i).getEvaluationValues();
+			String evaluationValuesStr = "";
+			for (int j = 0; j < evaluationValues.size(); j++) {
+				evaluationValuesStr += this.cleanDouble.format(evaluationValues.get(j)) + "\t";
+				averageEvaluations.set(j , averageEvaluations.get(j) + evaluationValues.get(j));
+			}
+			
+			output.resultsWriteln(i + "\t" + gridSearchParameterValues + evaluationValuesStr);
 			aggregateConfusions.add(validationResults.get(i).getConfusionMatrix());
 		}
-		avgAccuracy /= this.folds.size();
-		output.resultsWriteln("Average Accuracy:\t" + avgAccuracy);
-		output.resultsWriteln("\nAverage Confusion Matrix:\n " + aggregateConfusions.toString(1.0/this.folds.size()));
 		
-		if (this.possibleParameterValues != null) {
+		output.resultsWrite("Averages:\t");
+		for (int i = 0; i < averageEvaluations.size(); i++) {
+			averageEvaluations.set(i, averageEvaluations.get(i)/this.folds.size());
+			output.resultsWrite(this.cleanDouble.format(averageEvaluations.get(i)) + "\t");
+		}
+		output.resultsWriteln("");
+		
+		/*
+		 * Output confusion matrix
+		 */
+		output.resultsWriteln("\nTotal Confusion Matrix:\n " + aggregateConfusions.toString());
+		
+		/*
+		 * Output grid search results
+		 */
+		if (this.possibleParameterValues.size() > 0) {
 			output.resultsWriteln("\nGrid search results:");
 			output.resultsWrite(validationResults.get(0).getGridEvaluation().get(0).getFirst().toKeyString("\t") + "\t");
 			for (int i = 0; i < this.folds.size(); i++)
@@ -111,25 +149,25 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			for (Pair<HyperParameterGridSearch.GridPosition, List<Double>> gridFoldResult : gridFoldResults) {
 				output.resultsWrite(gridFoldResult.getFirst().toValueString("\t") + "\t");
 				for (int i = 0; i < gridFoldResult.getSecond().size(); i++) {
-					output.resultsWrite(gridFoldResult.getSecond().get(i) + "\t");
+					output.resultsWrite(this.cleanDouble.format(gridFoldResult.getSecond().get(i)) + "\t");
 				}
 				output.resultsWrite("\n");
 			}
 		}
 		
-		return avgAccuracy;
+		return averageEvaluations.get(0);
 	}
 	
 	private class ValidationResult  {
 		private int foldIndex;
-		private double accuracy;
+		private List<Double> evaluationValues;
 		private ConfusionMatrix<D, L> confusionMatrix;
 		private List<Pair<HyperParameterGridSearch.GridPosition, Double>> gridEvaluation;
 		private HyperParameterGridSearch.GridPosition bestParameters;
 		
-		public ValidationResult(int foldIndex, double accuracy, ConfusionMatrix<D, L> confusionMatrix, List<Pair<HyperParameterGridSearch.GridPosition, Double>> gridEvaluation, HyperParameterGridSearch.GridPosition bestParameters) {
+		public ValidationResult(int foldIndex, List<Double> evaluationValues, ConfusionMatrix<D, L> confusionMatrix, List<Pair<HyperParameterGridSearch.GridPosition, Double>> gridEvaluation, HyperParameterGridSearch.GridPosition bestParameters) {
 			this.foldIndex = foldIndex;
-			this.accuracy = accuracy;
+			this.evaluationValues = evaluationValues;
 			this.confusionMatrix = confusionMatrix;
 			this.gridEvaluation = gridEvaluation;
 			this.bestParameters = bestParameters;
@@ -139,8 +177,8 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			return this.foldIndex;
 		}
 		
-		public double getAccuracy() {
-			return this.accuracy;
+		public List<Double> getEvaluationValues() {
+			return this.evaluationValues;
 		}
 		
 		public ConfusionMatrix<D, L> getConfusionMatrix() {
@@ -166,8 +204,9 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			this.foldIndex = foldIndex;
 			this.maxThreads = maxThreads;
 			this.errorExampleExtractor = errorExampleExtractor;
-			
-			this.parameterEnvironment = new HashMap<String, String>(1);
+	
+			this.parameterEnvironment = new HashMap<String, String>();
+			this.parameterEnvironment.putAll(folds.get(foldIndex).getDatumTools().getDataTools().getParameterEnvironment());
 			this.parameterEnvironment.put("FOLD", String.valueOf(this.foldIndex));
 		}
 		
@@ -187,7 +226,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			for (int j = 0; j < folds.size(); j++) {
 				if (j == this.foldIndex) {
 					testData.addAll(folds.get(j));
-				} else if (possibleParameterValues != null && j == ((foldIndex + 1) % folds.size())) {
+				} else if (possibleParameterValues.size() > 0 && j == ((foldIndex + 1) % folds.size())) {
 					devData.addAll(folds.get(j));
 				} else {
 					trainData.addAll(folds.get(j));	
@@ -213,13 +252,14 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			SupervisedModel<D, L> foldModel = model.clone(datumTools, this.parameterEnvironment);
 			List<Pair<HyperParameterGridSearch.GridPosition, Double>> gridEvaluation = null;
 			HyperParameterGridSearch.GridPosition bestParameters = null;
-			if (possibleParameterValues != null && possibleParameterValues.size() > 0) {
+			if (possibleParameterValues.size() > 0) {
 				HyperParameterGridSearch<D, L> gridSearch = 
 						new HyperParameterGridSearch<D,L>(namePrefix,
 														  foldModel,
 										 				  trainData, 
 										 				  devData,
-										 				  possibleParameterValues); 
+										 				  possibleParameterValues,
+										 				  evaluations.get(0)); 
 				bestParameters = gridSearch.getBestPosition();
 				gridEvaluation = gridSearch.getGridEvaluation();
 				
@@ -233,14 +273,14 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			 * Train the model using the best hyper-parameters from the grid search
 			 */
 			output.debugWriteln("Training model for CV fold " + this.foldIndex);
-			TrainTestValidation<D, L> accuracy = new TrainTestValidation<D, L>(namePrefix, foldModel, trainData, testData);
-			double computedAccuracy = accuracy.run();
-			if (computedAccuracy < 0) {
+			TrainTestValidation<D, L> accuracy = new TrainTestValidation<D, L>(namePrefix, foldModel,  trainData, testData, evaluations);
+			List<Double> evaluationValues = accuracy.run();
+			if (evaluationValues.get(0) < 0) {
 				output.debugWriteln("Error: Validation failed on fold " + this.foldIndex);
-				return new ValidationResult(foldIndex, -1, null, null, null);
+				return new ValidationResult(foldIndex, evaluationValues, null, null, null);
 			} else {
 				ConfusionMatrix<D, L> confusions = accuracy.getConfusionMatrix();
-				output.debugWriteln("Accuracy on fold " + this.foldIndex + ": " + computedAccuracy);
+				output.debugWriteln(evaluations.get(0).toString() + " on fold " + this.foldIndex + ": " + cleanDouble.format(evaluationValues.get(0)));
 				
 				output.dataWriteln("--------------- Fold: " + this.foldIndex + " ---------------");
 				output.dataWriteln(confusions.getActualToPredictedDescription(this.errorExampleExtractor));
@@ -248,7 +288,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 				output.modelWriteln("--------------- Fold: " + this.foldIndex + " ---------------");
 				output.modelWriteln(foldModel.toString());
 				
-				return new ValidationResult(foldIndex, computedAccuracy, accuracy.getConfusionMatrix(), gridEvaluation, bestParameters);
+				return new ValidationResult(foldIndex, evaluationValues, accuracy.getConfusionMatrix(), gridEvaluation, bestParameters);
 			}
 		}
 	}

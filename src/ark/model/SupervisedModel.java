@@ -51,9 +51,10 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 			return false;
 		
 		Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
-		for (Entry<String, String> entry : parameters.entrySet())
-			if (!this.setHyperParameterValue(entry.getKey(), entry.getValue(), datumTools))
-				return false;
+		if (parameters != null)
+			for (Entry<String, String> entry : parameters.entrySet())
+				if (!this.setHyperParameterValue(entry.getKey(), entry.getValue(), datumTools))
+					return false;
 		
 		reader.readLine(); // Read "{"
 		
@@ -150,7 +151,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		String[] parameterNames = getHyperParameterNames();
 		for (int i = 0; i < parameterNames.length; i++) {
 			String parameterValue = getHyperParameterValue(parameterNames[i]);
-			if (environment != null) {
+			if (environment != null && parameterValue != null) {
 				for (Entry<String, String> entry : environment.entrySet())
 					parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
 			}
