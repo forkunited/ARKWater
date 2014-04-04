@@ -48,9 +48,6 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 					List<DependencyParse.Dependency> dependencies = dependencyParse.getGovernedDependencies(i);
 					for (DependencyParse.Dependency dependency : dependencies) {
 						int depIndex = dependency.getDependentTokenIndex();
-						if (depIndex > tokens.size() - this.n)
-								depIndex = tokens.size() - this.n;
-						
 						if (depIndex <= tokens.size() - this.n && (depIndex < startIndex || depIndex >= endIndex)) {
 							List<String> ngrams = getCleanNGrams(tokens, depIndex);
 							for (String ngram : ngrams) {
@@ -64,15 +61,17 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 				}
 				
 				if (this.mode == FeatureNGramDep.Mode.ParentsOnly || this.mode == FeatureNGramDep.Mode.ParentsAndChildren) {
-					DependencyParse.Dependency dependency = dependencyParse.getGoverningDependency(i);
-					int govIndex = dependency.getGoverningTokenIndex();
-					if (govIndex <= tokens.size() - this.n && (govIndex < startIndex || govIndex >= endIndex)) {
-						List<String> ngrams = getCleanNGrams(tokens, govIndex);
-						for (String ngram : ngrams) {
-							String retNgram = ngram + "_P";
-							if (this.useRelationTypes)
-								retNgram += "_" + ((dependency.getType() == null) ? "" : dependency.getType());
-							retNgrams.add(retNgram);
+					List<DependencyParse.Dependency> dependencies = dependencyParse.getGoverningDependencies(i);
+					for (DependencyParse.Dependency dependency : dependencies) {
+						int govIndex = dependency.getGoverningTokenIndex();
+						if (govIndex <= tokens.size() - this.n && (govIndex < startIndex || govIndex >= endIndex)) {
+							List<String> ngrams = getCleanNGrams(tokens, govIndex);
+							for (String ngram : ngrams) {
+								String retNgram = ngram + "_P";
+								if (this.useRelationTypes)
+									retNgram += "_" + ((dependency.getType() == null) ? "" : dependency.getType());
+								retNgrams.add(retNgram);
+							}
 						}
 					}
 				}
