@@ -1,8 +1,9 @@
 package ark.model.annotator.nlp;
 
 import ark.data.annotation.Language;
+import ark.data.annotation.nlp.ConstituencyParse;
+import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.PoSTag;
-import ark.data.annotation.nlp.TypedDependency;
 
 public abstract class NLPAnnotator {
 	protected Language language;
@@ -14,5 +15,6 @@ public abstract class NLPAnnotator {
 	
 	public abstract String[][] makeTokens();
 	public abstract PoSTag[][] makePoSTags();
-	public abstract TypedDependency[][] makeDependencies();
+	public abstract DependencyParse[] makeDependencyParses();
+	public abstract ConstituencyParse[] makeConstituencyParses();
 }

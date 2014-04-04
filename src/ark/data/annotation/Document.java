@@ -3,8 +3,9 @@ package ark.data.annotation;
 import java.util.ArrayList;
 import java.util.List;
 
+import ark.data.annotation.nlp.ConstituencyParse;
+import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.PoSTag;
-import ark.data.annotation.nlp.TypedDependency;
 
 public abstract class Document {
 	protected String name;
@@ -45,7 +46,6 @@ public abstract class Document {
 	public abstract String getSentence(int sentenceIndex);
 	public abstract String getToken(int sentenceIndex, int tokenIndex);
 	public abstract PoSTag getPoSTag(int sentenceIndex, int tokenIndex);
-	public abstract List<TypedDependency> getParentDependencies(int sentenceIndex, int tokenIndex);
-	public abstract List<TypedDependency> getChildDependencies(int sentenceIndex, int tokenIndex);
-	public abstract List<TypedDependency> getDependencies(int sentenceIndex);
+	public abstract ConstituencyParse getConstituencyParse(int sentenceIndex);
+	public abstract DependencyParse getDependencyParse(int sentenceIndex);
 }

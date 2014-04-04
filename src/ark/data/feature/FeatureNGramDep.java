@@ -7,7 +7,7 @@ import java.util.Set;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.nlp.TokenSpan;
-import ark.data.annotation.nlp.TypedDependency;
+import ark.data.annotation.nlp.DependencyParse;
 
 public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	public enum Mode {
@@ -41,15 +41,17 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 				continue;
 			int startIndex = tokenSpan.getStartTokenIndex();
 			int endIndex = tokenSpan.getEndTokenIndex();
-			int sentenceIndex = tokenSpan.getSentenceIndex();
+			DependencyParse dependencyParse = tokenSpan.getDocument().getDependencyParse(tokenSpan.getSentenceIndex());
 			
 			for (int i = startIndex; i < endIndex; i++) {
 				if (this.mode == FeatureNGramDep.Mode.ChildrenOnly || this.mode == FeatureNGramDep.Mode.ParentsAndChildren) {
-					List<TypedDependency> dependencies = tokenSpan.getDocument().getChildDependencies(sentenceIndex, i);
-					for (TypedDependency dependency : dependencies) {
-						int depIndex = dependency.getChildTokenIndex();
-						if (depIndex < tokens.size() - this.n + 1 
-								&& (depIndex < startIndex || depIndex >= endIndex)) {
+					List<DependencyParse.Dependency> dependencies = dependencyParse.getGovernedDependencies(i);
+					for (DependencyParse.Dependency dependency : dependencies) {
+						int depIndex = dependency.getDependentTokenIndex();
+						if (depIndex > tokens.size() - this.n)
+								depIndex = tokens.size() - this.n;
+						
+						if (depIndex <= tokens.size() - this.n && (depIndex < startIndex || depIndex >= endIndex)) {
 							List<String> ngrams = getCleanNGrams(tokens, depIndex);
 							for (String ngram : ngrams) {
 								String retNgram = ngram + "_C";
@@ -62,18 +64,15 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 				}
 				
 				if (this.mode == FeatureNGramDep.Mode.ParentsOnly || this.mode == FeatureNGramDep.Mode.ParentsAndChildren) {
-					List<TypedDependency> dependencies = tokenSpan.getDocument().getParentDependencies(sentenceIndex, i);
-					for (TypedDependency dependency : dependencies) {
-						int depIndex = dependency.getParentTokenIndex();
-						if (depIndex < tokens.size() - this.n + 1 
-								&& (depIndex < startIndex || depIndex >= endIndex)) {
-							List<String> ngrams = getCleanNGrams(tokens, depIndex);
-							for (String ngram : ngrams) {
-								String retNgram = ngram + "_P";
-								if (this.useRelationTypes)
-									retNgram += "_" + ((dependency.getType() == null) ? "" : dependency.getType());
-								retNgrams.add(retNgram);
-							}
+					DependencyParse.Dependency dependency = dependencyParse.getGoverningDependency(i);
+					int govIndex = dependency.getGoverningTokenIndex();
+					if (govIndex <= tokens.size() - this.n && (govIndex < startIndex || govIndex >= endIndex)) {
+						List<String> ngrams = getCleanNGrams(tokens, govIndex);
+						for (String ngram : ngrams) {
+							String retNgram = ngram + "_P";
+							if (this.useRelationTypes)
+								retNgram += "_" + ((dependency.getType() == null) ? "" : dependency.getType());
+							retNgrams.add(retNgram);
 						}
 					}
 				}

@@ -10,12 +10,19 @@ import ark.data.feature.FeatureGazetteerContains;
 import ark.data.feature.FeatureGazetteerEditDistance;
 import ark.data.feature.FeatureGazetteerInitialism;
 import ark.data.feature.FeatureGazetteerPrefixTokens;
+import ark.data.feature.FeatureIdentity;
 import ark.data.feature.FeatureNGramContext;
 import ark.data.feature.FeatureNGramDep;
 import ark.data.feature.FeatureNGramSentence;
 import ark.model.SupervisedModel;
 import ark.model.SupervisedModelCreg;
 import ark.model.SupervisedModelLabelDistribution;
+import ark.model.SupervisedModelSVMCostLearner;
+import ark.model.cost.FactoredCost;
+import ark.model.cost.FactoredCostConstant;
+import ark.model.cost.FactoredCostLabel;
+import ark.model.cost.FactoredCostLabelPair;
+import ark.model.cost.FactoredCostLabelPairUnordered;
 import ark.model.evaluation.metric.ClassificationEvaluation;
 import ark.model.evaluation.metric.ClassificationEvaluationAccuracy;
 import ark.model.evaluation.metric.ClassificationEvaluationF;
@@ -58,6 +65,11 @@ public abstract class Datum<L> {
 			TokenSpan[] extract(D datum);
 		}
 		
+		public static interface DoubleExtractor<D extends Datum<L>, L> {
+			String toString();
+			double[] extract(D datum);
+		}
+		
 		public static interface LabelMapping<L> {
 			String toString();
 			L map(L label);
@@ -67,21 +79,25 @@ public abstract class Datum<L> {
 		
 		protected Map<String, TokenSpanExtractor<D, L>> tokenSpanExtractors;
 		protected Map<String, StringExtractor<D, L>> stringExtractors;
+		protected Map<String, DoubleExtractor<D, L>> doubleExtractors;
 		protected Map<String, LabelMapping<L>> labelMappings;
 		
 		protected Map<String, Feature<D, L>> genericFeatures;
 		protected Map<String, SupervisedModel<D, L>> genericModels;
 		protected Map<String, ClassificationEvaluation<D, L>> genericEvaluations;
+		protected Map<String, FactoredCost<D, L>> genericFactoredCosts;
 
 		public Tools(DataTools dataTools) {
 			this.dataTools = dataTools;
 			
 			this.tokenSpanExtractors = new HashMap<String, TokenSpanExtractor<D, L>>();
 			this.stringExtractors = new HashMap<String, StringExtractor<D, L>>();
+			this.doubleExtractors = new HashMap<String, DoubleExtractor<D, L>>();
 			this.labelMappings = new HashMap<String, LabelMapping<L>>();
 			this.genericFeatures = new HashMap<String, Feature<D, L>>();
 			this.genericModels = new HashMap<String, SupervisedModel<D, L>>();
 			this.genericEvaluations = new HashMap<String, ClassificationEvaluation<D, L>>();
+			this.genericFactoredCosts = new HashMap<String, FactoredCost<D, L>>();
 			
 			this.labelMappings.put("Identity", new LabelMapping<L>() {
 				public String toString() {
@@ -101,14 +117,21 @@ public abstract class Datum<L> {
 			this.genericFeatures.put("NGramContext", new FeatureNGramContext<D, L>());
 			this.genericFeatures.put("NGramSentence", new FeatureNGramSentence<D, L>());
 			this.genericFeatures.put("NGramDep", new FeatureNGramDep<D, L>());
+			this.genericFeatures.put("Identity", new FeatureIdentity<D, L>());
 			
 			this.genericModels.put("Creg", new SupervisedModelCreg<D, L>());
 			this.genericModels.put("LabelDistribution", new SupervisedModelLabelDistribution<D, L>());
+			this.genericModels.put("SVMCostLearner", new SupervisedModelSVMCostLearner<D, L>());
 			
 			this.genericEvaluations.put("Accuracy", new ClassificationEvaluationAccuracy<D, L>());
 			this.genericEvaluations.put("Precision", new ClassificationEvaluationPrecision<D, L>());
 			this.genericEvaluations.put("Recall", new ClassificationEvaluationRecall<D, L>());
 			this.genericEvaluations.put("F", new ClassificationEvaluationF<D, L>());
+			
+			this.genericFactoredCosts.put("Constant", new FactoredCostConstant<D, L>());
+			this.genericFactoredCosts.put("Label", new FactoredCostLabel<D, L>());
+			this.genericFactoredCosts.put("LabelPair", new FactoredCostLabelPair<D, L>());
+			this.genericFactoredCosts.put("LabelPairUnordered", new FactoredCostLabelPairUnordered<D, L>());
 		}
 		
 		public DataTools getDataTools() {
@@ -121,6 +144,10 @@ public abstract class Datum<L> {
 		
 		public StringExtractor<D, L> getStringExtractor(String name) {
 			return this.stringExtractors.get(name);
+		}
+		
+		public DoubleExtractor<D, L> getDoubleExtractor(String name) {
+			return this.doubleExtractors.get(name);
 		}
 		
 		public LabelMapping<L> getLabelMapping(String name) {
@@ -139,6 +166,10 @@ public abstract class Datum<L> {
 			return this.genericEvaluations.get(genericEvaluationName).clone(this, this.dataTools.getParameterEnvironment());
 		}
 		
+		public FactoredCost<D, L> makeFactoredCostInstance(String genericFactoredCostName) {
+			return this.genericFactoredCosts.get(genericFactoredCostName).clone(this, this.dataTools.getParameterEnvironment());
+		}
+		
 		public boolean addTokenSpanExtractor(TokenSpanExtractor<D, L> tokenSpanExtractor) {
 			this.tokenSpanExtractors.put(tokenSpanExtractor.toString(), tokenSpanExtractor);
 			return true;
@@ -146,6 +177,11 @@ public abstract class Datum<L> {
 		
 		public boolean addStringExtractor(StringExtractor<D, L> stringExtractor) {
 			this.stringExtractors.put(stringExtractor.toString(), stringExtractor);
+			return true;
+		}
+		
+		public boolean addDoubleExtractor(DoubleExtractor<D, L> doubleExtractor) {
+			this.doubleExtractors.put(doubleExtractor.toString(), doubleExtractor);
 			return true;
 		}
 		

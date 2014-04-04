@@ -19,7 +19,7 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		OnlyUnlabeled
 	}
 	
-	private class DataIterator implements Iterator<D> {
+	public class DataIterator implements Iterator<D> {
 		private DataFilter filter;
 		private Iterator<Entry<Integer, D>> iterator;
 		private D next;
@@ -113,7 +113,6 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		L label = (this.labelMapping == null) ? datum.getLabel() : this.labelMapping.map(datum.getLabel());
 		if (label == null) {
 			this.unlabeledData.add(datum.getId());
-			return true;
 		} else {
 			if (!this.labeledData.containsKey(label))
 				this.labeledData.put(label, new ArrayList<Integer>());

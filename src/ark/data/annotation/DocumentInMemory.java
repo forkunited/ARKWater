@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import net.sf.json.JSONArray;
@@ -19,8 +18,9 @@ import org.jdom.input.SAXBuilder;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
 
+import ark.data.annotation.nlp.ConstituencyParse;
+import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.PoSTag;
-import ark.data.annotation.nlp.TypedDependency;
 import ark.model.annotator.nlp.NLPAnnotator;
 import ark.util.FileUtil;
 
@@ -32,7 +32,8 @@ public class DocumentInMemory extends Document {
 	
 	protected String[][] tokens;
 	protected PoSTag[][] posTags;
-	protected TypedDependency[][] dependencies; 
+	protected DependencyParse[] dependencyParses; 
+	protected ConstituencyParse[] constituencyParses;
 	
 	public DocumentInMemory() {
 		
@@ -86,18 +87,19 @@ public class DocumentInMemory extends Document {
 		
 		this.tokens = annotator.makeTokens();
 
-		TypedDependency[][] dependencies = annotator.makeDependencies();
-		this.dependencies = new TypedDependency[dependencies.length][];
-		for (int i = 0; i < dependencies.length; i++) {
-			this.dependencies[i] = dependencies[i];
-			for (int j = 0; j < dependencies[i].length; j++) {
-				this.dependencies[i][j] = new TypedDependency(this, i, 
-																  dependencies[i][j].getParentTokenIndex(), 
-																  dependencies[i][j].getChildTokenIndex(), 
-																  dependencies[i][j].getType());
-			}
+		DependencyParse[] dependencyParses = annotator.makeDependencyParses();
+		for (int i = 0; i < dependencyParses.length; i++) {
+			this.dependencyParses[i] = dependencyParses[i].clone(this);
 		}
-			
+		
+		ConstituencyParse[] constituencyParses = annotator.makeConstituencyParses();
+		this.constituencyParses = new ConstituencyParse[constituencyParses.length];
+		for (int i = 0; i < constituencyParses.length; i++) {
+			this.constituencyParses[i] = new ConstituencyParse(this,
+															   i,
+															   constituencyParses[i].getRoot());
+		}
+		
 		this.posTags = annotator.makePoSTags();
 	}
 	
@@ -105,7 +107,8 @@ public class DocumentInMemory extends Document {
 		this.name = name;
 		this.language = language;
 		this.nlpAnnotator = annotator.toString();
-		this.dependencies = new TypedDependency[sentences.length][];
+		this.dependencyParses = new DependencyParse[sentences.length];
+		this.constituencyParses = new ConstituencyParse[sentences.length];
 		this.tokens = new String[sentences.length][];
 		this.posTags = new PoSTag[sentences.length][];
 		
@@ -119,7 +122,8 @@ public class DocumentInMemory extends Document {
 				throw new IllegalArgumentException("Input sentences are not actually sentences according to annotator...");
 			else if (sentenceTokens.length == 0) {
 				this.tokens[i] = new String[0];
-				this.dependencies[i] = new TypedDependency[0];
+				this.dependencyParses[i] = new DependencyParse(this, i);
+				this.constituencyParses[i] = new ConstituencyParse(this, i);
 				this.posTags[i] = new PoSTag[0];
 				continue;
 			}
@@ -128,14 +132,13 @@ public class DocumentInMemory extends Document {
 			for (int j = 0; j < sentenceTokens[0].length; j++)
 				this.tokens[i][j] = sentenceTokens[0][j];
 						
-			TypedDependency[][] sentenceDependencies = annotator.makeDependencies();
-			this.dependencies[i] = new TypedDependency[sentenceDependencies[0].length];
-			for (int j = 0; j < sentenceDependencies[0].length; j++) {
-				this.dependencies[i][j] = new TypedDependency(this, i, 
-															  sentenceDependencies[0][j].getParentTokenIndex(), 
-															  sentenceDependencies[0][j].getChildTokenIndex(), 
-															  sentenceDependencies[0][j].getType());
-			}
+			DependencyParse[] dependencyParses = annotator.makeDependencyParses();
+			this.dependencyParses[i] = dependencyParses[0].clone(this);
+			
+			ConstituencyParse[] constituencyParses = annotator.makeConstituencyParses();
+			this.constituencyParses[i] = new ConstituencyParse(this,
+															   i,
+															   constituencyParses[i].getRoot());
 			
 			PoSTag[][] sentencePoSTags = annotator.makePoSTags();
 			this.posTags[i] = new PoSTag[sentencePoSTags[0].length];
@@ -179,33 +182,15 @@ public class DocumentInMemory extends Document {
 	public PoSTag getPoSTag(int sentenceIndex, int tokenIndex) {
 		return this.posTags[sentenceIndex][tokenIndex];
 	}
+	
+	@Override
+	public ConstituencyParse getConstituencyParse(int sentenceIndex) {
+		return this.constituencyParses[sentenceIndex];
+	}
 
-	public List<TypedDependency> getDependencies(int sentenceIndex) {
-		List<TypedDependency> dependencies = new ArrayList<TypedDependency>();
-		for (int i = 0; i < this.dependencies[sentenceIndex].length; i++) {
-			dependencies.add(this.dependencies[sentenceIndex][i]);
-		}
-		return dependencies;
-	}
-	
-	public List<TypedDependency> getParentDependencies(int sentenceIndex, int tokenIndex) {
-		TypedDependency[] tokenDependencies = this.dependencies[sentenceIndex];
-		List<TypedDependency> parentDependencies = new ArrayList<TypedDependency>();
-		for (int i = 0; i < tokenDependencies.length; i++) {
-			if (tokenDependencies[i].getChildTokenIndex() == tokenIndex)
-				parentDependencies.add(tokenDependencies[i]);
-		}
-		return parentDependencies;
-	}
-	
-	public List<TypedDependency> getChildDependencies(int sentenceIndex, int tokenIndex) {
-		TypedDependency[] tokenDependencies = this.dependencies[sentenceIndex];
-		List<TypedDependency> childDependencies = new ArrayList<TypedDependency>(tokenDependencies.length);
-		for (int i = 0; i < tokenDependencies.length; i++) {
-			if (tokenDependencies[i].getParentTokenIndex() == tokenIndex)
-				childDependencies.add(tokenDependencies[i]);
-		}
-		return childDependencies;
+	@Override
+	public DependencyParse getDependencyParse(int sentenceIndex) {
+		return this.dependencyParses[sentenceIndex];
 	}
 	
 	public boolean setPoSTags(PoSTag[][] posTags) {
@@ -224,15 +209,19 @@ public class DocumentInMemory extends Document {
 		return true;
 	}
 	
-	public boolean setDependencies(TypedDependency[][] dependencies) {
-		this.dependencies = new TypedDependency[dependencies.length][];
-		for (int i = 0; i < dependencies.length; i++) {
-			this.dependencies[i] = new TypedDependency[dependencies[i].length];
-			for (int j = 0; j < dependencies[i].length; j++) {
-				this.dependencies[i][j] = dependencies[i][j];
-			}
-		}
+	public boolean setDependencyParses(DependencyParse[] dependencyParses) {
+		this.dependencyParses = new DependencyParse[this.tokens.length];
+		for (int i = 0; i < this.dependencyParses.length; i++)
+			this.dependencyParses[i] = dependencyParses[i].clone(this);
 		
+		return true;
+	}
+	
+	public boolean setConstituencyParses(ConstituencyParse[] constituencyParses) {
+		this.constituencyParses = new ConstituencyParse[this.tokens.length];
+		for (int i = 0; i < this.constituencyParses.length; i++)
+			this.constituencyParses[i] = constituencyParses[i].clone(this);
+	
 		return true;
 	}
 	
@@ -260,12 +249,8 @@ public class DocumentInMemory extends Document {
 			}
 			sentenceJson.put("tokens", tokensJson);
 			sentenceJson.put("posTags", posTagsJson);
-			
-			List<TypedDependency> dependencies = getDependencies(i);
-			JSONArray dependenciesJson = new JSONArray();
-			for (int j = 0; j < dependencies.size(); j++)
-				dependenciesJson.add(dependencies.get(j).toString());
-			sentenceJson.put("dependencies", dependenciesJson);
+			sentenceJson.put("dependencyParse", getDependencyParse(i).toString());
+			sentenceJson.put("constituencyParse", getConstituencyParse(i).toString());
 			
 			sentencesJson.add(sentenceJson);
 		}
@@ -306,14 +291,12 @@ public class DocumentInMemory extends Document {
 			entryElement.addContent(tokensElement);
 			
 			Element depsElement = new Element("deps");
-			StringBuilder depsStr = new StringBuilder();
-			List<TypedDependency> dependencies = getDependencies(i);
-			for (int j = 0; j < dependencies.size(); j++)
-				depsStr.append(dependencies.get(j).toString()).append("\n");
-			if (depsStr.length() > 0)
-				depsStr = depsStr.delete(depsStr.length() - 1, depsStr.length());
-			depsElement.addContent(depsStr.toString());
+			depsElement.addContent(getDependencyParse(i).toString());
 			entryElement.addContent(depsElement);
+			
+			Element parseElement = new Element("parse");
+			parseElement.addContent(getConstituencyParse(i).toString());
+			entryElement.addContent(parseElement);
 			
 			element.addContent(entryElement);
 		}
@@ -364,13 +347,13 @@ public class DocumentInMemory extends Document {
 		JSONArray sentences = json.getJSONArray("sentences");
 		this.tokens = new String[sentences.size()][];
 		this.posTags = new PoSTag[sentences.size()][];
-		this.dependencies = new TypedDependency[sentences.size()][];
+		this.dependencyParses = new DependencyParse[sentences.size()];
+		this.constituencyParses = new ConstituencyParse[sentences.size()];
 		
 		for (int i = 0; i < sentences.size(); i++) {
 			JSONObject sentenceJson = sentences.getJSONObject(i);
 			JSONArray tokensJson = sentenceJson.getJSONArray("tokens");
 			JSONArray posTagsJson = sentenceJson.getJSONArray("posTags");
-			JSONArray dependenciesJson = sentenceJson.getJSONArray("dependencies");
 			
 			this.tokens[i] = new String[tokensJson.size()];
 			for (int j = 0; j < tokensJson.size(); j++)
@@ -380,9 +363,8 @@ public class DocumentInMemory extends Document {
 			for (int j = 0; j < posTagsJson.size(); j++)
 				this.posTags[i][j] = PoSTag.valueOf(posTagsJson.getString(j));
 			
-			this.dependencies[i] = new TypedDependency[dependenciesJson.size()];
-			for (int j = 0; j < dependenciesJson.size(); j++)
-				this.dependencies[i][j] = TypedDependency.fromString(dependenciesJson.getString(j), this, i);
+			this.dependencyParses[i] = DependencyParse.fromString(sentenceJson.getString("dependencyParse"), this, i);
+			this.constituencyParses[i] = ConstituencyParse.fromString(sentenceJson.getString("constituencyParse"), this, i);
 		}
 		
 		return true;
@@ -418,7 +400,8 @@ public class DocumentInMemory extends Document {
 		List<Element> entryElements = (List<Element>)element.getChildren("entry");
 		this.tokens = new String[entryElements.size()][];
 		this.posTags = new PoSTag[entryElements.size()][];
-		this.dependencies = new TypedDependency[entryElements.size()][];
+		this.dependencyParses = new DependencyParse[entryElements.size()];
+		this.constituencyParses = new ConstituencyParse[entryElements.size()];
 		
 		for (Element entryElement : entryElements) {
 			int sentenceIndex = Integer.parseInt(entryElement.getAttributeValue("sid"));
@@ -436,10 +419,10 @@ public class DocumentInMemory extends Document {
 			}
 			
 			Element depsElement = entryElement.getChild("deps");
-			String[] depStrs = depsElement.getText().split("\n");
-			this.dependencies[sentenceIndex] = new TypedDependency[depStrs.length];
-			for (int j = 0; j < depStrs.length; j++)
-				this.dependencies[sentenceIndex][j] = TypedDependency.fromString(depStrs[j], this, sentenceIndex);
+			this.dependencyParses[sentenceIndex] = DependencyParse.fromString(depsElement.getText(), this, sentenceIndex);
+			
+			Element parseElement = entryElement.getChild("parse");
+			this.constituencyParses[sentenceIndex] = ConstituencyParse.fromString(parseElement.getText(), this, sentenceIndex);
 		}
 				
 		return true;

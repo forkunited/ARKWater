@@ -267,7 +267,7 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	}
 
 	@Override
-	protected boolean deserializeExtraInfo(BufferedReader reader, Tools<D, L> datumTools) {
+	protected boolean deserializeExtraInfo(String name, BufferedReader reader, Tools<D, L> datumTools) {
 		return true;
 	}
 

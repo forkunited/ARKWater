@@ -156,10 +156,14 @@ public class ConfusionMatrix<D extends Datum<L>, L> {
 		for (Entry<L, Map<L, List<D>>> entryActual : this.actualToPredicted.entrySet()) {
 			for (Entry<L, List<D>> entryPredicted : entryActual.getValue().entrySet()) {
 				for (D datum: entryPredicted.getValue()) {
-					TokenSpan[] tokenSpans = tokenExtractor.extract(datum);
+					
+					TokenSpan[] tokenSpans = null; 
 					String sentence = null;
-					if (tokenSpans != null && tokenSpans.length > 0)
-						sentence = tokenSpans[0].getDocument().getSentence(tokenSpans[0].getSentenceIndex());
+					if (tokenExtractor != null) {
+						tokenSpans = tokenExtractor.extract(datum);
+						if (tokenSpans != null && tokenSpans.length > 0)
+							sentence = tokenSpans[0].getDocument().getSentence(tokenSpans[0].getSentenceIndex());
+					}
 					
 					description.append("PREDICTED: ").append(entryPredicted.getKey()).append("\n");
 					description.append("ACTUAL: ").append(entryActual.getKey()).append("\n");

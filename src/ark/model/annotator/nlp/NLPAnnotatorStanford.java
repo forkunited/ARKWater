@@ -1,9 +1,12 @@
 package ark.model.annotator.nlp;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.Stack;
 
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
@@ -16,11 +19,19 @@ import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.semgraph.SemanticGraph;
 import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.CollapsedCCProcessedDependenciesAnnotation;
 import edu.stanford.nlp.trees.GrammaticalRelation;
+import edu.stanford.nlp.trees.Tree;
+import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
 
 import ark.data.annotation.Language;
+import ark.data.annotation.nlp.ConstituencyParse;
+import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.PoSTag;
-import ark.data.annotation.nlp.TypedDependency;
+import ark.data.annotation.nlp.TokenSpan;
+import ark.data.annotation.nlp.ConstituencyParse.Constituent;
+import ark.data.annotation.nlp.DependencyParse.Dependency;
+import ark.data.annotation.nlp.DependencyParse.Node;
+import ark.util.Pair;
 
 public class NLPAnnotatorStanford extends NLPAnnotator {
 	private StanfordCoreNLP pipeline;
@@ -48,7 +59,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	public boolean setText(String text) {
 		this.text = text;
 		this.annotatedText = new Annotation(text);
-	    this.pipeline.annotate(this.annotatedText);
+		this.pipeline.annotate(this.annotatedText);
 		
 		return true;
 	}
@@ -71,7 +82,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	public PoSTag[][] makePoSTags() {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		PoSTag[][] posTags = new PoSTag[sentences.size()][];
-		for(int i = 0; i < sentences.size(); i++) {
+		for (int i = 0; i < sentences.size(); i++) {
 			List<CoreLabel> sentenceTokens = sentences.get(i).get(TokensAnnotation.class);
 			posTags[i] = new PoSTag[sentenceTokens.size()];
 			for (int j = 0; j < sentenceTokens.size(); j++) {
@@ -87,23 +98,15 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return posTags;
 	}
 	
-	public TypedDependency[][] makeDependencies() {
+	public DependencyParse[] makeDependencyParses() {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
-		TypedDependency[][] dependencies = new TypedDependency[sentences.size()][];
+		DependencyParse[] parses = new DependencyParse[sentences.size()];
 		for(int i = 0; i < sentences.size(); i++) {
 			SemanticGraph sentenceDependencyGraph = sentences.get(i).get(CollapsedCCProcessedDependenciesAnnotation.class);
 			Set<IndexedWord> sentenceWords = sentenceDependencyGraph.vertexSet();
-			List<TypedDependency> sentenceDependencies = new LinkedList<TypedDependency>();
-			
-			List<IndexedWord> sentenceRoots = new LinkedList<IndexedWord>();
-			sentenceRoots.addAll(sentenceDependencyGraph.getRoots());
-			for (IndexedWord sentenceRoot : sentenceRoots)
-				sentenceDependencies.add(new TypedDependency(null,
-															i,
-															-1,
-															sentenceRoot.index() - 1,
-															"root"));
-			
+			Map<Integer, Pair<DependencyParse.Dependency, List<DependencyParse.Dependency>>> nodesToDeps = new HashMap<Integer, Pair<DependencyParse.Dependency, List<DependencyParse.Dependency>>>();
+			parses[i] = new DependencyParse(null, i, null, null);
+			int maxIndex = -1;
 			for (IndexedWord sentenceWord1 : sentenceWords) {
 				for (IndexedWord sentenceWord2 : sentenceWords) {
 					if (sentenceWord1.equals(sentenceWord2))
@@ -111,18 +114,94 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 					GrammaticalRelation relation = sentenceDependencyGraph.reln(sentenceWord1, sentenceWord2);
 					if (relation == null)
 						continue;
-					sentenceDependencies.add(new TypedDependency(null, 
-																i, 
-																sentenceWord1.index() - 1, 
-																sentenceWord2.index() - 1, 
-																relation.getShortName()));
+					
+					int govIndex = sentenceWord1.index() - 1;
+					int depIndex = sentenceWord2.index() - 1;
+					
+					maxIndex = Math.max(depIndex, Math.max(govIndex, maxIndex));
+					
+					DependencyParse.Dependency dependency = parses[i].new Dependency(govIndex, depIndex, relation.getShortName());
+					
+					if (!nodesToDeps.containsKey(govIndex))
+						nodesToDeps.put(govIndex, new Pair<Dependency, List<Dependency>>(null, new ArrayList<Dependency>()));
+					if (!nodesToDeps.containsKey(depIndex))
+						nodesToDeps.put(depIndex, new Pair<Dependency, List<Dependency>>(null, new ArrayList<Dependency>()));
+					
+					nodesToDeps.get(govIndex).getSecond().add(dependency);
+					nodesToDeps.get(depIndex).setFirst(dependency);
 				}
 			}
 			
-			dependencies[i] = new TypedDependency[sentenceDependencies.size()];
-			dependencies[i] = sentenceDependencies.toArray(dependencies[i]);
+			Node[] tokenNodes = new Node[maxIndex+1];
+			for (int j = 0; j < tokenNodes.length; j++)
+				if (nodesToDeps.containsKey(j))
+					tokenNodes[j] = parses[i].new Node(j, nodesToDeps.get(j).getFirst(), nodesToDeps.get(j).getSecond().toArray(new Dependency[0]));
+			
+			Node rootNode = parses[i].new Node(-1, null, nodesToDeps.get(-1).getSecond().toArray(new Dependency[0]));
+			parses[i] = new DependencyParse(null, i, rootNode, tokenNodes);
 		}
 		
-		return dependencies;
+		return parses;
+	}
+	
+	public ConstituencyParse[] makeConstituencyParses() {
+		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
+		ConstituencyParse[] parses = new ConstituencyParse[sentences.size()];
+		
+		for(int i = 0; i < sentences.size(); i++) {
+			Tree tree = sentences.get(i).get(TreeAnnotation.class);
+
+			Constituent root = null;
+			parses[i] = new ConstituencyParse(null, i, null);
+			Stack<Pair<Tree, List<Constituent>>> constituents = new Stack<Pair<Tree, List<Constituent>>>();
+			Stack<Tree> toVisit = new Stack<Tree>();
+			toVisit.push(tree);
+			int tokenIndex = 0;
+			while (!toVisit.isEmpty()) {
+				Tree currentTree = toVisit.pop();
+				
+				if (!constituents.isEmpty()) {
+					while (!isStanfordTreeParent(currentTree, constituents.peek().getFirst())) {
+						Pair<Tree, List<Constituent>> currentNeighbor = constituents.pop();
+						ConstituencyParse.Constituent constituent = parses[i].new Constituent(currentNeighbor.getFirst().label().value(), currentNeighbor.getSecond().toArray(new ConstituencyParse.Constituent[0]));
+						constituents.peek().getSecond().add(constituent);
+					}
+				}
+				
+				if (currentTree.isPreTerminal()) {
+					String label = currentTree.label().value();
+					ConstituencyParse.Constituent constituent = parses[i].new Constituent(label, new TokenSpan(null, i, tokenIndex, tokenIndex + 1));
+					tokenIndex++;
+					if (!constituents.isEmpty())
+						constituents.peek().getSecond().add(constituent);
+					else
+						root = constituent;
+				} else {
+					constituents.push(new Pair<Tree, List<Constituent>>(currentTree, new ArrayList<Constituent>()));
+					for (int j = currentTree.numChildren() - 1; j >= 0; j--)
+						toVisit.push(currentTree.getChild(j));
+				}
+			}
+			
+			while (!constituents.isEmpty()) {
+				Pair<Tree, List<Constituent>> possibleRoot = constituents.pop();
+				root = parses[i].new Constituent(possibleRoot.getFirst().label().value(), possibleRoot.getSecond().toArray(new ConstituencyParse.Constituent[0]));
+				if (!constituents.isEmpty())
+					constituents.peek().getSecond().add(root);
+			}
+			
+			parses[i] = new ConstituencyParse(null, i, root);
+		}
+		
+		return parses;
+	}
+	
+	private boolean isStanfordTreeParent(Tree tree, Tree possibleParent) {
+		for (int j = 0; j < possibleParent.numChildren(); j++) {
+			if (possibleParent.getChild(j).equals(tree)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

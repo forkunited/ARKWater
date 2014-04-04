@@ -1,9 +1,7 @@
 package ark.model;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -25,10 +23,10 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 	protected abstract String[] getHyperParameterNames();
 	protected abstract SupervisedModel<D, L> makeInstance();
-	protected abstract boolean deserializeExtraInfo(BufferedReader reader, Datum.Tools<D, L> datumTools);
-	protected abstract boolean deserializeParameters(BufferedReader reader, Datum.Tools<D, L> datumTools);	
-	protected abstract boolean serializeParameters(Writer writer);
-	protected abstract boolean serializeExtraInfo(Writer writer);
+	protected abstract boolean deserializeExtraInfo(String name, BufferedReader reader, Datum.Tools<D, L> datumTools) throws IOException;
+	protected abstract boolean deserializeParameters(BufferedReader reader, Datum.Tools<D, L> datumTools) throws IOException;	
+	protected abstract boolean serializeParameters(Writer writer) throws IOException;
+	protected abstract boolean serializeExtraInfo(Writer writer) throws IOException;
 	
 	public abstract String getGenericName();
 	public abstract String getHyperParameterValue(String parameter);
@@ -60,7 +58,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		
 		String line = null;
 		while (!(line = reader.readLine()).contains("}")) {
-			Reader lineReader = new StringReader(line);
+			BufferedReader lineReader = new BufferedReader(new StringReader(line));
 			String assignmentLeft = SerializationUtil.deserializeAssignmentLeft(lineReader);
 			if (assignmentLeft.equals("labelMapping"))
 				this.labelMapping = datumTools.getLabelMapping(SerializationUtil.deserializeAssignmentRight(lineReader));
@@ -70,7 +68,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 				for (String validLabelStr : validLabelStrs)
 					this.validLabels.add(datumTools.labelFromString(validLabelStr));
 			} else {
-				if (!deserializeExtraInfo(reader, datumTools)) // FIXME: Skips a line... Not right... do this later
+				if (!deserializeExtraInfo(assignmentLeft, lineReader, datumTools))
 					return false;
 			}
 		}
@@ -83,10 +81,13 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 	public boolean serialize(Writer writer) throws IOException {
 		writer.write(toString(false));
-		writer.write("\n{");
+		writer.write("\n{\n");
 		if (this.labelMapping != null)
 			writer.write("\tlabelMapping=" + this.labelMapping.toString() +"\n");
-		writer.write("validLabels=" + SerializationUtil.serializeList(this.validLabels, writer) + "\n");
+		writer.write("\tvalidLabels=");
+		if (!SerializationUtil.serializeList(this.validLabels, writer))
+			return false;
+		writer.write("\n");
 		
 		if (!serializeExtraInfo(writer))
 			return false;
@@ -101,7 +102,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 	public String toString(boolean withParameters) {
 		if (withParameters) {
-			BufferedWriter stringWriter = new BufferedWriter(new StringWriter());
+			StringWriter stringWriter = new StringWriter();
 			try {
 				if (serialize(stringWriter))
 					return stringWriter.toString();

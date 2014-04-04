@@ -75,7 +75,7 @@ public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends Sup
 	}
 
 	@Override
-	protected boolean deserializeExtraInfo(BufferedReader reader,
+	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
 			Tools<D, L> datumTools) {
 		return true;
 	}

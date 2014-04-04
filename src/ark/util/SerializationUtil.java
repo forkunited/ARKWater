@@ -55,10 +55,13 @@ public class SerializationUtil {
 				cInt = reader.read();
 				c = (char)cInt;
 			}
+			
 			list.add(item.toString().trim());
 			item = new StringBuilder();
-			cInt = reader.read();
-			c = (char)cInt;
+			if (cInt != -1 && c != '\n') {
+				cInt = reader.read();
+				c = (char)cInt;
+			}
 		}
 		
 		return list;
@@ -68,13 +71,13 @@ public class SerializationUtil {
 		int cInt = reader.read();
 		char c = (char)cInt;
 		StringBuilder first = new StringBuilder();
-		while (cInt != -1 && c != '=') {
+		while (cInt != -1 && c != '=' && c != ')') {
 			first = first.append(c);
 			cInt = reader.read();
 			c = (char)cInt;
 		}
 		
-		if (cInt == -1)
+		if (cInt == -1 || first.length() == 0)
 			return null;
 		
 		cInt = reader.read();
