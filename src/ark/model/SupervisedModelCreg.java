@@ -7,8 +7,12 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.Map.Entry;
 
 import net.sf.json.JSONObject;
@@ -209,7 +213,38 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	}
 
 	@Override
-	protected boolean serializeParameters(Writer writer) {
+	protected boolean serializeParameters(Writer writer) throws IOException {
+		TreeMap<Double, List<String>> sortedWeights = new TreeMap<Double, List<String>>();
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(this.modelPath.getValue()));
+			String line = null;
+			
+			while ((line = br.readLine()) != null) {
+				String[] lineParts = line.split("\t");
+				Double value = null;
+				if (lineParts.length < 3)
+					continue;
+				try {
+					value = Math.abs(Double.parseDouble(lineParts[2]));
+				} catch (NumberFormatException e) {
+					continue;
+				}
+				
+				if (!sortedWeights.containsKey(value))
+					sortedWeights.put(value, new ArrayList<String>());
+				sortedWeights.get(value).add(line);
+			}
+	        
+	        br.close();
+	    } catch (Exception e) {
+	    	e.printStackTrace();
+	    }
+		
+		NavigableMap<Double, List<String>> descendingWeights = sortedWeights.descendingMap();
+		for (List<String> lines : descendingWeights.values())
+			for (String line : lines)
+				writer.write(line + "\n");
+		
 		return true;
 	}
 

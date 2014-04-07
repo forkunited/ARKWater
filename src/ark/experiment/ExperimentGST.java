@@ -10,54 +10,72 @@ import java.util.Map;
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.data.feature.Feature;
+import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
-import ark.model.evaluation.KFoldCrossValidation;
+import ark.model.evaluation.GridSearchTestValidation;
 import ark.model.evaluation.metric.ClassificationEvaluation;
+import ark.util.OutputWriter;
 import ark.util.SerializationUtil;
 
-public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
+public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected SupervisedModel<D, L> model;
 	protected List<Feature<D, L>> features;
-	protected int crossValidationFolds;
 	protected Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor;
 	protected Map<String, List<String>> gridSearchParameterValues;
 	protected List<ClassificationEvaluation<D, L>> evaluations;
-	protected DataSet<D, L> data;
+	protected DataSet<D, L> trainData;
+	protected DataSet<D, L> devData;
+	protected DataSet<D, L> testData;
 	
-	public ExperimentKCV(String name, String inputPath, DataSet<D, L> data) {
-		super(name, inputPath, data.getDatumTools());
+	public ExperimentGST(String name, String inputPath, DataSet<D, L> trainData, DataSet<D, L> devData, DataSet<D, L> testData) {
+		super(name, inputPath, trainData.getDatumTools());
 		
 		this.features = new ArrayList<Feature<D, L>>();
 		this.gridSearchParameterValues = new HashMap<String, List<String>>();
 		this.evaluations = new ArrayList<ClassificationEvaluation<D, L>>();
-		this.data = data;
+		this.trainData = trainData;
+		this.devData = devData;
+		this.testData = testData;
 	}
 	
 	@Override
 	protected boolean execute() {
-		KFoldCrossValidation<D, L> validation = new KFoldCrossValidation<D, L>(
-			this.name,
-			this.model,
-			this.features,
-			this.evaluations,
-			this.data,
-			this.crossValidationFolds, 
-			this.random
-		);
+		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
+		FeaturizedDataSet<D, L> testData = new FeaturizedDataSet<D, L>(this.name + " Test", this.features, this.maxThreads, this.datumTools, this.testData.getLabelMapping());
+		FeaturizedDataSet<D, L> trainData = new FeaturizedDataSet<D, L>(this.name + " Training", this.features, this.maxThreads, this.datumTools, this.trainData.getLabelMapping());
+		FeaturizedDataSet<D, L> devData = new FeaturizedDataSet<D, L>(this.name + " Dev", this.features, this.maxThreads, this.datumTools, this.devData.getLabelMapping());
 		
-		validation.setPossibleHyperParameterValues(this.gridSearchParameterValues);
+		testData.addAll(this.testData);
+		trainData.addAll(this.trainData);
+		devData.addAll(this.devData);
 		
-		if (validation.run(this.maxThreads, this.errorExampleExtractor).get(0) < 0)
+		output.debugWriteln("Initializing features (" + this.name + ")...");
+		for (Feature<D, L> feature : this.features) {
+			if (!feature.init(trainData))
+				return false;
+			
+			trainData.addFeature(feature);
+			devData.addFeature(feature);
+			testData.addFeature(feature);
+		}
+		
+		
+		GridSearchTestValidation<D, L> gridSearchValidation = new GridSearchTestValidation<D, L>(
+				this.name, 
+				this.model, 
+				trainData, 
+				devData, 
+				testData, 
+				this.evaluations);
+		gridSearchValidation.setPossibleHyperParameterValues(this.gridSearchParameterValues);
+		if (gridSearchValidation.run(this.errorExampleExtractor, true).get(0) < 0)
 			return false;
 
 		return true;
 	}
 	@Override
 	protected boolean deserializeNext(BufferedReader reader, String nextName) throws IOException {
-		if (nextName.equals("crossValidationFolds")) {
-			this.crossValidationFolds = Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
-		
-		} else if (nextName.startsWith("model")) {
+		if (nextName.startsWith("model")) {
 			String modelName = SerializationUtil.deserializeGenericName(reader);
 			this.model = this.datumTools.makeModelInstance(modelName);
 			if (!this.model.deserialize(reader, false, false, this.datumTools))

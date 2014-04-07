@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.Random;
 
-import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.util.FileUtil;
 import ark.util.SerializationUtil;
@@ -23,12 +22,12 @@ public abstract class Experiment<D extends Datum<L>, L> {
 		this.datumTools = datumTools;
 	}
 	
-	protected abstract boolean execute(DataSet<D, L> data);
+	protected abstract boolean execute();
 	protected abstract boolean deserializeNext(BufferedReader reader, String nextName) throws IOException;
 	
-	public boolean run(DataSet<D, L> data) {
+	public boolean run() {
 		try {
-			return deserialize() && execute(data);
+			return deserialize() && execute();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

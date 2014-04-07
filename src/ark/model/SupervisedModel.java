@@ -50,9 +50,14 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		
 		Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
 		if (parameters != null)
-			for (Entry<String, String> entry : parameters.entrySet())
-				if (!this.setHyperParameterValue(entry.getKey(), entry.getValue(), datumTools))
+			for (Entry<String, String> entry : parameters.entrySet()) {
+				String parameterValue = entry.getValue();
+				for (Entry<String, String> envEntry : datumTools.getDataTools().getParameterEnvironment().entrySet())
+					parameterValue = parameterValue.replace("${" + envEntry.getKey() + "}", envEntry.getValue());
+				
+				if (!this.setHyperParameterValue(entry.getKey(), parameterValue, datumTools))
 					return false;
+			}
 		
 		reader.readLine(); // Read "{"
 		

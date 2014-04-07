@@ -14,7 +14,7 @@ import ark.model.evaluation.metric.ClassificationEvaluation;
 import ark.util.OutputWriter;
 import ark.util.Pair;
 
-public class HyperParameterGridSearch<D extends Datum<L>, L> {
+public class GridSearch<D extends Datum<L>, L> {
 	public static class GridPosition {
 		private TreeMap<String, String> coordinates;
 		
@@ -95,7 +95,7 @@ public class HyperParameterGridSearch<D extends Datum<L>, L> {
 	private ClassificationEvaluation<D, L> evaluation;
 	private DecimalFormat cleanDouble;
 	
-	public HyperParameterGridSearch(String name,
+	public GridSearch(String name,
 									SupervisedModel<D, L> model,
 									FeaturizedDataSet<D, L> trainData, 
 									FeaturizedDataSet<D, L> testData,
