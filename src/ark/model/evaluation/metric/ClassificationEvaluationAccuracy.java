@@ -7,13 +7,18 @@ import ark.data.annotation.Datum.Tools;
 import ark.util.Pair;
 
 public class ClassificationEvaluationAccuracy<D extends Datum<L>, L> extends ClassificationEvaluation<D, L> {
-
+	public Datum.Tools.LabelMapping<L> labelMapping;
+	private String[] parameterNames = { "labelMapping" };
+	
 	@Override
 	public double compute(Collection<Pair<L, L>> actualAndPredicted) {
 		double total = actualAndPredicted.size();
 		double correct = 0;
 		for (Pair<L, L> pair : actualAndPredicted) {
-			if (pair.getFirst().equals(pair.getSecond()))
+			L actual = this.labelMapping.map(pair.getFirst());
+			L predicted = this.labelMapping.map(pair.getSecond());
+			
+			if (actual.equals(predicted))
 				correct += 1.0;
 		}
 		
@@ -27,17 +32,23 @@ public class ClassificationEvaluationAccuracy<D extends Datum<L>, L> extends Cla
 
 	@Override
 	protected String[] getParameterNames() {
-		return new String[0];
+		return this.parameterNames;
 	}
 
 	@Override
 	protected String getParameterValue(String parameter) {
+		if (parameter.equals("labelMapping"))
+			return (this.labelMapping == null) ? null : this.labelMapping.toString();
 		return null;
 	}
 
 	@Override
 	protected boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
+		if (parameter.equals("labelMapping"))
+			this.labelMapping = ((parameterValue == null) ? datumTools.getLabelMapping("Identity") : datumTools.getLabelMapping(parameterValue));
+		else
+			return false;
 		return true;
 	}
 

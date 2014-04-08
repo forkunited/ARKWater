@@ -129,7 +129,7 @@ public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Featu
 
 	@Override
 	protected Feature<D, L> makeInstance() {
-		return new FeaturePreps<D, L>();
+		return new FeatureUnlabeledDependencyPath<D, L>();
 	}
 
 

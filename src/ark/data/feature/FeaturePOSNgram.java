@@ -127,7 +127,7 @@ public class FeaturePOSNgram<D extends Datum<L>, L> extends Feature<D, L> {
 
 	@Override
 	protected Feature<D, L> makeInstance() {
-		return new FeaturePreps<D, L>();
+		return new FeaturePOSNgram<D, L>();
 	}
 
 
