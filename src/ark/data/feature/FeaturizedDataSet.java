@@ -15,7 +15,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	private String name;
 	private int maxThreads;
 	
-	private Map<String, Integer> referencedFeatures; // Maps from reference names to features
+	private Map<String, Feature<D, L>> referencedFeatures; // Maps from reference names to features
 	private TreeMap<Integer, Feature<D, L>> features; // Maps from the feature's starting vocabulary index to the feature
 	private Map<Integer, String> featureVocabularyNames; // Sparse map from indices to names
 	private Map<D, Map<Integer, Double>> featureVocabularyValues; // Map from data to indices to values
@@ -32,7 +32,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	public FeaturizedDataSet(String name, List<Feature<D, L>> features, int maxThreads, Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
 		super(datumTools, labelMapping);
 		this.name = name;
-		this.referencedFeatures = new HashMap<String, Integer>();
+		this.referencedFeatures = new HashMap<String, Feature<D, L>>();
 		this.features = new TreeMap<Integer, Feature<D, L>>();
 		this.maxThreads = maxThreads;
 		 
@@ -53,12 +53,12 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	}
 	
 	public boolean addFeature(Feature<D, L> feature) {
-		this.features.put(this.featureVocabularySize, feature);
-		
+		if (!feature.isIgnored()) {
+			this.features.put(this.featureVocabularySize, feature);
+			this.featureVocabularySize += feature.getVocabularySize();
+		}
 		if (feature.getReferenceName() != null)
-			this.referencedFeatures.put(feature.getReferenceName(), this.featureVocabularySize);
-		
-		this.featureVocabularySize += feature.getVocabularySize();
+			this.referencedFeatures.put(feature.getReferenceName(), feature);
 		
 		return true;
 	}
@@ -68,7 +68,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	}
 	
 	public Feature<D, L> getFeatureByReferenceName(String referenceName) {
-		return getFeature(this.referencedFeatures.get(referenceName));
+		return this.referencedFeatures.get(referenceName);
 	}
 	
 	public int getFeatureCount() {

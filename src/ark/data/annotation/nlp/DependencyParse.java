@@ -118,11 +118,11 @@ public class DependencyParse {
 			this.nodes = nodes;
 		}
 		
-		public int tokenLength() {
+		public int getTokenLength() {
 			return this.nodes.size();
 		}
 		
-		public int dependencyLength() {
+		public int getDependencyLength() {
 			return this.nodes.size() - 1;
 		}
 		
@@ -131,10 +131,12 @@ public class DependencyParse {
 		}
 		
 		public String getDependencyType(int dependencyIndex) {
+			int nodeIndex = this.nodes.get(dependencyIndex).getTokenIndex();
+			int nextNodeIndex = this.nodes.get(dependencyIndex + 1).getTokenIndex();
 			if (isDependencyGoverningNext(dependencyIndex))
-				return getDependency(dependencyIndex, dependencyIndex + 1).getType();
+				return getDependency(nodeIndex, nextNodeIndex).getType();
 			else
-				return getDependency(dependencyIndex + 1, dependencyIndex).getType();
+				return getDependency(nextNodeIndex, nodeIndex).getType();
 		}
 		
 		public boolean isGovernedByNext(int index) {
@@ -162,14 +164,14 @@ public class DependencyParse {
 		}
 		
 		public boolean isAllGoverning() {
-			for (int i = 0; i < dependencyLength(); i++)
+			for (int i = 0; i < getDependencyLength(); i++)
 				if (!isDependencyGoverningNext(i))
 					return false;
 			return true;
 		}
 		
 		public boolean isAllGovernedBy() {
-			for (int i = 0; i < dependencyLength(); i++)
+			for (int i = 0; i < getDependencyLength(); i++)
 				if (isDependencyGoverningNext(i))
 					return false;
 			return true;
@@ -177,11 +179,11 @@ public class DependencyParse {
 		
 		public String toString() {
 			StringBuilder str = new StringBuilder();
-			for (int i = 0; i < dependencyLength(); i++) {
+			for (int i = 0; i < getDependencyLength(); i++) {
 				str = str.append(getDependencyType(i))
 						.append("-")
 						.append((isDependencyGoverningNext(i) ? "G" : "D"))
-						.append("_");
+						.append("/");
 			}
 
 			if (str.length() > 0)
@@ -234,20 +236,18 @@ public class DependencyParse {
 	}
 	
 	public DependencyPath getPath(int sourceTokenIndex, int targetTokenIndex) {
-		Stack<Node> toVisit = new Stack<Node>();
-		Set<Integer> visited = new TreeSet<Integer>();
 		
 		Node source = getNode(sourceTokenIndex);
-		Node target = getNode(targetTokenIndex);
-		toVisit.push(source);
+		Node target = getNode(targetTokenIndex);;
 		// this can happen when the ccompressed path compresses a node into an arc, and i'm trying to find the path to that node.
 		if (source == null || target == null)
 			return null;
 		
-		visited.add(source.getTokenIndex());
+		Stack<Node> toVisit = new Stack<Node>();
 		Map<Node, Node> paths = new HashMap<Node, Node>();
-		Node previous = null;
-		Node current = null;
+		
+		toVisit.push(target);
+		paths.put(target, null);
 		while (!toVisit.isEmpty()) {
 			/*
 			System.out.println("Source index: " + sourceTokenIndex);
@@ -259,12 +259,9 @@ public class DependencyParse {
 			System.out.println(visited);
 			System.out.println();
 			*/
-			previous = current;
-			current = toVisit.pop();
-			
-			paths.put(current, previous);
-			
-			if (current.equals(target)) {
+			Node current = toVisit.pop();
+		
+			if (current.equals(source)) {
 				List<Node> path = new ArrayList<Node>();
 				Node pathCurrent = current;
 				while (pathCurrent != null) {
@@ -276,24 +273,20 @@ public class DependencyParse {
 			
 			Dependency[] governors = current.getGovernors();
 			for (Dependency governor : governors) {
-				int governorTokenIndex = governor.getGoverningTokenIndex();
-				if (visited.contains(governorTokenIndex))
+				Node governorNode = getNode(governor.getGoverningTokenIndex());
+				if (paths.containsKey(governorNode))
 					continue;
-				if (governorTokenIndex != -1){
-					toVisit.push(this.tokenNodes[governorTokenIndex]);
-					visited.add(this.tokenNodes[governorTokenIndex].getTokenIndex());
-				}
-				else{
-					toVisit.push(this.root);
-					visited.add(this.root.getTokenIndex());
-				}
+				toVisit.push(governorNode);
+				paths.put(governorNode, current);
 			}
+			
 			Dependency[] dependents = current.getDependents();
 			for (Dependency dependent : dependents){
-				if (!visited.contains(dependent.getDependentTokenIndex())){
-					toVisit.push(this.tokenNodes[dependent.getDependentTokenIndex()]);
-					visited.add(this.tokenNodes[dependent.getDependentTokenIndex()].getTokenIndex());
-				}
+				Node dependentNode = getNode(dependent.getDependentTokenIndex());
+				if (paths.containsKey(dependentNode))
+					continue;
+				toVisit.push(dependentNode);
+				paths.put(dependentNode, current);
 			}
 		}
 		

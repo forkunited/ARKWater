@@ -17,6 +17,7 @@ import ark.util.SerializationUtil;
 
 public abstract class Feature<D extends Datum<L>, L> {
 	private String referenceName;
+	private boolean ignored;
 	
 	public abstract boolean init(FeaturizedDataSet<D, L> dataSet);
 	public abstract Map<Integer, Double> computeVector(D datum);
@@ -33,6 +34,10 @@ public abstract class Feature<D extends Datum<L>, L> {
 	
 	public String getReferenceName() {
 		return this.referenceName;
+	}
+	
+	public boolean isIgnored() {
+		return this.ignored;
 	}
 	
 	public Map<Integer, String> getSpecificShortNamesForIndices(Iterable<Integer> indices) {
@@ -83,11 +88,12 @@ public abstract class Feature<D extends Datum<L>, L> {
 		}
 		
 		clone.referenceName = this.referenceName;
+		clone.ignored = this.ignored;
 		
 		return clone;
 	}
 
-	public boolean deserialize(BufferedReader reader, boolean readGenericName, boolean readVocabulary, Datum.Tools<D, L> datumTools, String referenceName) throws IOException {		
+	public boolean deserialize(BufferedReader reader, boolean readGenericName, boolean readVocabulary, Datum.Tools<D, L> datumTools, String referenceName, boolean ignored) throws IOException {		
 		if (readGenericName && SerializationUtil.deserializeGenericName(reader) == null)
 			return false;
 		
@@ -108,6 +114,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 		}
 
 		this.referenceName = referenceName;
+		this.ignored = ignored;
 		
 		return true;
 	}
@@ -168,7 +175,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 	
 	public boolean fromString(String str, Datum.Tools<D, L> datumTools) {
 		try {
-			return deserialize(new BufferedReader(new StringReader(str)), true, true, datumTools, null);
+			return deserialize(new BufferedReader(new StringReader(str)), true, true, datumTools, null, false);
 		} catch (IOException e) {
 			
 		}

@@ -66,12 +66,12 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	
 	@Override
 	public Map<Integer, Double> computeVector(D datum) {
-		Set<String> prepsForDatum = getNGramPoSForDatum(datum);
+		Set<String> posForDatum = getNGramPoSForDatum(datum);
 		Map<Integer, Double> vector = new HashMap<Integer, Double>();
 		
-		for (String prep : prepsForDatum) {
-			if (this.vocabulary.containsKey(prep))
-				vector.put(this.vocabulary.get(prep), 1.0);		
+		for (String ngramPoS : posForDatum) {
+			if (this.vocabulary.containsKey(ngramPoS))
+				vector.put(this.vocabulary.get(ngramPoS), 1.0);		
 		}
 
 		return vector;

@@ -81,12 +81,16 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 			if (!this.model.deserialize(reader, false, false, this.datumTools))
 				return false;
 		} else if (nextName.startsWith("feature")) {
-			String referenceName = nextName.substring("feature".length());
-			if (referenceName.length() == 0)
-				referenceName = null;
+			String[] nameParts = nextName.split("_");
+			String referenceName = null;
+			boolean ignore = false;
+			if (nameParts.length > 1)
+				referenceName = nameParts[1];
+			if (nameParts.length > 2)
+				ignore = true;
 			String featureName = SerializationUtil.deserializeGenericName(reader);
 			Feature<D, L> feature = this.datumTools.makeFeatureInstance(featureName);
-			if (!feature.deserialize(reader, false, false, this.datumTools, referenceName))
+			if (!feature.deserialize(reader, false, false, this.datumTools, referenceName, ignore))
 				return false;
 			this.features.add(feature);
 		} else if (nextName.startsWith("errorExampleExtractor")) {
