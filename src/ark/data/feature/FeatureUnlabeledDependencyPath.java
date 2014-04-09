@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.util.BidirectionalLookupTable;
@@ -24,7 +23,7 @@ public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Featu
 	}
 	
 	@Override
-	public boolean init(DataSet<D, L> dataSet) {
+	public boolean init(FeaturizedDataSet<D, L> dataSet) {
 		CounterTable<String> counter = new CounterTable<String>();
 		for (D datum : dataSet) {
 			Set<String> preps = getPrepsForDatum(datum);

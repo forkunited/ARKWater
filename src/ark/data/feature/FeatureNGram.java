@@ -8,7 +8,6 @@ import java.util.Set;
 
 import ark.util.CounterTable;
 import ark.data.DataTools;
-import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.util.BidirectionalLookupTable;
 import ark.util.Stemmer;
@@ -32,7 +31,7 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> 
 	}
 	
 	@Override
-	public boolean init(DataSet<D, L> dataSet) {
+	public boolean init(FeaturizedDataSet<D, L> dataSet) {
 		CounterTable<String> counter = new CounterTable<String>();
 		for (D datum : dataSet) {
 			Set<String> ngramsForDatum = getNGramsForDatum(datum);

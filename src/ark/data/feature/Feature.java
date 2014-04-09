@@ -11,13 +11,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
 public abstract class Feature<D extends Datum<L>, L> {
-	public abstract boolean init(DataSet<D, L> dataSet);
+	private String referenceName;
+	
+	public abstract boolean init(FeaturizedDataSet<D, L> dataSet);
 	public abstract Map<Integer, Double> computeVector(D datum);
 	public abstract String getGenericName();
 	public abstract int getVocabularySize();
@@ -30,6 +31,10 @@ public abstract class Feature<D extends Datum<L>, L> {
 	protected abstract boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
 	protected abstract Feature<D, L> makeInstance();
 	
+	public String getReferenceName() {
+		return this.referenceName;
+	}
+	
 	public Map<Integer, String> getSpecificShortNamesForIndices(Iterable<Integer> indices) {
 		String prefix = getSpecificShortNamePrefix();
 		Map<Integer, String> specificShortNames = new HashMap<Integer, String>();
@@ -38,6 +43,15 @@ public abstract class Feature<D extends Datum<L>, L> {
 		}
 		
 		return specificShortNames;
+	}
+	
+	public Map<Integer, String> getVocabularyForIndices(Iterable<Integer> indices) {
+		Map<Integer, String> vocabulary = new HashMap<Integer, String>();
+		for (Integer index : indices) {
+			vocabulary.put(index, getVocabularyTerm(index));
+		}
+		
+		return vocabulary;
 	}
 	
 	public List<String> getSpecificShortNames() {
@@ -67,10 +81,13 @@ public abstract class Feature<D extends Datum<L>, L> {
 			}
 			clone.setParameterValue(parameterNames[i], parameterValue, datumTools);
 		}
+		
+		clone.referenceName = this.referenceName;
+		
 		return clone;
 	}
 
-	public boolean deserialize(BufferedReader reader, boolean readGenericName, boolean readVocabulary, Datum.Tools<D, L> datumTools) throws IOException {
+	public boolean deserialize(BufferedReader reader, boolean readGenericName, boolean readVocabulary, Datum.Tools<D, L> datumTools, String referenceName) throws IOException {		
 		if (readGenericName && SerializationUtil.deserializeGenericName(reader) == null)
 			return false;
 		
@@ -90,6 +107,8 @@ public abstract class Feature<D extends Datum<L>, L> {
 			}
 		}
 
+		this.referenceName = referenceName;
+		
 		return true;
 	}
 	
@@ -149,7 +168,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 	
 	public boolean fromString(String str, Datum.Tools<D, L> datumTools) {
 		try {
-			return deserialize(new BufferedReader(new StringReader(str)), true, true, datumTools);
+			return deserialize(new BufferedReader(new StringReader(str)), true, true, datumTools, null);
 		} catch (IOException e) {
 			
 		}

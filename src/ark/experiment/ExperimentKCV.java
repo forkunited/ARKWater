@@ -63,9 +63,12 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 			if (!this.model.deserialize(reader, false, false, this.datumTools))
 				return false;
 		} else if (nextName.startsWith("feature")) {
+			String referenceName = nextName.substring("feature".length());
+			if (referenceName.length() == 0)
+				referenceName = null;
 			String featureName = SerializationUtil.deserializeGenericName(reader);
 			Feature<D, L> feature = this.datumTools.makeFeatureInstance(featureName);
-			if (!feature.deserialize(reader, false, false, this.datumTools))
+			if (!feature.deserialize(reader, false, false, this.datumTools, referenceName))
 				return false;
 			this.features.add(feature);
 		} else if (nextName.startsWith("errorExampleExtractor")) {

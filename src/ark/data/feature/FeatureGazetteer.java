@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import ark.data.Gazetteer;
-import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 
 public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D, L> {
@@ -67,7 +66,7 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	}
 	
 	@Override
-	public boolean init(DataSet<D, L> dataSet) {
+	public boolean init(FeaturizedDataSet<D, L> dataSet) {
 		return true;
 	}
 	

@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 
@@ -15,7 +14,7 @@ public class FeatureIdentity<D extends Datum<L>, L> extends Feature<D, L> {
 	protected int vocabularySize;
 	
 	@Override
-	public boolean init(DataSet<D, L> dataSet) {
+	public boolean init(FeaturizedDataSet<D, L> dataSet) {
 		Iterator<D> dataIter = dataSet.iterator();
 		if (!dataIter.hasNext())
 			return false;
