@@ -10,15 +10,15 @@ import ark.data.annotation.nlp.TokenSpan;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 
-public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Feature<D, L> {
+public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	protected BidirectionalLookupTable<String, Integer> vocabulary;
 	
 	protected int minFeatureOccurrence;
 	protected Datum.Tools.TokenSpanExtractor<D, L> tokenExtractor;
-	protected String POS;
-	protected String[] parameterNames = {"minFeatureOccurrence", "tokenExtractor", "POS"};
+	protected String PoS;
+	protected String[] parameterNames = {"minFeatureOccurrence", "tokenExtractor", "PoS"};
 	
-	public FeatureUnlabeledDependencyPath(){
+	public FeatureNGramPoS(){
 		vocabulary = new BidirectionalLookupTable<String, Integer>();
 	}
 	
@@ -26,8 +26,8 @@ public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Featu
 	public boolean init(FeaturizedDataSet<D, L> dataSet) {
 		CounterTable<String> counter = new CounterTable<String>();
 		for (D datum : dataSet) {
-			Set<String> preps = getPrepsForDatum(datum);
-			for (String ngram : preps) {
+			Set<String> nGramPoS = getNGramPoSForDatum(datum);
+			for (String ngram : nGramPoS) {
 				counter.incrementCount(ngram);
 			}
 		}
@@ -38,32 +38,35 @@ public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Featu
 		return true;
 	}
 	
-	private Set<String> getPrepsForDatum(D datum){
-		Set<String> preps = new HashSet<String>();
-		
+	private Set<String> getNGramPoSForDatum(D datum){
+		Set<String> nGramPoS = new HashSet<String>();
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
 		
 		for (TokenSpan tokenSpan : tokenSpans) {
-			
+			if (tokenSpan.getStartTokenIndex() == -1){
+				nGramPoS.add("NO_SENTENCE");
+				return nGramPoS;
+			}
+				
 			//List<String> tokens = tokenSpan.getDocument().getSentenceTokens(tokenSpan.getSentenceIndex());
 			int sentLength = tokenSpan.getDocument().getSentenceTokenCount(tokenSpan.getSentenceIndex());
 			
 			int sentIndex = tokenSpan.getSentenceIndex();
 			
 			for (int tokenIndex = 0 ; tokenIndex < sentLength; tokenIndex++){
-				if (tokenSpan.getDocument().getPoSTag(sentIndex, tokenIndex).toString().equals(POS)){
-					preps.add(tokenSpan.getDocument().getToken(sentIndex, tokenIndex));
+				if (tokenSpan.getDocument().getPoSTag(sentIndex, tokenIndex).toString().equals(PoS)){
+					nGramPoS.add(tokenSpan.getDocument().getToken(sentIndex, tokenIndex));
 				}
 				
 			}
 		}
 		
-		return preps;
+		return nGramPoS;
 	}
 	
 	@Override
 	public Map<Integer, Double> computeVector(D datum) {
-		Set<String> prepsForDatum = getPrepsForDatum(datum);
+		Set<String> prepsForDatum = getNGramPoSForDatum(datum);
 		Map<Integer, Double> vector = new HashMap<Integer, Double>();
 		
 		for (String prep : prepsForDatum) {
@@ -77,7 +80,7 @@ public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Featu
 
 	@Override
 	public String getGenericName() {
-		return "Prepositions";
+		return "NGramPoS";
 	}
 	
 	@Override
@@ -107,8 +110,8 @@ public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Featu
 			return String.valueOf(this.minFeatureOccurrence);
 		else if (parameter.equals("tokenExtractor"))
 			return (this.tokenExtractor == null) ? null : this.tokenExtractor.toString();
-		else if (parameter.equals("POS"))
-			return this.POS;
+		else if (parameter.equals("PoS"))
+			return this.PoS;
 		return null;
 	}
 	
@@ -119,8 +122,8 @@ public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Featu
 			this.minFeatureOccurrence = Integer.valueOf(parameterValue);
 		else if (parameter.equals("tokenExtractor"))
 			this.tokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
-		else if (parameter.equals("POS"))
-			this.POS = parameterValue;
+		else if (parameter.equals("PoS"))
+			this.PoS = parameterValue;
 		else
 			return false;
 		return true;
@@ -128,9 +131,8 @@ public class FeatureUnlabeledDependencyPath<D extends Datum<L>, L> extends Featu
 
 	@Override
 	protected Feature<D, L> makeInstance() {
-		return new FeatureUnlabeledDependencyPath<D, L>();
+		return new FeatureNGramPoS<D, L>();
 	}
 
 
 }
-

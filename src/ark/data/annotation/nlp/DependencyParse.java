@@ -1,10 +1,6 @@
 package ark.data.annotation.nlp;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -239,13 +235,33 @@ public class DependencyParse {
 	
 	public DependencyPath getPath(int sourceTokenIndex, int targetTokenIndex) {
 		Stack<Node> toVisit = new Stack<Node>();
+		Set<Integer> visited = new TreeSet<Integer>();
+		
 		Node source = getNode(sourceTokenIndex);
 		Node target = getNode(targetTokenIndex);
 		toVisit.push(source);
+		// this can happen when the ccompressed path compresses a node into an arc, and i'm trying to find the path to that node.
+		if (source == null || target == null)
+			return null;
+		
+		visited.add(source.getTokenIndex());
 		Map<Node, Node> paths = new HashMap<Node, Node>();
 		Node previous = null;
+		Node current = null;
 		while (!toVisit.isEmpty()) {
-			Node current = toVisit.pop();
+			/*
+			System.out.println("Source index: " + sourceTokenIndex);
+			System.out.println("Target index: " + targetTokenIndex);
+			System.out.println(toString());
+			String strVisit = "top: ";
+			for (int i = 0; i < toVisit.size(); i++){strVisit += toVisit.get(i).getTokenIndex() + " <- ";}
+			System.out.println(strVisit);
+			System.out.println(visited);
+			System.out.println();
+			*/
+			previous = current;
+			current = toVisit.pop();
+			
 			paths.put(current, previous);
 			
 			if (current.equals(target)) {
@@ -261,14 +277,24 @@ public class DependencyParse {
 			Dependency[] governors = current.getGovernors();
 			for (Dependency governor : governors) {
 				int governorTokenIndex = governor.getGoverningTokenIndex();
-				if (governorTokenIndex != -1)
+				if (visited.contains(governorTokenIndex))
+					continue;
+				if (governorTokenIndex != -1){
 					toVisit.push(this.tokenNodes[governorTokenIndex]);
-				else
+					visited.add(this.tokenNodes[governorTokenIndex].getTokenIndex());
+				}
+				else{
 					toVisit.push(this.root);
+					visited.add(this.root.getTokenIndex());
+				}
 			}
 			Dependency[] dependents = current.getDependents();
-			for (Dependency dependent : dependents)
-				toVisit.push(this.tokenNodes[dependent.getDependentTokenIndex()]);
+			for (Dependency dependent : dependents){
+				if (!visited.contains(dependent.getDependentTokenIndex())){
+					toVisit.push(this.tokenNodes[dependent.getDependentTokenIndex()]);
+					visited.add(this.tokenNodes[dependent.getDependentTokenIndex()].getTokenIndex());
+				}
+			}
 		}
 		
 		return null;
@@ -301,7 +327,7 @@ public class DependencyParse {
 		for (int i = 0; i < this.tokenNodes.length; i++)
 			if (this.tokenNodes[i] != null) {
 				for (int j = 0; j < this.tokenNodes[i].getGovernors().length; j++)
-				str = str.append(this.tokenNodes[i].getGovernors()[j].toString()).append("\n");
+					str = str.append(this.tokenNodes[i].getGovernors()[j].toString()).append("\n");
 			}
 		
 		return str.toString();

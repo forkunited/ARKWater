@@ -11,9 +11,11 @@ import ark.data.feature.FeatureGazetteerEditDistance;
 import ark.data.feature.FeatureGazetteerInitialism;
 import ark.data.feature.FeatureGazetteerPrefixTokens;
 import ark.data.feature.FeatureIdentity;
+import ark.data.feature.FeatureLabeledDependencyPath;
 import ark.data.feature.FeatureNGramContext;
 import ark.data.feature.FeatureNGramDep;
 import ark.data.feature.FeatureNGramSentence;
+import ark.data.feature.FeatureNGramPoS;
 import ark.model.SupervisedModel;
 import ark.model.SupervisedModelCreg;
 import ark.model.SupervisedModelLabelDistribution;
@@ -118,6 +120,8 @@ public abstract class Datum<L> {
 			this.genericFeatures.put("NGramSentence", new FeatureNGramSentence<D, L>());
 			this.genericFeatures.put("NGramDep", new FeatureNGramDep<D, L>());
 			this.genericFeatures.put("Identity", new FeatureIdentity<D, L>());
+			this.genericFeatures.put("NGramPoS", new FeatureNGramPoS<D, L>());
+			this.genericFeatures.put("LabeledDependencyPath", new FeatureLabeledDependencyPath<D, L>());
 			
 			this.genericModels.put("Creg", new SupervisedModelCreg<D, L>());
 			this.genericModels.put("LabelDistribution", new SupervisedModelLabelDistribution<D, L>());
@@ -132,6 +136,8 @@ public abstract class Datum<L> {
 			this.genericFactoredCosts.put("Label", new FactoredCostLabel<D, L>());
 			this.genericFactoredCosts.put("LabelPair", new FactoredCostLabelPair<D, L>());
 			this.genericFactoredCosts.put("LabelPairUnordered", new FactoredCostLabelPairUnordered<D, L>());
+			
+			
 		}
 		
 		public DataTools getDataTools() {
