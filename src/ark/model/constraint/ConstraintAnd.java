@@ -17,4 +17,9 @@ public class ConstraintAnd<D extends Datum<L>, L> extends Constraint<D, L> {
 		return this.firstConstraint.isSatisfying(data, datum) 
 				&& this.secondConstraint.isSatisfying(data, datum);
 	}
+	
+	@Override
+	public String toString() {
+		return "And(" + this.firstConstraint.toString() + ", " + this.secondConstraint.toString() + ")";
+	}
 }

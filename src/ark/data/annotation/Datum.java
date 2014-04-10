@@ -6,6 +6,7 @@ import java.util.Map;
 import ark.data.DataTools;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.data.feature.Feature;
+import ark.data.feature.FeatureConjunction;
 import ark.data.feature.FeatureGazetteerContains;
 import ark.data.feature.FeatureGazetteerEditDistance;
 import ark.data.feature.FeatureGazetteerInitialism;
@@ -122,6 +123,7 @@ public abstract class Datum<L> {
 			this.genericFeatures.put("Identity", new FeatureIdentity<D, L>());
 			this.genericFeatures.put("NGramPoS", new FeatureNGramPoS<D, L>());
 			this.genericFeatures.put("LabeledDependencyPath", new FeatureLabeledDependencyPath<D, L>());
+			this.genericFeatures.put("Conjunction", new FeatureConjunction<D, L>());
 			
 			this.genericModels.put("Creg", new SupervisedModelCreg<D, L>());
 			this.genericModels.put("LabelDistribution", new SupervisedModelLabelDistribution<D, L>());

@@ -183,6 +183,9 @@ public abstract class Feature<D extends Datum<L>, L> {
 	}
 	
 	protected String getSpecificShortNamePrefix() {
+		if (this.referenceName != null)
+			return this.referenceName + "_";
+		
 		StringBuilder shortNamePrefixBuilder = new StringBuilder();
 		String genericName = shortenName(getGenericName());
 		String[] parameterNames = getParameterNames();

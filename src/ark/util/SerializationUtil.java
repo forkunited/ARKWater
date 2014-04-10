@@ -140,6 +140,30 @@ public class SerializationUtil {
 		return right.toString().trim();
 	}
 	
+	public static String deserializeString(Reader reader) throws IOException {
+		int cInt = -1;
+		char c = 0;
+		StringBuilder str = new StringBuilder();
+		boolean firstQuote = false;
+		boolean secondQuote = false;
+		do {
+			cInt = reader.read();
+			c = (char)cInt;
+			
+			if (c == '"') {
+				if (!firstQuote) {
+					firstQuote = true;
+				} else if (!secondQuote) {
+					secondQuote = true;
+				}
+			} else if (firstQuote) {
+				str = str.append(c);
+			}
+		} while (!firstQuote || !secondQuote);
+		
+		return str.toString();
+	}
+	
 	public static <T> boolean serializeArguments(Map<String, T> arguments, Writer writer) throws IOException {
 		int i = 0;
 		for (Entry<String, T> argument : arguments.entrySet()) {

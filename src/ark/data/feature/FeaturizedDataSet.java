@@ -89,7 +89,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 				Integer featureIndex = this.features.floorKey(index);
 				if (!featuresToIndices.containsKey(featureIndex))
 					featuresToIndices.put(featureIndex, new ArrayList<Integer>());
-				featuresToIndices.get(featureIndex).add((featureIndex != 0) ? index % featureIndex : index);
+				featuresToIndices.get(featureIndex).add(index - featureIndex);
 			}
 		}
 		
@@ -100,6 +100,8 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 				names.put(featureSpecificIndexToName.getKey() + featureToIndices.getKey(), featureSpecificIndexToName.getValue());
 		}
 		
+		this.featureVocabularyNames.putAll(names);
+		
 		return names;
 	}
 	
@@ -107,7 +109,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		List<String> featureVocabularyNames = new ArrayList<String>(this.featureVocabularySize);
 		
 		for (Feature<D, L> feature : this.features.values()) {
-			featureVocabularyNames.addAll(feature.getSpecificShortNames());
+			featureVocabularyNames.addAll(feature.getSpecificShortNames()); // FIXME Maybe this should cache...
 		}
 		
 		return featureVocabularyNames;

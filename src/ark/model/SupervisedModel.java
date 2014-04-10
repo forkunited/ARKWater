@@ -18,6 +18,8 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.util.SerializationUtil;
 
 public abstract class SupervisedModel<D extends Datum<L>, L> {
+	private String referenceName;
+	
 	protected Set<L> validLabels;
 	protected LabelMapping<L> labelMapping;
 	
@@ -44,7 +46,11 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		return instance;
 	}
 	
-	public boolean deserialize(BufferedReader reader, boolean readGenericName, boolean readParameters, Datum.Tools<D, L> datumTools) throws IOException {		
+	public String getReferenceName() {
+		return this.referenceName;
+	}
+	
+	public boolean deserialize(BufferedReader reader, boolean readGenericName, boolean readParameters, Datum.Tools<D, L> datumTools, String referenceName) throws IOException {		
 		if (readGenericName && SerializationUtil.deserializeGenericName(reader) == null)
 			return false;
 		
@@ -62,7 +68,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		reader.readLine(); // Read "{"
 		
 		String line = null;
-		while (!(line = reader.readLine()).contains("}")) {
+		while (!(line = reader.readLine()).trim().equals("}")) {
 			BufferedReader lineReader = new BufferedReader(new StringReader(line));
 			String assignmentLeft = SerializationUtil.deserializeAssignmentLeft(lineReader);
 			if (assignmentLeft.equals("labelMapping"))
@@ -141,7 +147,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 	public boolean fromString(String str, Datum.Tools<D, L> datumTools) {
 		try {
-			return deserialize(new BufferedReader(new StringReader(str)), true, false,  datumTools);
+			return deserialize(new BufferedReader(new StringReader(str)), true, false,  datumTools, null);
 		} catch (IOException e) {
 			
 		}
@@ -163,6 +169,9 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 			}
 			clone.setHyperParameterValue(parameterNames[i], parameterValue, datumTools);
 		}
+		
+		clone.referenceName = this.referenceName;
+		
 		return clone;
 	}
 	

@@ -54,7 +54,7 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 		Map<String, Double> conjunction = new HashMap<String, Double>();
 		conjunction.put("", 1.0);
 		for (int i = 0; i < this.featureReferences.length; i++) {
-			Feature<D, L> feature = this.dataSet.getFeatureByReferenceName(featureReferences[i]);
+			Feature<D, L> feature = this.dataSet.getFeatureByReferenceName(this.featureReferences[i]);
 			Map<Integer, Double> values = feature.computeVector(datum);
 			Map<Integer, String> vocab = feature.getVocabularyForIndices(values.keySet());
 			Map<String, Double> nextConjunction = new HashMap<String, Double>();
@@ -102,6 +102,8 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 		if (parameter.equals("minFeatureOccurrence"))
 			return String.valueOf(this.minFeatureOccurrence);
 		else if (parameter.equals("featureReferences")) {
+			if (this.featureReferences == null)
+				return "";
 			StringBuilder featureReferences = new StringBuilder();
 			for (int i = 0; i < this.featureReferences.length; i++)
 				featureReferences = featureReferences.append(this.featureReferences[i]).append("/");

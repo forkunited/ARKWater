@@ -76,9 +76,14 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	@Override
 	protected boolean deserializeNext(BufferedReader reader, String nextName) throws IOException {
 		if (nextName.startsWith("model")) {
+			String[] nameParts = nextName.split("_");
+			String referenceName = null;
+			if (nameParts.length > 1)
+				referenceName = nameParts[1];
+			
 			String modelName = SerializationUtil.deserializeGenericName(reader);
 			this.model = this.datumTools.makeModelInstance(modelName);
-			if (!this.model.deserialize(reader, false, false, this.datumTools))
+			if (!this.model.deserialize(reader, false, false, this.datumTools, referenceName))
 				return false;
 		} else if (nextName.startsWith("feature")) {
 			String[] nameParts = nextName.split("_");

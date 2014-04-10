@@ -13,10 +13,10 @@ public class ConstraintFeatureMatch<D extends Datum<L>, L> extends Constraint<D,
 		private double minValue;
 		private Pattern pattern;
 		
-		public ConstraintFeatureMatch(String featureReference, double minValue, Pattern pattern) {
+		public ConstraintFeatureMatch(String featureReference, double minValue, String pattern) {
 			this.featureReference = featureReference;
 			this.minValue = minValue;
-			this.pattern = pattern;
+			this.pattern = Pattern.compile(pattern);
 		}
 		
 		@Override
@@ -32,5 +32,9 @@ public class ConstraintFeatureMatch<D extends Datum<L>, L> extends Constraint<D,
 			}
 			
 			return false;
+		}
+		
+		public String toString() {
+			return "FeatureMatch(" + this.featureReference + ", " + this.minValue + ", " + this.pattern.pattern() + ")";
 		}
 }

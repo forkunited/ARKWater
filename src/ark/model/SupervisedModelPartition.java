@@ -14,18 +14,19 @@ import ark.data.annotation.Datum.Tools;
 import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.constraint.Constraint;
+import ark.util.SerializationUtil;
 
 public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	private L defaultLabel;
 	private String[] hyperParameterNames = { "defaultLabel" };
-	private List<Constraint<D, L>> constraints;
-	private List<SupervisedModel<D, L>> models;
-	private List<List<Feature<D, L>>> features;
+	private Map<String, Constraint<D, L>> constraints;
+	private Map<String, SupervisedModel<D, L>> models;
+	private Map<String, List<Feature<D, L>>> features;
 	
 	public SupervisedModelPartition() {
-		this.constraints = new ArrayList<Constraint<D, L>>();
-		this.models = new ArrayList<SupervisedModel<D, L>>();
-		this.features = new ArrayList<List<Feature<D, L>>>();
+		this.constraints = new HashMap<String, Constraint<D, L>>();
+		this.models = new HashMap<String, SupervisedModel<D, L>>();
+		this.features = new HashMap<String, List<Feature<D, L>>>();
 	}
 	
 	@Override
@@ -74,27 +75,81 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	@Override
 	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
 			Tools<D, L> datumTools) throws IOException {
-		// TODO Auto-generated method stub
-		return false;
+		String[] nameParts = name.split("_");
+		String type = nameParts[0];
+		String modelReference = nameParts[1];
+		
+		if (type.equals("model")) {
+			String modelName = SerializationUtil.deserializeGenericName(reader);
+			SupervisedModel<D, L> model = datumTools.makeModelInstance(modelName);
+			if (!model.deserialize(reader, false, false, datumTools, modelReference))
+				return false;
+			this.models.put(modelReference, model);
+		} else if (type.equals("feature")) {
+			String featureReference = null;
+			boolean ignored = false;
+			if (nameParts.length > 2)
+				featureReference = nameParts[3];
+			if (nameParts.length > 3)
+				ignored = true;
+			
+			String featureName = SerializationUtil.deserializeGenericName(reader);
+			Feature<D, L> feature = datumTools.makeFeatureInstance(featureName);
+			if (!feature.deserialize(reader, false, false, datumTools, featureReference, ignored))
+				return false;
+			
+			if (!this.features.containsKey(modelReference))
+				this.features.put(modelReference, new ArrayList<Feature<D, L>>());
+			this.features.get(modelReference).add(feature);
+		} else if (type.equals("constraint")) {
+			this.constraints.put(modelReference, Constraint.<D,L>fromString(reader.readLine()));
+		}
+		
+		return true;
 	}
 
 	@Override
 	protected boolean deserializeParameters(BufferedReader reader,
 			Tools<D, L> datumTools) throws IOException {
-		// TODO Auto-generated method stub
-		return false;
+		// FIXME Do this later when necessary
+		return true;
+	}
+	
+	@Override
+	protected boolean serializeExtraInfo(Writer writer) throws IOException {
+		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
+			writer.write("model" + "_" + entry.getKey() + "=" + entry.getValue().toString(false) + "\n");
+			writer.write("constraint_" + entry.getKey() + "=" + this.constraints.get(entry.getKey()).toString());
+			List<Feature<D, L>> features = this.features.get(entry.getKey());
+			for (int i = 0; i < features.size(); i++) {
+				writer.write("feature" + "_" + entry.getKey());
+				if (features.get(i).getReferenceName() != null)
+					writer.write("_" + features.get(i).getReferenceName());
+				if (features.get(i).isIgnored())
+					writer.write("_ignored");
+				writer.write(features.get(i).toString(false));
+			}
+		}
+		
+		return true;
 	}
 
 	@Override
 	protected boolean serializeParameters(Writer writer) throws IOException {
-		// FIXME
-		return false;
-	}
-
-	@Override
-	protected boolean serializeExtraInfo(Writer writer) throws IOException {
-		// TODO Auto-generated method stub
-		return false;
+		for (int i = 0; i < this.models.size(); i++) {
+			writer.write("BEGIN PARAMETERS " + this.models.get(i).getReferenceName() + "\n");
+			this.models.get(i).serializeParameters(writer);
+			writer.write("END PARAMETERS " + this.models.get(i).getReferenceName() + "\n");
+			
+			// Write features (that have been initialized)
+			writer.write("BEGIN FEATURES " + this.models.get(i).getReferenceName() + "\n");
+			for (int j = 0; j < this.features.size(); j++) {
+				this.features.get(i).get(j).serialize(writer);
+			}
+			writer.write("END FEATURES " + this.models.get(i).getReferenceName() + "\n");
+		}
+		
+		return true;
 	}
 
 	@Override
@@ -104,30 +159,74 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 
 	@Override
 	public String getHyperParameterValue(String parameter) {
+		int firstUnderscoreIndex = parameter.indexOf("_");
 		if (parameter.equals("defaultLabel"))
 			return this.defaultLabel.toString();
-		else
-			return null;
+		else if (firstUnderscoreIndex >= 0) {
+			String modelReference = parameter.substring(0, firstUnderscoreIndex);
+			String modelParameter = parameter.substring(firstUnderscoreIndex + 1);
+			this.models.get(modelReference).getHyperParameterValue(modelParameter);
+		}
+		
+		return null;
 	}
 
 	@Override
 	public boolean setHyperParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
-		if (parameter.equals("defaultLabel"))
+		int firstUnderscoreIndex = parameter.indexOf("_");
+		if (parameter.equals("defaultLabel")) {
 			this.defaultLabel = datumTools.labelFromString(parameterValue);
-		else
-			return false;
-		return true;
+			return true;
+		} else if (firstUnderscoreIndex >= 0) {
+			String modelReference = parameter.substring(0, firstUnderscoreIndex);
+			String modelParameter = parameter.substring(firstUnderscoreIndex + 1);
+			this.models.get(modelReference).setHyperParameterValue(modelParameter, parameterValue, datumTools);
+		}
+		return false;
 	}
 
 	@Override
 	protected String[] getHyperParameterNames() {
+		List<String> hyperParameterNames = new ArrayList<String>();
+		for (String parameterName : this.hyperParameterNames) {
+			hyperParameterNames.add(parameterName);
+		}
+		
+		if (this.models != null) {
+			for (SupervisedModel<D, L> model : this.models.values()) {
+				String[] modelParameterNames = model.getHyperParameterNames();
+				for (String parameterName : modelParameterNames) {
+					hyperParameterNames.add(model.getReferenceName() + "_" + parameterName);
+				}
+			}
+		}
+		
 		return this.hyperParameterNames;
 	}
 
 	@Override
 	protected SupervisedModel<D, L> makeInstance() {
 		return new SupervisedModelPartition<D, L>();
+	}
+	
+	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
+		SupervisedModelPartition<D, L> clone = (SupervisedModelPartition<D, L>)super.clone(datumTools, environment);
+		
+		// TODO If constraint code is improved, then cloning constraints will be necessary
+		clone.constraints = this.constraints; 
+		clone.features = new HashMap<String, List<Feature<D, L>>>();
+		clone.models = new HashMap<String, SupervisedModel<D, L>>();
+
+		for (Entry<String, SupervisedModel<D, L>> entry : models.entrySet()) {
+			clone.models.put(entry.getKey(), entry.getValue().clone(datumTools, environment));
+			clone.features.put(entry.getKey(), new ArrayList<Feature<D, L>>());
+			for (int j = 0; j < this.features.get(entry.getKey()).size(); j++) {
+				clone.features.get(entry.getKey()).add(this.features.get(entry.getKey()).get(j).clone(datumTools, environment));
+			}
+		}
+		
+		return clone;
 	}
 
 }
