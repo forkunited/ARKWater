@@ -61,7 +61,7 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 			
 			for (Entry<String, Double> conjunctionEntry : conjunction.entrySet()) {
 				for (Entry<Integer, String> vocabEntry : vocab.entrySet()) {
-					nextConjunction.put(conjunctionEntry.getKey() + "/" + vocabEntry.getValue(), conjunctionEntry.getValue()*values.get(vocabEntry.getKey()));
+					nextConjunction.put(conjunctionEntry.getKey() + "//" + vocabEntry.getValue(), conjunctionEntry.getValue()*values.get(vocabEntry.getKey()));
 				}
 			}
 			

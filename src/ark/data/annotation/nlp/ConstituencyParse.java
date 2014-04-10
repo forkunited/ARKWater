@@ -99,11 +99,15 @@ public class ConstituencyParse {
 			return !this.constituents.get(index).getParent().equals(index - 1);
 		}
 		
-		public int length() {
+		public int getLength() {
 			return this.constituents.size();
 		}
 		
 		public String toString() {
+			return toString(true);
+		}
+		
+		public String toString(boolean includeTypes) {
 			StringBuilder str = new StringBuilder();
 			for (int i = 0; i < this.constituents.size(); i++) {
 				String direction = "N";
@@ -111,13 +115,13 @@ public class ConstituencyParse {
 					direction = "U";
 				else if (isBelowPrevious(i))
 					direction = "D";
-				str = str.append(direction).append("-")
-						.append(this.constituents.get(i).getLabel())
-						.append("_");
+				
+				if (includeTypes)
+					str = str.append(this.constituents.get(i).getLabel()).append("-");
+				str = str.append(direction).append("/");
 			}
 			if (str.length() > 0)
 				str = str.delete(str.length() - 1, str.length());
-			
 			return str.toString();
 		}
 	}
@@ -148,33 +152,65 @@ public class ConstituencyParse {
 		return this.root;
 	}
 	
+	public Constituent getTokenConstituent(int tokenIndex) {
+		Stack<Constituent> toVisit = new Stack<Constituent>();
+		toVisit.add(this.root);
+		while (!toVisit.isEmpty()) {
+			Constituent current = toVisit.pop();
+			if (current.isLeaf()) {
+				TokenSpan tokenSpan = current.getTokenSpan();
+				if (tokenSpan.getStartTokenIndex() == tokenIndex)
+					return current;
+			} else {
+				Constituent[] children = current.getChildren();
+				for (Constituent child : children)
+					toVisit.push(child);
+			}
+		}
+		
+		return null;
+		
+	}
+	
+	public ConstituentPath getPath(int sourceTokenIndex, int targetTokenIndex) {
+		return getPath(getTokenConstituent(sourceTokenIndex), getTokenConstituent(targetTokenIndex));
+	}
+	
 	public ConstituentPath getPath(Constituent source, Constituent target) {
 		if (source == null || target == null)
 			return null;
 		
 		Stack<Constituent> toVisit = new Stack<Constituent>();
-		toVisit.push(source);
+		toVisit.push(target);
 		Map<Constituent, Constituent> paths = new HashMap<Constituent, Constituent>();
-		Constituent previous = null;
+		paths.put(target, null);
 		while (!toVisit.isEmpty()) {
 			Constituent current = toVisit.pop();
-			paths.put(current, previous);
-			
-			if (current.equals(target)) {
+			if (current.equals(source)) {
 				List<Constituent> path = new ArrayList<Constituent>();
 				Constituent pathCurrent = current;
 				while (pathCurrent != null) {
 					path.add(pathCurrent);
 					pathCurrent = paths.get(pathCurrent);
 				}
-				return new ConstituentPath(path);
+				
+				ConstituentPath constituentPath = new ConstituentPath(path);
+				return constituentPath;
 			}
 			
-			if (current.getParent() != null)
+			if (current.getParent() != null && !paths.containsKey(current.getParent())) {
 				toVisit.push(current.getParent());
-			Constituent[] children = current.getChildren();
-			for (Constituent child : children)
-				toVisit.push(child);
+				paths.put(current.getParent(), current);
+			}
+			if (!current.isLeaf()) {
+				Constituent[] children = current.getChildren();
+				for (Constituent child : children) {
+					if (paths.containsKey(child))
+						continue;
+					toVisit.push(child);
+					paths.put(child, current);
+				}
+			}
 		}
 		
 		return null;
@@ -191,7 +227,7 @@ public class ConstituencyParse {
 		if (constituentPath == null)
 			return false;
 		
-		for (int i = 1; i < constituentPath.length(); i++) {
+		for (int i = 1; i < constituentPath.getLength(); i++) {
 			if (!constituentPath.getConstituent(i).getParent().equals(constituentPath.getConstituent(i - 1)))
 				return false;
 		}
@@ -210,7 +246,7 @@ public class ConstituencyParse {
 		if (constituentPath == null)
 			return false;
 		
-		for (int i = 1; i < constituentPath.length(); i++) {
+		for (int i = 1; i < constituentPath.getLength(); i++) {
 			if (constituentPath.getConstituent(i).getParent().equals(constituentPath.getConstituent(i - 1)))
 				return false;
 		}

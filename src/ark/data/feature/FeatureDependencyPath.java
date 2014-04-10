@@ -3,21 +3,23 @@ package ark.data.feature;
 import java.util.*;
 
 import ark.data.annotation.Datum;
+import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.DependencyParse.DependencyPath;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 
-public class FeatureLabeledDependencyPath<D extends Datum<L>, L> extends Feature<D, L> {
+public class FeatureDependencyPath<D extends Datum<L>, L> extends Feature<D, L> {
 	protected BidirectionalLookupTable<String, Integer> vocabulary;
 	
 	protected int minFeatureOccurrence;
 	protected Datum.Tools.TokenSpanExtractor<D, L> sourceTokenExtractor;
 	protected Datum.Tools.TokenSpanExtractor<D, L> targetTokenExtractor;
-	protected String[] parameterNames = {"minFeatureOccurrence", "sourceTokenExtractor", "targetTokenExtractor"};
+	protected boolean useRelationTypes = true;
+	protected String[] parameterNames = {"minFeatureOccurrence", "sourceTokenExtractor", "targetTokenExtractor", "useRelationTypes"};
 	
-	public FeatureLabeledDependencyPath(){
-		vocabulary = new BidirectionalLookupTable<String, Integer>();
+	public FeatureDependencyPath(){
+		this.vocabulary = new BidirectionalLookupTable<String, Integer>();
 	}
 	
 	@Override
@@ -47,7 +49,7 @@ public class FeatureLabeledDependencyPath<D extends Datum<L>, L> extends Feature
 				DependencyPath path = getShortestPath(sourceSpan, targetSpan);
 				if (path == null)
 					continue;
-				paths.add(path.toString());
+				paths.add(path.toString(this.useRelationTypes));
 			}
 		}
 		return paths;
@@ -61,10 +63,11 @@ public class FeatureLabeledDependencyPath<D extends Datum<L>, L> extends Feature
 		
 		DependencyPath shortestPath = null;
 		int sentenceIndex = sourceSpan.getSentenceIndex();
+		DependencyParse parse = sourceSpan.getDocument().getDependencyParse(sentenceIndex);
 		for (int i = sourceSpan.getStartTokenIndex(); i < sourceSpan.getEndTokenIndex(); i++){
 			for (int j = targetSpan.getStartTokenIndex(); j < targetSpan.getEndTokenIndex(); j++){
-				DependencyPath path = sourceSpan.getDocument().getDependencyParse(sentenceIndex).getPath(i, j);
-				if (path != null && shortestPath != null && path.getTokenLength() < shortestPath.getTokenLength())
+				DependencyPath path = parse.getPath(i, j);
+				if (shortestPath == null || (path != null && path.getTokenLength() < shortestPath.getTokenLength()))
 					shortestPath = path;
 			}
 		}
@@ -117,9 +120,11 @@ public class FeatureLabeledDependencyPath<D extends Datum<L>, L> extends Feature
 		if (parameter.equals("minFeatureOccurrence")) 
 			return String.valueOf(this.minFeatureOccurrence);
 		else if (parameter.equals("sourceTokenExtractor"))
-			return (sourceTokenExtractor == null) ? null : sourceTokenExtractor.toString();
+			return (this.sourceTokenExtractor == null) ? null : this.sourceTokenExtractor.toString();
 		else if (parameter.equals("targetTokenExtractor"))
-			return (targetTokenExtractor == null) ? null : targetTokenExtractor.toString();
+			return (this.targetTokenExtractor == null) ? null : this.targetTokenExtractor.toString();
+		else if (parameter.equals("useRelationTypes"))
+			return String.valueOf(this.useRelationTypes);
 		return null;
 	}
 	
@@ -132,6 +137,8 @@ public class FeatureLabeledDependencyPath<D extends Datum<L>, L> extends Feature
 			this.sourceTokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
 		else if (parameter.equals("targetTokenExtractor"))
 			this.targetTokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
+		else if (parameter.equals("useRelationTypes"))
+			this.useRelationTypes = Boolean.valueOf(parameterValue);
 		else
 			return false;
 		return true;
@@ -139,9 +146,7 @@ public class FeatureLabeledDependencyPath<D extends Datum<L>, L> extends Feature
 
 	@Override
 	protected Feature<D, L> makeInstance() {
-		return new FeatureLabeledDependencyPath<D, L>();
+		return new FeatureDependencyPath<D, L>();
 	}
-
-
 }
 

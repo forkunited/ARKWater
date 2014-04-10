@@ -178,12 +178,15 @@ public class DependencyParse {
 		}
 		
 		public String toString() {
+			return toString(true);
+		}
+		
+		public String toString(boolean includeTypes) {
 			StringBuilder str = new StringBuilder();
 			for (int i = 0; i < getDependencyLength(); i++) {
-				str = str.append(getDependencyType(i))
-						.append("-")
-						.append((isDependencyGoverningNext(i) ? "G" : "D"))
-						.append("/");
+				if (includeTypes)
+					str = str.append(getDependencyType(i)).append("-");
+				str = str.append((isDependencyGoverningNext(i) ? "G" : "D")).append("/");
 			}
 
 			if (str.length() > 0)
@@ -249,16 +252,6 @@ public class DependencyParse {
 		toVisit.push(target);
 		paths.put(target, null);
 		while (!toVisit.isEmpty()) {
-			/*
-			System.out.println("Source index: " + sourceTokenIndex);
-			System.out.println("Target index: " + targetTokenIndex);
-			System.out.println(toString());
-			String strVisit = "top: ";
-			for (int i = 0; i < toVisit.size(); i++){strVisit += toVisit.get(i).getTokenIndex() + " <- ";}
-			System.out.println(strVisit);
-			System.out.println(visited);
-			System.out.println();
-			*/
 			Node current = toVisit.pop();
 		
 			if (current.equals(source)) {
