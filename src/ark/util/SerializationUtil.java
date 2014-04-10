@@ -117,11 +117,11 @@ public class SerializationUtil {
 			cInt = reader.read();
 			c = (char)cInt;
 			
-			if (cInt != -1 && c != '=')
+			if (cInt != -1 && c != '=' && c != '\n' && c != '\t' && c != ' ')
 				left.append(c);
-		} while (cInt != -1 && c != '=');
+		} while (cInt != -1 && c != '=' && (left.length() == 0 || (c != '\n' && c != '\t' && c != ' ')));
 		
-		return (cInt == -1) ? null : left.toString().trim();
+		return (cInt == -1 || c == '\n') ? null : left.toString().trim();
 	}
 	
 	public static String deserializeAssignmentRight(Reader reader) throws IOException {

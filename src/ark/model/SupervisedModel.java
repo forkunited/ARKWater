@@ -67,19 +67,17 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		
 		reader.readLine(); // Read "{"
 		
-		String line = null;
-		while (!(line = reader.readLine()).trim().equals("}")) {
-			BufferedReader lineReader = new BufferedReader(new StringReader(line));
-			String assignmentLeft = SerializationUtil.deserializeAssignmentLeft(lineReader);
+		String assignmentLeft = null;
+		while ((assignmentLeft = SerializationUtil.deserializeAssignmentLeft(reader)) != null) {
 			if (assignmentLeft.equals("labelMapping"))
-				this.labelMapping = datumTools.getLabelMapping(SerializationUtil.deserializeAssignmentRight(lineReader));
+				this.labelMapping = datumTools.getLabelMapping(SerializationUtil.deserializeAssignmentRight(reader));
 			else if (assignmentLeft.equals("validLabels")) {
 				this.validLabels = new TreeSet<L>();
-				List<String> validLabelStrs = SerializationUtil.deserializeList(lineReader);
+				List<String> validLabelStrs = SerializationUtil.deserializeList(reader);
 				for (String validLabelStr : validLabelStrs)
 					this.validLabels.add(datumTools.labelFromString(validLabelStr));
 			} else {
-				if (!deserializeExtraInfo(assignmentLeft, lineReader, datumTools))
+				if (!deserializeExtraInfo(assignmentLeft, reader, datumTools))
 					return false;
 			}
 		}

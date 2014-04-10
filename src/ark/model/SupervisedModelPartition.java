@@ -31,14 +31,14 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	
 	@Override
 	public boolean train(FeaturizedDataSet<D, L> data) {
-		for (int i = 0; i < this.models.size(); i++) {
-			FeaturizedDataSet<D, L> modelData = this.constraints.get(i).getSatisfyingSubset(data, this.labelMapping);
-			for (Feature<D, L> feature : this.features.get(i)) {
+		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
+			FeaturizedDataSet<D, L> modelData = this.constraints.get(entry.getKey()).getSatisfyingSubset(data, this.labelMapping);
+			for (Feature<D, L> feature : this.features.get(entry.getKey())) {
 				if (!feature.init(modelData) || !modelData.addFeature(feature))
 					return false;
 			}
 			
-			if (!this.models.get(i).train(modelData))
+			if (!entry.getValue().train(modelData))
 				return false;
 		}
 		return true;
@@ -47,31 +47,30 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	@Override
 	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posterior = new HashMap<D, Map<L, Double>>();
-		for (int i = 0; i < this.models.size(); i++) {
-			FeaturizedDataSet<D, L> modelData = this.constraints.get(i).getSatisfyingSubset(data, this.labelMapping);
-			for (Feature<D, L> feature : this.features.get(i))
-				if (!feature.init(modelData) || !modelData.addFeature(feature))
+		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
+			FeaturizedDataSet<D, L> modelData = this.constraints.get(entry.getKey()).getSatisfyingSubset(data, this.labelMapping);
+			for (Feature<D, L> feature : this.features.get(entry.getKey()))
+				if (!modelData.addFeature(feature))
 					return null;
 			
-			Map<D, Map<L, Double>> modelPosterior = this.models.get(i).posterior(modelData);
-			for (Entry<D, Map<L, Double>> entry : modelPosterior.entrySet()) {
-				if (posterior.containsKey(entry.getKey()))
+			Map<D, Map<L, Double>> modelPosterior = entry.getValue().posterior(modelData);
+			for (Entry<D, Map<L, Double>> pEntry : modelPosterior.entrySet()) {
+				if (posterior.containsKey(pEntry.getKey()))
 					continue;
 				Map<L, Double> p = new HashMap<L, Double>();
 				for (L validLabel : this.validLabels) {
-					if (!entry.getValue().containsKey(validLabel)) {
+					if (!pEntry.getValue().containsKey(validLabel)) {
 						p.put(validLabel, 0.0);
 					} else {
-						p.put(validLabel, entry.getValue().get(validLabel));
+						p.put(validLabel, pEntry.getValue().get(validLabel));
 					}
-					modelPosterior.put(entry.getKey(), p);
 				}
+				posterior.put(pEntry.getKey(), p);
 			}
 		}
 		return posterior;
 	}
 
-	
 	@Override
 	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
 			Tools<D, L> datumTools) throws IOException {
@@ -136,17 +135,17 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 
 	@Override
 	protected boolean serializeParameters(Writer writer) throws IOException {
-		for (int i = 0; i < this.models.size(); i++) {
-			writer.write("BEGIN PARAMETERS " + this.models.get(i).getReferenceName() + "\n");
-			this.models.get(i).serializeParameters(writer);
-			writer.write("END PARAMETERS " + this.models.get(i).getReferenceName() + "\n");
+		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
+			writer.write("BEGIN PARAMETERS " + entry.getValue().getReferenceName() + "\n");
+			entry.getValue().serializeParameters(writer);
+			writer.write("END PARAMETERS " +  entry.getValue().getReferenceName() + "\n");
 			
 			// Write features (that have been initialized)
-			writer.write("BEGIN FEATURES " + this.models.get(i).getReferenceName() + "\n");
+			writer.write("BEGIN FEATURES " +  entry.getValue().getReferenceName() + "\n");
 			for (int j = 0; j < this.features.size(); j++) {
-				this.features.get(i).get(j).serialize(writer);
+				this.features.get(entry.getKey()).get(j).serialize(writer);
 			}
-			writer.write("END FEATURES " + this.models.get(i).getReferenceName() + "\n");
+			writer.write("END FEATURES " + entry.getValue().getReferenceName() + "\n");
 		}
 		
 		return true;
@@ -161,7 +160,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	public String getHyperParameterValue(String parameter) {
 		int firstUnderscoreIndex = parameter.indexOf("_");
 		if (parameter.equals("defaultLabel"))
-			return this.defaultLabel.toString();
+			return (this.defaultLabel == null) ? null : this.defaultLabel.toString();
 		else if (firstUnderscoreIndex >= 0) {
 			String modelReference = parameter.substring(0, firstUnderscoreIndex);
 			String modelParameter = parameter.substring(firstUnderscoreIndex + 1);
@@ -176,7 +175,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 			String parameterValue, Tools<D, L> datumTools) {
 		int firstUnderscoreIndex = parameter.indexOf("_");
 		if (parameter.equals("defaultLabel")) {
-			this.defaultLabel = datumTools.labelFromString(parameterValue);
+			this.defaultLabel = (parameterValue == null) ? null : datumTools.labelFromString(parameterValue);
 			return true;
 		} else if (firstUnderscoreIndex >= 0) {
 			String modelReference = parameter.substring(0, firstUnderscoreIndex);

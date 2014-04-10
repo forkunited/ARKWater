@@ -21,6 +21,7 @@ import ark.data.feature.FeatureNGramPoS;
 import ark.model.SupervisedModel;
 import ark.model.SupervisedModelCreg;
 import ark.model.SupervisedModelLabelDistribution;
+import ark.model.SupervisedModelPartition;
 import ark.model.SupervisedModelSVMCostLearner;
 import ark.model.cost.FactoredCost;
 import ark.model.cost.FactoredCostConstant;
@@ -114,22 +115,24 @@ public abstract class Datum<L> {
 				}
 			});
 			
-			this.genericFeatures.put("GazetteerContains", new FeatureGazetteerContains<D, L>());
-			this.genericFeatures.put("GazetteerEditDistance", new FeatureGazetteerEditDistance<D, L>());
-			this.genericFeatures.put("GazetteerInitialism", new FeatureGazetteerInitialism<D, L>());
-			this.genericFeatures.put("GazetteerPrefixTokens", new FeatureGazetteerPrefixTokens<D, L>());
-			this.genericFeatures.put("NGramContext", new FeatureNGramContext<D, L>());
-			this.genericFeatures.put("NGramSentence", new FeatureNGramSentence<D, L>());
-			this.genericFeatures.put("NGramDep", new FeatureNGramDep<D, L>());
-			this.genericFeatures.put("Identity", new FeatureIdentity<D, L>());
-			this.genericFeatures.put("NGramPoS", new FeatureNGramPoS<D, L>());
-			this.genericFeatures.put("DependencyPath", new FeatureDependencyPath<D, L>());
-			this.genericFeatures.put("ConstituencyPath", new FeatureConstituencyPath<D, L>());
-			this.genericFeatures.put("Conjunction", new FeatureConjunction<D, L>());
 			
-			this.genericModels.put("Creg", new SupervisedModelCreg<D, L>());
-			this.genericModels.put("LabelDistribution", new SupervisedModelLabelDistribution<D, L>());
-			this.genericModels.put("SVMCostLearner", new SupervisedModelSVMCostLearner<D, L>());
+			addGenericFeature(new FeatureGazetteerContains<D, L>());
+			addGenericFeature(new FeatureGazetteerEditDistance<D, L>());
+			addGenericFeature(new FeatureGazetteerInitialism<D, L>());
+			addGenericFeature(new FeatureGazetteerPrefixTokens<D, L>());
+			addGenericFeature(new FeatureNGramContext<D, L>());
+			addGenericFeature(new FeatureNGramSentence<D, L>());
+			addGenericFeature(new FeatureNGramDep<D, L>());
+			addGenericFeature(new FeatureIdentity<D, L>());
+			addGenericFeature(new FeatureNGramPoS<D, L>());
+			addGenericFeature(new FeatureDependencyPath<D, L>());
+			addGenericFeature(new FeatureConstituencyPath<D, L>());
+			addGenericFeature(new FeatureConjunction<D, L>());
+			
+			addGenericModel(new SupervisedModelCreg<D, L>());
+			addGenericModel(new SupervisedModelLabelDistribution<D, L>());
+			addGenericModel(new SupervisedModelSVMCostLearner<D, L>());
+			addGenericModel(new SupervisedModelPartition<D, L>());
 			
 			this.genericEvaluations.put("Accuracy", new ClassificationEvaluationAccuracy<D, L>());
 			this.genericEvaluations.put("Precision", new ClassificationEvaluationPrecision<D, L>());
@@ -197,6 +200,16 @@ public abstract class Datum<L> {
 		
 		public boolean addLabelMapping(LabelMapping<L> labelMapping) {
 			this.labelMappings.put(labelMapping.toString(), labelMapping);
+			return true;
+		}
+		
+		public boolean addGenericFeature(Feature<D, L> feature) {
+			this.genericFeatures.put(feature.getGenericName(), feature);
+			return true;
+		}
+		
+		public boolean addGenericModel(SupervisedModel<D, L> model) {
+			this.genericModels.put(model.getGenericName(), model);
 			return true;
 		}
 		
