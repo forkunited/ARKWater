@@ -262,7 +262,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			ValidationResult result = null;
 			List<Double> evaluationValues = null;
 			if (possibleParameterValues.size() > 0) {
-				GridSearchTestValidation<D, L> gridSearchValidation = new GridSearchTestValidation<D, L>(namePrefix, foldModel, trainData, devData, testData, evaluations);
+				GridSearchTestValidation<D, L> gridSearchValidation = new GridSearchTestValidation<D, L>(namePrefix, foldModel, trainData, devData, testData, evaluations, true);
 				gridSearchValidation.setPossibleHyperParameterValues(possibleParameterValues);
 				evaluationValues = gridSearchValidation.run(this.errorExampleExtractor, false);
 				result = new ValidationResult(foldIndex, evaluationValues, gridSearchValidation.getConfusionMatrix(), gridSearchValidation.getGridEvaluation(), gridSearchValidation.getBestGridPosition());

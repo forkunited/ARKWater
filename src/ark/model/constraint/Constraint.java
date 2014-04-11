@@ -59,6 +59,7 @@ public abstract class Constraint<D extends Datum<L>, L> {
 				
 				String pattern = SerializationUtil.deserializeString(reader);
 				c = (char)reader.read();
+				c = (char)reader.read();
 				constraints.add(new ConstraintFeatureMatch<D, L>(featureReference.toString().trim(), 
 						Double.parseDouble(minValue.toString().trim()), 
 						pattern));
@@ -68,8 +69,10 @@ public abstract class Constraint<D extends Datum<L>, L> {
 		}
 		
 		Constraint<D, L> currentConstraint = constraints.get(0);
-		for (int i = 0; i < constraints.size(); i++) {
-			currentConstraint = new ConstraintAnd<D, L>(currentConstraint, constraints.get(i));
+		if (constraints.size() > 1) {
+			for (int i = 1; i < constraints.size(); i++) {
+				currentConstraint = new ConstraintAnd<D, L>(currentConstraint, constraints.get(i));
+			}
 		}
 		
 		return currentConstraint;

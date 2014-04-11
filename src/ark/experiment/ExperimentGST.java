@@ -26,6 +26,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected DataSet<D, L> trainData;
 	protected DataSet<D, L> devData;
 	protected DataSet<D, L> testData;
+	protected boolean trainOnDev;
 	
 	public ExperimentGST(String name, String inputPath, DataSet<D, L> trainData, DataSet<D, L> devData, DataSet<D, L> testData) {
 		super(name, inputPath, trainData.getDatumTools());
@@ -66,7 +67,8 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 				trainData, 
 				devData, 
 				testData, 
-				this.evaluations);
+				this.evaluations,
+				this.trainOnDev);
 		gridSearchValidation.setPossibleHyperParameterValues(this.gridSearchParameterValues);
 		if (gridSearchValidation.run(this.errorExampleExtractor, true).get(0) < 0)
 			return false;
@@ -113,6 +115,9 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 			if (!evaluation.deserialize(reader, false, this.datumTools))
 				return false;
 			this.evaluations.add(evaluation);
+			
+		} else if (nextName.startsWith("trainOnDev")) {
+			this.trainOnDev = Boolean.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
 		}
 		
 		return true;

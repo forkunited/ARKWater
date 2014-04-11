@@ -26,13 +26,15 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	private DecimalFormat cleanDouble;
 	private List<Pair<GridSearch.GridPosition, Double>> gridEvaluation;
 	private GridSearch.GridPosition bestGridPosition;
+	private boolean trainOnDev;
 	
 	public GridSearchTestValidation(String name,
 							  SupervisedModel<D, L> model, 
 							  FeaturizedDataSet<D, L> trainData,
 							  FeaturizedDataSet<D, L> devData,
 							  FeaturizedDataSet<D, L> testData,
-							  List<ClassificationEvaluation<D, L>> evaluations) {
+							  List<ClassificationEvaluation<D, L>> evaluations,
+							  boolean trainOnDev) {
 		this.name = name;
 		this.model = model;
 		this.trainData = trainData;
@@ -42,6 +44,7 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 		this.possibleParameterValues = new HashMap<String, List<String>>();
 		this.gridEvaluation = new ArrayList<Pair<GridSearch.GridPosition, Double>>();
 		this.cleanDouble = new DecimalFormat("0.00");
+		this.trainOnDev = trainOnDev;
 	}
 	
 	public boolean addPossibleHyperParameterValue(String parameter, String parameterValue) {
@@ -75,7 +78,12 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 			if (this.bestGridPosition != null)
 				this.model.setHyperParameterValues(this.bestGridPosition.getCoordinates(), this.trainData.getDatumTools());
 		}
+
+		if (this.trainOnDev)
+			this.trainData.addAll(this.devData);
+			
 		output.debugWriteln("Training model with best parameters (" + this.name + ")");
+
 		TrainTestValidation<D, L> accuracy = new TrainTestValidation<D, L>(this.name, this.model, this.trainData, this.testData, this.evaluations);
 		List<Double> evaluationValues = accuracy.run();
 		if (evaluationValues.get(0) < 0) {

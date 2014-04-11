@@ -68,6 +68,17 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 				posterior.put(pEntry.getKey(), p);
 			}
 		}
+		
+		for (D datum : data) { // Mark remaining data with default label
+			Map<L, Double> p = new HashMap<L, Double>();
+			for (L validLabel : this.validLabels)
+				p.put(validLabel, 0.0);
+			p.put(this.defaultLabel, 1.0);
+			
+			if (!posterior.containsKey(datum))
+				posterior.put(datum, p);
+		}
+		
 		return posterior;
 	}
 
@@ -88,7 +99,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 			String featureReference = null;
 			boolean ignored = false;
 			if (nameParts.length > 2)
-				featureReference = nameParts[3];
+				featureReference = nameParts[2];
 			if (nameParts.length > 3)
 				ignored = true;
 			
@@ -117,16 +128,18 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	@Override
 	protected boolean serializeExtraInfo(Writer writer) throws IOException {
 		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
-			writer.write("model" + "_" + entry.getKey() + "=" + entry.getValue().toString(false) + "\n");
-			writer.write("constraint_" + entry.getKey() + "=" + this.constraints.get(entry.getKey()).toString());
+			writer.write("\tmodel" + "_" + entry.getKey() + "=" + entry.getValue().toString(false) + "\n");
+			// FIXME Include extra info in model output
+			
+			writer.write("\tconstraint_" + entry.getKey() + "=" + this.constraints.get(entry.getKey()).toString() + "\n");
 			List<Feature<D, L>> features = this.features.get(entry.getKey());
 			for (int i = 0; i < features.size(); i++) {
-				writer.write("feature" + "_" + entry.getKey());
+				writer.write("\tfeature_" + entry.getKey());
 				if (features.get(i).getReferenceName() != null)
 					writer.write("_" + features.get(i).getReferenceName());
 				if (features.get(i).isIgnored())
 					writer.write("_ignored");
-				writer.write(features.get(i).toString(false));
+				writer.write("=" + features.get(i).toString(false) + "\n");
 			}
 		}
 		
@@ -136,16 +149,17 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	@Override
 	protected boolean serializeParameters(Writer writer) throws IOException {
 		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
-			writer.write("BEGIN PARAMETERS " + entry.getValue().getReferenceName() + "\n");
+			writer.write("BEGIN PARAMETERS " + entry.getKey() + "\n\n");
 			entry.getValue().serializeParameters(writer);
-			writer.write("END PARAMETERS " +  entry.getValue().getReferenceName() + "\n");
+			writer.write("\nEND PARAMETERS " +  entry.getKey() + "\n\n");
 			
 			// Write features (that have been initialized)
-			writer.write("BEGIN FEATURES " +  entry.getValue().getReferenceName() + "\n");
-			for (int j = 0; j < this.features.size(); j++) {
+			writer.write("BEGIN FEATURES " +  entry.getKey() + "\n\n");
+			for (int j = 0; j < this.features.get(entry.getKey()).size(); j++) {
 				this.features.get(entry.getKey()).get(j).serialize(writer);
+				writer.write("\n\n");
 			}
-			writer.write("END FEATURES " + entry.getValue().getReferenceName() + "\n");
+			writer.write("END FEATURES " + entry.getKey() + "\n\n");
 		}
 		
 		return true;

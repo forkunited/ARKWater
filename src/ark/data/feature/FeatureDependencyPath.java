@@ -91,7 +91,7 @@ public class FeatureDependencyPath<D extends Datum<L>, L> extends Feature<D, L> 
 
 	@Override
 	public String getGenericName() {
-		return "LabeledDependencyPath";
+		return "DependencyPath";
 	}
 	
 	@Override
