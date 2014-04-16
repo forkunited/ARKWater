@@ -43,8 +43,7 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
 		
 		for (TokenSpan tokenSpan : tokenSpans) {
-			if (tokenSpan.getStartTokenIndex() == -1){
-				nGramPoS.add("NO_SENTENCE");
+			if (tokenSpan.getStartTokenIndex() < 0){
 				return nGramPoS;
 			}
 				
@@ -84,7 +83,7 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 	
 	@Override
-	protected String getVocabularyTerm(int index) {
+	public String getVocabularyTerm(int index) {
 		return this.vocabulary.reverseGet(index);
 	}
 

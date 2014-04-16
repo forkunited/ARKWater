@@ -269,6 +269,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			} else {
 				TrainTestValidation<D, L> accuracyValidation = new TrainTestValidation<D, L>(namePrefix, foldModel, trainData, testData, evaluations);
 				evaluationValues = accuracyValidation.run();
+				output.modelWriteln(accuracyValidation.getModel().toString());
 				result = new ValidationResult(foldIndex, evaluationValues, accuracyValidation.getConfusionMatrix(), null, null);
 			}
 			

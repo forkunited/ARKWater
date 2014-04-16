@@ -12,12 +12,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
+import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
 public abstract class FactoredCost<D extends Datum<L>, L> {
-	public abstract boolean init(SupervisedModel<D, L> model);
+	public abstract boolean init(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data);
 	public abstract Map<Integer, Double> computeVector(D datum, L prediction);
 	public abstract String getGenericName();
 	public abstract int getVocabularySize();

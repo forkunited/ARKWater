@@ -5,6 +5,7 @@ import java.util.Map;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
+import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 
 public class FactoredCostConstant<D extends Datum<L>, L> extends FactoredCost<D, L> {
@@ -44,7 +45,7 @@ public class FactoredCostConstant<D extends Datum<L>, L> extends FactoredCost<D,
 	}
 
 	@Override
-	public boolean init(SupervisedModel<D, L> model) {
+	public boolean init(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data) {
 		this.model = model;
 		return true;
 	}

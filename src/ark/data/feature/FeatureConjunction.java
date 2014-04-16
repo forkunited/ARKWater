@@ -82,7 +82,7 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	protected String getVocabularyTerm(int index) {
+	public String getVocabularyTerm(int index) {
 		return this.vocabulary.reverseGet(index);
 	}
 

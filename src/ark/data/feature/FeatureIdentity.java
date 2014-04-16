@@ -65,7 +65,7 @@ public class FeatureIdentity<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	protected String getVocabularyTerm(int index) {
+	public String getVocabularyTerm(int index) {
 		return String.valueOf(index);
 	}
 

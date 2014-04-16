@@ -74,4 +74,8 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	public ConfusionMatrix<D, L> getConfusionMatrix() {
 		return this.confusionMatrix;
 	}
+	
+	public SupervisedModel<D, L> getModel() {
+		return this.model;
+	}
 }

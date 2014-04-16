@@ -15,6 +15,9 @@ public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D,
 		Set<String> retNgrams = new HashSet<String>();
 		
 		for (TokenSpan tokenSpan : tokenSpans) {
+			if (tokenSpan.getSentenceIndex() < 0)
+				continue;
+			
 			List<String> tokens = tokenSpan.getDocument().getSentenceTokens(tokenSpan.getSentenceIndex());
 			if (tokens == null)
 				continue;

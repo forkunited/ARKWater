@@ -108,6 +108,9 @@ public class SupervisedModelSVMCostLearner<D extends Datum<L>, L> extends Superv
 	public boolean train(FeaturizedDataSet<D, L> data) {
 		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
 		
+		if (!this.factoredCost.init(this, data))
+			return false;
+		
 		if (this.feature_w == null) {
 			this.t = 1;
 			this.feature_w = new double[data.getFeatureVocabularySize()*this.validLabels.size()];
@@ -285,7 +288,8 @@ public class SupervisedModelSVMCostLearner<D extends Datum<L>, L> extends Superv
 	@Override
 	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posteriors = new HashMap<D, Map<L, Double>>(data.size());
-		
+		if (!this.factoredCost.init(this, data))
+			return null;
 		for (D datum : data) {
 			posteriors.put(datum, posteriorForDatum(data, datum));
 		}
@@ -483,7 +487,6 @@ public class SupervisedModelSVMCostLearner<D extends Datum<L>, L> extends Superv
 		clone.trainingIterations = this.trainingIterations;
 		if (this.factoredCost != null) {
 			clone.factoredCost = this.factoredCost.clone(datumTools, environment);
-			clone.factoredCost.init(clone);
 		}
 		
 		return clone;

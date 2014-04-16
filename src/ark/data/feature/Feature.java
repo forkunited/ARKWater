@@ -23,10 +23,9 @@ public abstract class Feature<D extends Datum<L>, L> {
 	public abstract Map<Integer, Double> computeVector(D datum);
 	public abstract String getGenericName();
 	public abstract int getVocabularySize();
-
-	protected abstract String getVocabularyTerm(int index); 
-	protected abstract boolean setVocabularyTerm(int index, String term);
+	public abstract String getVocabularyTerm(int index); 
 	
+	protected abstract boolean setVocabularyTerm(int index, String term);
 	protected abstract String[] getParameterNames();
 	protected abstract String getParameterValue(String parameter);
 	protected abstract boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
