@@ -2,7 +2,6 @@ package ark.data.feature;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;

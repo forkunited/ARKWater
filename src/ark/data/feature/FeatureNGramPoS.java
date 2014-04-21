@@ -10,13 +10,28 @@ import ark.data.annotation.nlp.TokenSpan;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 
+/**
+ * 
+ * @author jesse
+ *
+ * @param <D> datum. probably like a tlinkable.
+ * @param <L>
+ * @param PoS: indicates the parts of speech of the words we should extract. 
+ * @param startWindowRelativeIndex: the start of the window from which we will extract words of type PoS. relative to the start of the tokenSpan.
+ * 									can be set to -1 to indicate 'from the start of the sentence.'
+ * @param endWindowRelativeIndex: the end of the window from whicch we will extract words of type PoS. relative to the start of the tokenSpan.
+ * 								  can be set to -1 to indicate 'till the end of the sentence.'
+ */
+
 public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	protected BidirectionalLookupTable<String, Integer> vocabulary;
 	
 	protected int minFeatureOccurrence;
 	protected Datum.Tools.TokenSpanExtractor<D, L> tokenExtractor;
 	protected String PoS;
-	protected String[] parameterNames = {"minFeatureOccurrence", "tokenExtractor", "PoS"};
+	protected int tokensBeforeTokenSpan;
+	protected int tokensAfterTokenSpan;
+	protected String[] parameterNames = {"minFeatureOccurrence", "tokenExtractor", "PoS", "tokensBeforeTokenSpan", "tokensAfterTokenSpan"};
 	
 	public FeatureNGramPoS(){
 		vocabulary = new BidirectionalLookupTable<String, Integer>();
@@ -46,17 +61,25 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 			if (tokenSpan.getStartTokenIndex() < 0){
 				return nGramPoS;
 			}
-				
-			//List<String> tokens = tokenSpan.getDocument().getSentenceTokens(tokenSpan.getSentenceIndex());
 			int sentLength = tokenSpan.getDocument().getSentenceTokenCount(tokenSpan.getSentenceIndex());
 			
 			int sentIndex = tokenSpan.getSentenceIndex();
 			
 			for (int tokenIndex = 0 ; tokenIndex < sentLength; tokenIndex++){
-				if (tokenSpan.getDocument().getPoSTag(sentIndex, tokenIndex).toString().equals(PoS)){
-					nGramPoS.add(tokenSpan.getDocument().getToken(sentIndex, tokenIndex));
+				// if the tokenIndex is before the tokenSpan, and (the tokensBeforeTokenSpan == -1 or
+				// 												   tokenSpan.getStartTokenIndex - tokenIndex <= tokensBeforeTokenSpan)
+				if (tokenIndex < tokenSpan.getStartTokenIndex() && (tokensBeforeTokenSpan == -1 || 
+						tokenSpan.getStartTokenIndex() - tokenIndex <= tokensBeforeTokenSpan)){
+					if (tokenSpan.getDocument().getPoSTag(sentIndex, tokenIndex).toString().equals(PoS)){
+						nGramPoS.add(tokenSpan.getDocument().getToken(sentIndex, tokenIndex));
+					}
+				} else if(tokenIndex > tokenSpan.getEndTokenIndex() && (tokensAfterTokenSpan == -1 || 
+						tokenIndex - tokenSpan.getEndTokenIndex() <= tokensAfterTokenSpan)){
+					if (tokenSpan.getDocument().getPoSTag(sentIndex, tokenIndex).toString().equals(PoS)){
+						nGramPoS.add(tokenSpan.getDocument().getToken(sentIndex, tokenIndex));
+					}
 				}
-				
+
 			}
 		}
 		
