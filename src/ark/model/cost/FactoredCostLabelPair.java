@@ -62,6 +62,7 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 	@Override
 	public boolean init(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data) {
 		this.model = model;
+		this.labels = new ArrayList<L>();
 		this.labels.addAll(this.model.getValidLabels());
 		return true;
 	}
@@ -89,6 +90,12 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 	@Override
 	protected FactoredCost<D, L> makeInstance() {
 		return new FactoredCostLabelPair<D, L>();
+	}
+
+	@Override
+	public Map<Integer, Double> computeKappas(Map<D, L> predictions) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

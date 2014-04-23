@@ -59,7 +59,7 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 		}
 		
 		for (int i = 0; i < this.evaluations.size(); i++)
-			results.set(i, this.evaluations.get(i).compute(actualAndPredicted));
+			results.set(i, this.evaluations.get(i).evaluate(actualAndPredicted));
 		
 		this.confusionMatrix = new ConfusionMatrix<D, L>(this.model.getValidLabels(), this.model.getLabelMapping());
 		this.confusionMatrix.addData(classifiedData);

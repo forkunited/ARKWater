@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
@@ -65,6 +66,7 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 	@Override
 	public boolean init(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data) {
 		this.model = model;
+		this.labels = new ArrayList<L>();
 		this.labels.addAll(this.model.getValidLabels());
 		return true;
 	}
@@ -89,5 +91,58 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 	@Override
 	protected FactoredCost<D, L> makeInstance() {
 		return new FactoredCostLabelPairUnordered<D, L>();
+	}
+
+	@Override
+	public Map<Integer, Double> computeKappas(Map<D, L> predictions) {
+		Map<Integer, Double> kappas = new HashMap<Integer, Double>();
+		Map<Integer, Double> actual = new HashMap<Integer, Double>(); // Actual p(cost_S > 0)
+		Map<L, Double> labelActualP = new HashMap<L, Double>();
+		Map<L, Double> labelPredictedP = new HashMap<L, Double>();
+		double normalizedIncrement = 1.0/predictions.size();
+		for (Entry<D, L> entry : predictions.entrySet()) {
+			Map<Integer, Double> actualValues = computeVector(entry.getKey(), entry.getValue());
+			for (Entry<Integer, Double> actualValue : actualValues.entrySet()) {
+				if (actualValue.getValue() == 0)
+					continue;
+				if (!actual.containsKey(actualValue.getKey()))
+					actual.put(actualValue.getKey(), 0.0);
+				actual.put(actualValue.getKey(), actual.get(actualValue.getKey()) + normalizedIncrement);
+			}
+			
+			if (!labelActualP.containsKey(entry.getKey().getLabel()))
+				labelActualP.put(entry.getKey().getLabel(), 0.0);
+			labelActualP.put(entry.getKey().getLabel(), labelActualP.get(entry.getKey().getLabel()) + normalizedIncrement);
+			
+			if (!labelPredictedP.containsKey(entry.getValue()))
+				labelPredictedP.put(entry.getValue(), 0.0);
+			labelPredictedP.put(entry.getValue(), labelPredictedP.get(entry.getValue()) + normalizedIncrement);
+		}
+		
+		int vocabularySize = getVocabularySize();
+		for (int i = 0; i < vocabularySize; i++) {
+			double actualValue = 0.0;
+			double expectedValue = 0.0;
+			
+			int rowIndex = (int)Math.floor(0.5*(Math.sqrt(8*i+1)+1));
+			int columnIndex = i - rowIndex*(rowIndex-1)/2;
+			L l_1 = this.labels.get(rowIndex);
+			L l_2 = this.labels.get(columnIndex);
+			if (labelActualP.containsKey(l_1) && labelPredictedP.containsKey(l_2))
+				expectedValue += labelActualP.get(l_1)*labelPredictedP.get(l_2);
+			if (labelActualP.containsKey(l_2) && labelPredictedP.containsKey(l_1))
+				expectedValue += labelActualP.get(l_2)*labelPredictedP.get(l_1);
+			
+			if (actual.containsKey(i))
+				actualValue = actual.get(i);
+			
+			if (expectedValue == 1.0) {
+				kappas.put(i, 0.0);
+			} else {
+				kappas.put(i, (actualValue - expectedValue)/(1.0 - expectedValue));
+			}
+		}
+		
+		return kappas;
 	}
 }

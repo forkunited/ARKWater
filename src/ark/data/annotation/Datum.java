@@ -23,6 +23,7 @@ import ark.model.SupervisedModelCreg;
 import ark.model.SupervisedModelLabelDistribution;
 import ark.model.SupervisedModelPartition;
 import ark.model.SupervisedModelSVMCostLearner;
+import ark.model.SupervisedModelSVMCostLearnerAlt;
 import ark.model.cost.FactoredCost;
 import ark.model.cost.FactoredCostConstant;
 import ark.model.cost.FactoredCostLabel;
@@ -132,6 +133,7 @@ public abstract class Datum<L> {
 			addGenericModel(new SupervisedModelCreg<D, L>());
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());
 			addGenericModel(new SupervisedModelSVMCostLearner<D, L>());
+			addGenericModel(new SupervisedModelSVMCostLearnerAlt<D, L>());
 			addGenericModel(new SupervisedModelPartition<D, L>());
 			
 			this.genericEvaluations.put("Accuracy", new ClassificationEvaluationAccuracy<D, L>());

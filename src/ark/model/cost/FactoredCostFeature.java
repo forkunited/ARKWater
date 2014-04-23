@@ -92,4 +92,10 @@ public class FactoredCostFeature<D extends Datum<L>, L> extends FactoredCost<D, 
 		return new FactoredCostFeature<D, L>();
 	}
 
+	@Override
+	public Map<Integer, Double> computeKappas(Map<D, L> predictions) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }

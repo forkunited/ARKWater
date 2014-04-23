@@ -9,7 +9,7 @@ import ark.util.Pair;
 public class ClassificationEvaluationAccuracy<D extends Datum<L>, L> extends ClassificationEvaluation<D, L> {
 
 	@Override
-	public double compute(Collection<Pair<L, L>> actualAndPredicted) {
+	protected double compute(Collection<Pair<L, L>> actualAndPredicted) {
 		double total = actualAndPredicted.size();
 		double correct = 0;
 		for (Pair<L, L> pair : actualAndPredicted) {

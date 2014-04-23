@@ -69,4 +69,11 @@ public class FactoredCostConstant<D extends Datum<L>, L> extends FactoredCost<D,
 	protected FactoredCost<D, L> makeInstance() {
 		return new FactoredCostConstant<D, L>();
 	}
+
+	@Override
+	public Map<Integer, Double> computeKappas(Map<D, L> predictions) {
+		Map<Integer, Double> kappas = new HashMap<Integer, Double>();
+		kappas.put(0, 1.0);
+		return kappas;
+	}
 }

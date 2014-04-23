@@ -22,6 +22,8 @@ public abstract class FactoredCost<D extends Datum<L>, L> {
 	public abstract Map<Integer, Double> computeVector(D datum, L prediction);
 	public abstract String getGenericName();
 	public abstract int getVocabularySize();
+	
+	public abstract Map<Integer, Double> computeKappas(Map<D, L> predictions);
 
 	protected abstract String getVocabularyTerm(int index); 
 	

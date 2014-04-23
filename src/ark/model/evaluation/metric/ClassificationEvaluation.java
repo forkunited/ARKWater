@@ -5,23 +5,41 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
+import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
 public abstract class ClassificationEvaluation<D extends Datum<L>, L> {
-	public abstract double compute(Collection<Pair<L, L>> actualAndPredicted);
+	private LabelMapping<L> labelMapping;
+	
 	public abstract String getGenericName();
 	
+	protected abstract double compute(Collection<Pair<L, L>> actualAndPredicted);
 	protected abstract String[] getParameterNames();
 	protected abstract String getParameterValue(String parameter);
 	protected abstract boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
 	protected abstract ClassificationEvaluation<D, L> makeInstance();
+	
+	public double evaluate(Collection<Pair<L, L>> actualAndPredicted) {
+		if (this.labelMapping == null)
+			return compute(actualAndPredicted);
+		
+		List<Pair<L, L>> mappedLabels = new ArrayList<Pair<L, L>>(actualAndPredicted.size());
+		for (Pair<L, L> pair : actualAndPredicted) {
+			Pair<L, L> mappedPair = new Pair<L, L>(this.labelMapping.map(pair.getFirst()), this.labelMapping.map(pair.getSecond()));
+			mappedLabels.add(mappedPair);
+		}
+		return compute(mappedLabels);
+
+	}
 	
 	public ClassificationEvaluation<D, L> clone(Datum.Tools<D, L> datumTools) {
 		return clone(datumTools, null);
@@ -47,8 +65,12 @@ public abstract class ClassificationEvaluation<D extends Datum<L>, L> {
 		
 		Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
 		if (parameters != null)
-			for (Entry<String, String> entry : parameters.entrySet())
-				setParameterValue(entry.getKey(), entry.getValue(), datumTools);
+			for (Entry<String, String> entry : parameters.entrySet()) {
+				if (entry.getKey().equals("labelMapping"))
+					this.labelMapping = datumTools.getLabelMapping(entry.getValue());
+				else
+					setParameterValue(entry.getKey(), entry.getValue(), datumTools);
+			}
 
 		return true;
 	}
@@ -75,6 +97,10 @@ public abstract class ClassificationEvaluation<D extends Datum<L>, L> {
 			String[] parameterNames = getParameterNames();
 			for (int i = 0; i < parameterNames.length; i++)
 				parameters.put(parameterNames[i], getParameterValue(parameterNames[i]));
+			
+			if (this.labelMapping != null)
+				parameters.put("labelMapping", this.labelMapping.toString());
+			
 			StringWriter parametersWriter = new StringWriter();
 			
 			try {
