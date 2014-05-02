@@ -86,20 +86,8 @@ public class DocumentInMemory extends Document {
 		annotator.setText(text);
 		
 		this.tokens = annotator.makeTokens();
-
-		DependencyParse[] dependencyParses = annotator.makeDependencyParses();
-		for (int i = 0; i < dependencyParses.length; i++) {
-			this.dependencyParses[i] = dependencyParses[i].clone(this);
-		}
-		
-		ConstituencyParse[] constituencyParses = annotator.makeConstituencyParses();
-		this.constituencyParses = new ConstituencyParse[constituencyParses.length];
-		for (int i = 0; i < constituencyParses.length; i++) {
-			this.constituencyParses[i] = new ConstituencyParse(this,
-															   i,
-															   constituencyParses[i].getRoot());
-		}
-		
+		this.dependencyParses = annotator.makeDependencyParses(this, 0);
+		this.constituencyParses = annotator.makeConstituencyParses(this, 0);
 		this.posTags = annotator.makePoSTags();
 	}
 	
@@ -132,13 +120,8 @@ public class DocumentInMemory extends Document {
 			for (int j = 0; j < sentenceTokens[0].length; j++)
 				this.tokens[i][j] = sentenceTokens[0][j];
 						
-			DependencyParse[] dependencyParses = annotator.makeDependencyParses();
-			this.dependencyParses[i] = dependencyParses[0].clone(this);
-			
-			ConstituencyParse[] constituencyParses = annotator.makeConstituencyParses();
-			this.constituencyParses[i] = new ConstituencyParse(this,
-															   i,
-															   constituencyParses[i].getRoot());
+			this.dependencyParses[i] = annotator.makeDependencyParses(this, i)[0];
+			this.constituencyParses[i] = annotator.makeConstituencyParses(this, i)[0];
 			
 			PoSTag[][] sentencePoSTags = annotator.makePoSTags();
 			this.posTags[i] = new PoSTag[sentencePoSTags[0].length];
@@ -411,7 +394,15 @@ public class DocumentInMemory extends Document {
 			this.tokens[sentenceIndex] = new String[tElements.size()];
 			this.posTags[sentenceIndex] = new PoSTag[tElements.size()];
 			for (int j = 0; j < tElements.size(); j++) {
-				this.tokens[sentenceIndex][j] = (tElements.get(j).getText().split("\""))[3];
+				String tElementText = tElements.get(j).getText();
+				int firstQuoteIndex = -1;
+				int secondQuoteIndex = tElementText.length();
+				for (int i = 0; i < 3; i++) {
+					firstQuoteIndex = tElementText.indexOf("\"", firstQuoteIndex+1);
+					secondQuoteIndex = tElementText.lastIndexOf("\"", secondQuoteIndex-1);
+				}
+				
+				this.tokens[sentenceIndex][j] = tElementText.substring(firstQuoteIndex + 1, secondQuoteIndex);
 				List<Attribute> tAttributes = (List<Attribute>)tElements.get(j).getAttributes();
 				for (Attribute attribute : tAttributes)
 					if (attribute.getName().equals("pos"))

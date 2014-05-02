@@ -19,6 +19,7 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	private FeaturizedDataSet<D, L> testData;
 	private ConfusionMatrix<D, L> confusionMatrix;
 	private List<ClassificationEvaluation<D, L>> evaluations;
+	private List<Double> results;
 	
 	public TrainTestValidation(String name,
 							  SupervisedModel<D, L> model, 
@@ -30,23 +31,24 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 		this.trainData = trainData;
 		this.testData = testData;
 		this.evaluations = evaluations;
+		this.results = new ArrayList<Double>(this.evaluations.size());
 	}
 	
 	public List<Double> run() {
 		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
-		List<Double> results = new ArrayList<Double>(this.evaluations.size());
+		
 		for (int i = 0; i < this.evaluations.size(); i++)
-			results.add(-1.0);
+			this.results.add(-1.0);
 		
 		output.debugWriteln("Training model (" + this.name + ")");
 		if (!this.model.train(this.trainData))
-			return results;
+			return this.results;
 		
 		output.debugWriteln("Classifying data (" + this.name + ")");
 		
 		Map<D, L> classifiedData =  this.model.classify(this.testData);
 		if (classifiedData == null)
-			return results;
+			return this.results;
 		
 		output.debugWriteln("Computing model score (" + this.name + ")");
 		
@@ -59,12 +61,12 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 		}
 		
 		for (int i = 0; i < this.evaluations.size(); i++)
-			results.set(i, this.evaluations.get(i).evaluate(actualAndPredicted));
+			this.results.set(i, this.evaluations.get(i).evaluate(actualAndPredicted));
 		
 		this.confusionMatrix = new ConfusionMatrix<D, L>(this.model.getValidLabels(), this.model.getLabelMapping());
 		this.confusionMatrix.addData(classifiedData);
 		
-		return results;
+		return this.results;
 	}
 	
 	public List<ClassificationEvaluation<D, L>> getEvaluations() {
@@ -77,5 +79,9 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	
 	public SupervisedModel<D, L> getModel() {
 		return this.model;
+	}
+	
+	public List<Double> getResults() {
+		return this.results;
 	}
 }

@@ -20,7 +20,7 @@ import ark.util.OutputWriter;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
-public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends SupervisedModel<D, L> {
+public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	private BidirectionalLookupTable<L, Integer> labelIndices;
 	private FactoredCost<D, L> factoredCost;
 	private int trainingIterations;
@@ -33,17 +33,25 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 	private double[] bias_u;
 	private double[] bias_G;
 	private double[] cost_v;
+	private double[] cost_u; 
+	private double[] cost_G;  // Just diagonal
 	private Integer[] cost_i; // Cost indices for sorting v and G
 	
 	private double l1;
-	private String[] hyperParameterNames = { "l1", "c" };
+	private double l2;
+	private double n = 1.0;
+	private String[] hyperParameterNames = { "l2", "l1", "c", "n" };
 	
 	private class CostWeightComparator implements Comparator<Integer> {
 	    @Override
 	    public int compare(Integer i1, Integer i2) {
-	    	double u_1 = cost_v[i1];
-	    	double u_2 = cost_v[i2];
+	    	double u_1 = cost_G[i1]*(2.0*cost_v[i1]-1);
+	    	double u_2 = cost_G[i2]*(2.0*cost_v[i2]-1);
 	    	
+	    	if (cost_G[i1] != 0 && cost_G[i2] == 0)
+	    		return -1;
+	    	else if (cost_G[i1] == 0 && cost_G[i2] != 0)
+	    		return 1;
 	    	if (u_1 > u_2)
 	    		return -1;
 	    	else if (u_1 < u_2)
@@ -53,7 +61,7 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 	    }
 	}
 	
-	public SupervisedModelSVMCostLearnerAlt() {
+	public SupervisedModelSVMC() {
 		this.featureNames = new HashMap<Integer, String>();
 	}
 	
@@ -119,6 +127,8 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 			this.bias_G = new double[this.bias_u.length];
 			
 			this.cost_v = new double[this.factoredCost.getVocabularySize()];
+			this.cost_u = new double[this.cost_v.length];
+			this.cost_G = new double[this.cost_v.length];
 		
 			this.cost_i = new Integer[this.cost_v.length];
 			for (int i = 0; i < this.cost_i.length; i++)
@@ -128,17 +138,22 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 		double[] prevFeature_w = Arrays.copyOf(this.feature_w, this.feature_w.length);
 		double[] prevBias_b = Arrays.copyOf(this.bias_b, this.bias_b.length);
 		double[] prevCost_v = Arrays.copyOf(this.cost_v, this.cost_v.length);
+		double prevObjectiveValue = objectiveValue(data);
 		
 		output.debugWriteln("Training SVMCostLearner for " + this.trainingIterations + " iterations...");
 		
+		CostWeightComparator costWeightComparator = new CostWeightComparator();
 		double[] feature_g = new double[this.feature_w.length];
 		double[] bias_g = new double[this.bias_b.length];
+		double[] cost_g = new double[this.cost_v.length];
 		
 		for (int iteration = 0; iteration < this.trainingIterations; iteration++) {
 			for (D datum : data) {	
 				L datumLabel = this.mapValidLabel(datum.getLabel());
 				L bestLabel = argMaxScoreLabel(data, datum, true);
+				boolean datumLabelBest = datumLabel.equals(bestLabel);
 				
+				Map<Integer, Double> bestLabelCosts = this.factoredCost.computeVector(datum, bestLabel);
 				Map<Integer, Double> datumFeatureValues = data.getFeatureVocabularyValues(datum);
 				List<Integer> missingNameKeys = new ArrayList<Integer>();
 				for (Integer key : datumFeatureValues.keySet())
@@ -148,7 +163,10 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 				
 				// Update feature weights
 				for (int i = 0; i < this.feature_w.length; i++) { 
-					feature_g[i] = -labelFeatureValue(data, datumFeatureValues, i, datumLabel)+labelFeatureValue(data, datumFeatureValues, i, bestLabel);
+					if (this.l1 == 0 && this.feature_w[i] == 0 && datumLabelBest)
+						continue;
+					
+					feature_g[i] = this.l2*this.feature_w[i]-labelFeatureValue(data, datumFeatureValues, i, datumLabel)+labelFeatureValue(data, datumFeatureValues, i, bestLabel);
 					
 					this.feature_G[i] += feature_g[i]*feature_g[i];
 					this.feature_u[i] += feature_g[i];
@@ -156,13 +174,18 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 					if (this.feature_G[i] == 0)
 						continue;
 					if (this.l1 == 0)
-						this.feature_w[i] -= feature_g[i]/Math.sqrt(this.feature_G[i]); 
+						this.feature_w[i] -= feature_g[i]*this.n/Math.sqrt(this.feature_G[i]); 
 					else {
 						if (Math.abs(this.feature_u[i])/this.t <= this.l1)
 							this.feature_w[i] = 0; 
 						else 
-							this.feature_w[i] = -Math.signum(this.feature_u[i])*(this.t/(Math.sqrt(this.feature_G[i])))*((Math.abs(this.feature_u[i])/this.t)-this.l1); 
+							this.feature_w[i] = -Math.signum(this.feature_u[i])*(this.t*this.n/(Math.sqrt(this.feature_G[i])))*((Math.abs(this.feature_u[i])/this.t)-this.l1); 
 					}
+				}
+				
+				if (datumLabelBest) {
+					this.t++;
+					continue;
 				}
 				
 				// Update label biases
@@ -174,71 +197,96 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 					this.bias_u[i] += bias_g[i];
 					if (this.bias_G[i] == 0)
 						continue;
-					this.bias_b[i] -= bias_g[i]/Math.sqrt(this.bias_G[i]);
+					this.bias_b[i] -= bias_g[i]*this.n/Math.sqrt(this.bias_G[i]);
+				}
+				
+				// Update cost weights
+				for (int i = 0; i < this.cost_v.length; i++) {
+					cost_g[i] = (bestLabelCosts.containsKey(i)) ? bestLabelCosts.get(i) : 0;
+					this.cost_G[i] += cost_g[i]*cost_g[i];
+					this.cost_u[i] += cost_g[i];
+					
+					if (this.cost_G[i] != 0)
+						this.cost_v[i] -= cost_g[i]*this.n/Math.sqrt(this.cost_G[i]); 
+				}
+				
+				// Project cost weights onto simplex \sum v_i = 1, v_i >= 0
+				// Find p = max { j : u_j - 1/G_j((\sum^j u_i) - 1.0)/(\sum^j 1.0/G_i) > 0 } 
+				// where u and G are sorted desc
+				Arrays.sort(this.cost_i, costWeightComparator);
+				double sumV = 0;
+				double harmonicG = 0;
+				double theta = 0;
+				for (int p = 0; p < this.cost_v.length; p++) {
+					if (this.cost_G[this.cost_i[p]] != 0) {
+						sumV += this.cost_v[this.cost_i[p]];
+						harmonicG += 1.0/this.cost_G[this.cost_i[p]];
+					}
+					double prevTheta = theta;
+					theta = (sumV-1.0)/harmonicG;
+					if (this.cost_G[this.cost_i[p]] == 0 || this.cost_v[this.cost_i[p]]-theta/this.cost_G[this.cost_i[p]] <= 0) {
+						theta = prevTheta;
+						break;
+					}
+				}
+				
+				for (int j = 0; j < this.cost_v.length; j++) {
+					if (this.cost_G[j] == 0)
+						this.cost_v[j] = 0;
+					else
+						this.cost_v[j] = Math.max(0, this.cost_v[j]-theta/this.cost_G[j]);
 				}
 				
 				this.t++;
 			}
 	
-			if (!trainCostWeights(data))
-				return false;
-			
 			double vDiff = averageDiff(this.cost_v, prevCost_v);
 			double wDiff = averageDiff(this.feature_w, prevFeature_w);
 			double bDiff = averageDiff(this.bias_b, prevBias_b);
 			double vDiffMax = maxDiff(this.cost_v, prevCost_v);
 			double wDiffMax = maxDiff(this.feature_w, prevFeature_w);
 			double bDiffMax = maxDiff(this.bias_b, prevBias_b);
+			double objectiveValue = objectiveValue(data);
+			double objectiveValueDiff = objectiveValue - prevObjectiveValue;
 			
 			double vSum = 0;
 			for (int i = 0; i < this.cost_v.length; i++)
 				vSum += this.cost_v[i];
 			
-			output.debugWriteln("Finished iteration " + iteration + " (v-diff (avg, max): (" + vDiff + ", " + vDiffMax + ") w-diff (avg, max): (" + wDiff + ", " + wDiffMax + ") b-diff (avg, max): (" + bDiff + ", " + bDiffMax + ") v-sum: " + vSum + ").");
+			output.debugWriteln("Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " (v-diff (avg, max): (" + vDiff + ", " + vDiffMax + ") w-diff (avg, max): (" + wDiff + ", " + wDiffMax + ") b-diff (avg, max): (" + bDiff + ", " + bDiffMax + ") v-sum: " + vSum + ").");
 			prevCost_v = Arrays.copyOf(this.cost_v, prevCost_v.length);
 			prevFeature_w = Arrays.copyOf(this.feature_w, prevFeature_w.length);
 			prevBias_b = Arrays.copyOf(this.bias_b, prevBias_b.length);
+			prevObjectiveValue = objectiveValue;
 		}
 		
 		return true;
 	}
 	
-	private boolean trainCostWeights(FeaturizedDataSet<D, L> data) {
-		Map<D, L> predictions = new HashMap<D, L>();
+	private double objectiveValue(FeaturizedDataSet<D, L> data) {
+		double value = 0;
+		
+		if (this.l1 > 0) {
+			double l1Norm = 0;
+			for (int i = 0; i < this.feature_w.length; i++)
+				value += Math.abs(this.feature_w[i]);
+			value += l1Norm*this.l1;
+		}
+		
+		if (this.l2 > 0) {
+			double l2Norm = 0;
+			for (int i = 0; i < this.feature_w.length; i++)
+				value += this.feature_w[i]*this.feature_w[i];
+			value += l2Norm*this.l2*.5;
+		}
+		
 		for (D datum : data) {
-			predictions.put(datum, argMaxScoreLabel(data, datum, true));
+			double maxScore = maxScoreLabel(data, datum, true);
+			double datumScore = scoreLabel(data, datum, datum.getLabel(), false);
+			value += maxScore - datumScore;
 		}
 		
-		Map<Integer, Double> kappas = this.factoredCost.computeKappas(predictions);
-		CostWeightComparator costWeightComparator = new CostWeightComparator();
-		for (int i = 0; i < this.cost_v.length; i++) {
-			if (!kappas.containsKey(i))
-				this.cost_v[i] = 0;
-			else
-				this.cost_v[i] = -kappas.get(i);
-		}
-		
-		// Project cost weights onto simplex \sum v_i = 1, v_i >= 0
-		// Find p = max { j : u_j - (1/j)((\sum^j u_i) - 1.0) > 0 } 
-		// where u is sorted desc
-		Arrays.sort(this.cost_i, costWeightComparator);
-		double sumV = 0;
-		double theta = 0;
-		for (int p = 0; p < this.cost_v.length; p++) {
-			sumV += this.cost_v[this.cost_i[p]];
-			double prevTheta = theta;
-			theta = (sumV-1.0)/p;
-			if (this.cost_v[this.cost_i[p]]-theta <= 0) {
-				theta = prevTheta;
-				break;
-			}
-		}
-		
-		for (int j = 0; j < this.cost_v.length; j++) {
-			this.cost_v[j] = Math.max(0, this.cost_v[j]-theta);
-		}
-		
-		return true;
+		return value;
 	}
 	
 	private double maxDiff(double[] v1, double[] v2) {
@@ -253,6 +301,17 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 		for (int i = 0; i < v1.length; i++)
 			diffSum += Math.abs(v2[i] - v1[i]);
 		return diffSum/v1.length;
+	}
+	
+	private double maxScoreLabel(FeaturizedDataSet<D, L> data, D datum, boolean includeCost) {
+		double maxScore = Double.NEGATIVE_INFINITY;
+		for (L label : this.validLabels) {
+			double score = scoreLabel(data, datum, label, includeCost);
+			if (score >= maxScore) {
+				maxScore = score;
+			}
+		}
+		return maxScore;
 	}
 	
 	private L argMaxScoreLabel(FeaturizedDataSet<D, L> data, D datum, boolean includeCost) {
@@ -348,8 +407,12 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 	public String getHyperParameterValue(String parameter) {
 		if (parameter.equals("l1"))
 			return String.valueOf(this.l1);
+		else if (parameter.equals("l2"))
+			return String.valueOf(this.l2);
 		else if (parameter.equals("c"))
 			return (this.factoredCost == null) ? "0" : this.factoredCost.getParameterValue("c");
+		else if (parameter.equals("n"))
+			return String.valueOf(this.n);
 		return null;
 	}
 
@@ -358,8 +421,12 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("l1"))
 			this.l1 = Double.valueOf(parameterValue);
+		else if (parameter.equals("l2"))
+			this.l2 = Double.valueOf(parameterValue);
 		else if (parameter.equals("c") && this.factoredCost != null)
 			this.factoredCost.setParameterValue("c", parameterValue, datumTools);
+		else if (parameter.equals("n"))
+			this.n = Double.valueOf(parameterValue);
 		else
 			return false;
 		return true;
@@ -367,12 +434,12 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 	
 	@Override
 	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelSVMCostLearnerAlt<D, L>();
+		return new SupervisedModelSVMC<D, L>();
 	}
 	
 	@Override
 	public String getGenericName() {
-		return "SVMCostLearnerAlt";
+		return "SVMC";
 	}
 	
 	@Override
@@ -398,6 +465,8 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 		this.bias_G = new double[this.bias_b.length];
 		
 		this.cost_v = new double[numCosts];
+		this.cost_u = new double[this.cost_v.length];
+		this.cost_G = new double[this.cost_v.length];
 	
 		this.cost_i = new Integer[this.cost_v.length];
 		for (int i = 0; i < this.cost_i.length; i++)
@@ -436,9 +505,13 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 				SerializationUtil.deserializeGenericName(reader);
 				Map<String, String> costParameters = SerializationUtil.deserializeArguments(reader);
 				double v = Double.valueOf(costParameters.get("v"));
+				double G = Double.valueOf(costParameters.get("G"));
+				double u = Double.valueOf(costParameters.get("u"));
 				int index = Integer.valueOf(costParameters.get("index"));
 				
 				this.cost_v[index] = v;
+				this.cost_G[index] = G;
+				this.cost_u[index] = u;
 			} else {
 				break;
 			}
@@ -505,6 +578,8 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 			for (int i = 0; i < costNames.size(); i++) {
 				String costValue = costNames.get(i) +
 								   "(v=" + this.cost_v[i] +
+								   ", G=" + this.cost_G[i] +
+								   ", u=" + this.cost_u[i] +
 								   ", index=" + i +
 								   ")";
 				
@@ -521,7 +596,7 @@ public class SupervisedModelSVMCostLearnerAlt<D extends Datum<L>, L> extends Sup
 	}
 	
 	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModelSVMCostLearnerAlt<D, L> clone = (SupervisedModelSVMCostLearnerAlt<D, L>)super.clone(datumTools, environment);
+		SupervisedModelSVMC<D, L> clone = (SupervisedModelSVMC<D, L>)super.clone(datumTools, environment);
 		
 		clone.labelIndices = this.labelIndices;
 		clone.trainingIterations = this.trainingIterations;

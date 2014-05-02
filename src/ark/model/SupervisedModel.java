@@ -37,6 +37,25 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	public abstract boolean train(FeaturizedDataSet<D, L> data);
 	public abstract Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data);
 	
+	public Set<L> getValidLabels() {
+		return this.validLabels;
+	}
+	
+	public LabelMapping<L> getLabelMapping() {
+		return this.labelMapping;
+	}
+	
+	public L mapValidLabel(L label) {
+		if (label == null)
+			return null;
+		if (this.labelMapping != null)
+			label = this.labelMapping.map(label);
+		if (this.validLabels.contains(label))
+			return label;
+		else
+			return null;
+	}
+	
 	public SupervisedModel<D, L> makeInstance(Set<L> validLabels, LabelMapping<L> labelMapping) {
 		SupervisedModel<D, L> instance = makeInstance();
 		
@@ -193,14 +212,6 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		return classifiedData;
 	}
 	
-	public Set<L> getValidLabels() {
-		return this.validLabels;
-	}
-	
-	public LabelMapping<L> getLabelMapping() {
-		return this.labelMapping;
-	}
-	
 	public boolean setHyperParameterValues(Map<String, String> values, Datum.Tools<D, L> datumTools) {
 		for (Entry<String, String> entry : values.entrySet()) {
 			if (!setHyperParameterValue(entry.getKey(), entry.getValue(), datumTools))
@@ -208,16 +219,5 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		}
 		
 		return true;
-	}
-	
-	public L mapValidLabel(L label) {
-		if (label == null)
-			return null;
-		if (this.labelMapping != null)
-			label = this.labelMapping.map(label);
-		if (this.validLabels.contains(label))
-			return label;
-		else
-			return null;
 	}
 }

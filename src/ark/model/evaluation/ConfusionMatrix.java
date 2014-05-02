@@ -161,7 +161,7 @@ public class ConfusionMatrix<D extends Datum<L>, L> {
 					String sentence = null;
 					if (tokenExtractor != null) {
 						tokenSpans = tokenExtractor.extract(datum);
-						if (tokenSpans != null && tokenSpans.length > 0)
+						if (tokenSpans != null && tokenSpans.length > 0 && tokenSpans[0].getSentenceIndex() >= 0)
 							sentence = tokenSpans[0].getDocument().getSentence(tokenSpans[0].getSentenceIndex());
 					}
 					

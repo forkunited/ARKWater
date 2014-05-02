@@ -42,11 +42,15 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	@Override
 	protected boolean execute() {
 		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
-		FeaturizedDataSet<D, L> testData = new FeaturizedDataSet<D, L>(this.name + " Test", this.features, this.maxThreads, this.datumTools, this.testData.getLabelMapping());
 		FeaturizedDataSet<D, L> trainData = new FeaturizedDataSet<D, L>(this.name + " Training", this.features, this.maxThreads, this.datumTools, this.trainData.getLabelMapping());
 		FeaturizedDataSet<D, L> devData = new FeaturizedDataSet<D, L>(this.name + " Dev", this.features, this.maxThreads, this.datumTools, this.devData.getLabelMapping());
 		
-		testData.addAll(this.testData);
+		FeaturizedDataSet<D, L> testData = null;
+		if (this.testData != null) {
+			testData = new FeaturizedDataSet<D, L>(this.name + " Test", this.features, this.maxThreads, this.datumTools, this.testData.getLabelMapping());
+			testData.addAll(this.testData);
+		}
+		
 		trainData.addAll(this.trainData);
 		devData.addAll(this.devData);
 		
@@ -57,9 +61,10 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 			
 			trainData.addFeature(feature);
 			devData.addFeature(feature);
-			testData.addFeature(feature);
+			
+			if (testData != null)
+				testData.addFeature(feature);
 		}
-		
 		
 		GridSearchTestValidation<D, L> gridSearchValidation = new GridSearchTestValidation<D, L>(
 				this.name, 
@@ -70,7 +75,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 				this.evaluations,
 				this.trainOnDev);
 		gridSearchValidation.setPossibleHyperParameterValues(this.gridSearchParameterValues);
-		if (gridSearchValidation.run(this.errorExampleExtractor, true).get(0) < 0)
+		if (gridSearchValidation.run(this.errorExampleExtractor, true, this.maxThreads).get(0) < 0)
 			return false;
 
 		return true;

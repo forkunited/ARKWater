@@ -1,6 +1,7 @@
 package ark.model.annotator.nlp;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
 
+import ark.data.annotation.Document;
 import ark.data.annotation.Language;
 import ark.data.annotation.nlp.ConstituencyParse;
 import ark.data.annotation.nlp.DependencyParse;
@@ -98,14 +100,16 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return posTags;
 	}
 	
-	public DependencyParse[] makeDependencyParses() {
+	public DependencyParse[] makeDependencyParses(Document document, int sentenceIndexOffset) {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		DependencyParse[] parses = new DependencyParse[sentences.size()];
 		for(int i = 0; i < sentences.size(); i++) {
 			SemanticGraph sentenceDependencyGraph = sentences.get(i).get(CollapsedCCProcessedDependenciesAnnotation.class);
+			
 			Set<IndexedWord> sentenceWords = sentenceDependencyGraph.vertexSet();
+			
 			Map<Integer, Pair<List<DependencyParse.Dependency>, List<DependencyParse.Dependency>>> nodesToDeps = new HashMap<Integer, Pair<List<DependencyParse.Dependency>, List<DependencyParse.Dependency>>>();
-			parses[i] = new DependencyParse(null, i, null, null);
+			parses[i] = new DependencyParse(document, sentenceIndexOffset + i, null, null);
 			int maxIndex = -1;
 			for (IndexedWord sentenceWord1 : sentenceWords) {
 				for (IndexedWord sentenceWord2 : sentenceWords) {
@@ -114,7 +118,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 					GrammaticalRelation relation = sentenceDependencyGraph.reln(sentenceWord1, sentenceWord2);
 					if (relation == null)
 						continue;
-					
+				
 					int govIndex = sentenceWord1.index() - 1;
 					int depIndex = sentenceWord2.index() - 1;
 					
@@ -132,19 +136,35 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 				}
 			}
 			
+			if (!nodesToDeps.containsKey(-1))
+				nodesToDeps.put(-1, new Pair<List<Dependency>, List<Dependency>>(new ArrayList<Dependency>(), new ArrayList<Dependency>()));
+			
+			
+			Collection<IndexedWord> rootDeps = sentenceDependencyGraph.getRoots();
+			for (IndexedWord rootDep : rootDeps) {
+				int depIndex = rootDep.index() - 1;
+				DependencyParse.Dependency dependency = parses[i].new Dependency(-1, depIndex, "root");
+				
+				if (!nodesToDeps.containsKey(depIndex))
+					nodesToDeps.put(depIndex, new Pair<List<Dependency>, List<Dependency>>(new ArrayList<Dependency>(), new ArrayList<Dependency>()));
+				
+				nodesToDeps.get(-1).getSecond().add(dependency);
+				nodesToDeps.get(depIndex).getFirst().add(dependency);
+			}
+			
 			Node[] tokenNodes = new Node[maxIndex+1];
 			for (int j = 0; j < tokenNodes.length; j++)
 				if (nodesToDeps.containsKey(j))
 					tokenNodes[j] = parses[i].new Node(j, nodesToDeps.get(j).getFirst().toArray(new Dependency[0]), nodesToDeps.get(j).getSecond().toArray(new Dependency[0]));
 			
 			Node rootNode = parses[i].new Node(-1, new Dependency[0], nodesToDeps.get(-1).getSecond().toArray(new Dependency[0]));
-			parses[i] = new DependencyParse(null, i, rootNode, tokenNodes);
+			parses[i] = new DependencyParse(document, sentenceIndexOffset + i, rootNode, tokenNodes);
 		}
 		
 		return parses;
 	}
 	
-	public ConstituencyParse[] makeConstituencyParses() {
+	public ConstituencyParse[] makeConstituencyParses(Document document, int sentenceIndexOffset) {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		ConstituencyParse[] parses = new ConstituencyParse[sentences.size()];
 		
@@ -152,7 +172,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 			Tree tree = sentences.get(i).get(TreeAnnotation.class);
 
 			Constituent root = null;
-			parses[i] = new ConstituencyParse(null, i, null);
+			parses[i] = new ConstituencyParse(document, sentenceIndexOffset + i, null);
 			Stack<Pair<Tree, List<Constituent>>> constituents = new Stack<Pair<Tree, List<Constituent>>>();
 			Stack<Tree> toVisit = new Stack<Tree>();
 			toVisit.push(tree);
@@ -170,7 +190,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 				
 				if (currentTree.isPreTerminal()) {
 					String label = currentTree.label().value();
-					ConstituencyParse.Constituent constituent = parses[i].new Constituent(label, new TokenSpan(null, i, tokenIndex, tokenIndex + 1));
+					ConstituencyParse.Constituent constituent = parses[i].new Constituent(label, new TokenSpan(document, i, tokenIndex, tokenIndex + 1));
 					tokenIndex++;
 					if (!constituents.isEmpty())
 						constituents.peek().getSecond().add(constituent);
@@ -190,7 +210,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 					constituents.peek().getSecond().add(root);
 			}
 			
-			parses[i] = new ConstituencyParse(null, i, root);
+			parses[i] = new ConstituencyParse(document, sentenceIndexOffset + i, root);
 		}
 		
 		return parses;

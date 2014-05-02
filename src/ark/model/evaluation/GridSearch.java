@@ -6,17 +6,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import ark.data.annotation.Datum;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.metric.ClassificationEvaluation;
 import ark.util.OutputWriter;
-import ark.util.Pair;
 
 public class GridSearch<D extends Datum<L>, L> {
-	public static class GridPosition {
-		private TreeMap<String, String> coordinates;
+	public class GridPosition {
+		protected TreeMap<String, String> coordinates;
 		
 		public GridPosition() {
 			this.coordinates = new TreeMap<String, String>();
@@ -86,12 +90,32 @@ public class GridSearch<D extends Datum<L>, L> {
 		}
 	}
 	
+	public class EvaluatedGridPosition extends GridPosition {
+		private double positionValue;
+		private TrainTestValidation<D, L> validation;
+		
+		public EvaluatedGridPosition(GridPosition position, double positionValue, TrainTestValidation<D, L> validation) {
+			this.coordinates = position.coordinates;
+			this.positionValue = positionValue;
+			this.validation = validation;
+		}
+
+		
+		public double getPositionValue() {
+			return this.positionValue;
+		}
+		
+		public TrainTestValidation<D, L> getValidation() {
+			return this.validation;
+		}
+	}
+	
 	private String name;
 	private SupervisedModel<D, L> model;
 	private FeaturizedDataSet<D, L> trainData;
 	private FeaturizedDataSet<D, L> testData;
 	private Map<String, List<String>> possibleParameterValues;
-	private List<Pair<GridPosition, Double>> gridEvaluation;
+	private List<EvaluatedGridPosition> gridEvaluation;
 	private ClassificationEvaluation<D, L> evaluation;
 	private DecimalFormat cleanDouble;
 	
@@ -112,44 +136,68 @@ public class GridSearch<D extends Datum<L>, L> {
 	}
 	
 	public String toString() {
-		List<Pair<GridPosition, Double>> gridEvaluation = getGridEvaluation();
+		List<EvaluatedGridPosition> gridEvaluation = getGridEvaluation();
 		StringBuilder gridEvaluationStr = new StringBuilder();
 		
-		gridEvaluationStr = gridEvaluationStr.append(gridEvaluation.get(0).getFirst().toKeyString("\t")).append("\t").append(this.evaluation.toString()).append("\n");
-		for (Pair<GridPosition, Double> positionEvaluation : gridEvaluation) {
-			gridEvaluationStr = gridEvaluationStr.append(positionEvaluation.getFirst().toValueString("\t"))
+		gridEvaluationStr = gridEvaluationStr.append(gridEvaluation.get(0).toKeyString("\t")).append("\t").append(this.evaluation.toString()).append("\n");
+		for (EvaluatedGridPosition positionEvaluation : gridEvaluation) {
+			gridEvaluationStr = gridEvaluationStr.append(positionEvaluation.toValueString("\t"))
 							 					 .append("\t")
-							 					 .append(this.cleanDouble.format(positionEvaluation.getSecond()))
+							 					 .append(this.cleanDouble.format(positionEvaluation.getPositionValue()))
 							 					 .append("\n");
 		}
 		
 		return gridEvaluationStr.toString();
 	}
 	
-	public List<Pair<GridPosition, Double>> getGridEvaluation() {
+	public List<EvaluatedGridPosition> getGridEvaluation() {
+		return getGridEvaluation(1);
+	}
+	
+	public List<EvaluatedGridPosition> getGridEvaluation(int maxThreads) {
 		if (this.gridEvaluation != null)
 			return this.gridEvaluation;
 		
-		this.gridEvaluation = new ArrayList<Pair<GridPosition, Double>>();
-		
+		this.gridEvaluation = new ArrayList<EvaluatedGridPosition>();
 		List<GridPosition> grid = constructGrid();
-		for (GridPosition position : grid) {
-			double positionValue = evaluateGridPosition(position);
-			this.gridEvaluation.add(new Pair<GridPosition, Double>(position, positionValue));
+		
+		ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
+		List<PositionThread> tasks = new ArrayList<PositionThread>();
+ 		for (GridPosition position : grid) {
+			tasks.add(new PositionThread(position));
+		}
+		
+		try {
+			List<Future<EvaluatedGridPosition>> results = threadPool.invokeAll(tasks);
+			threadPool.shutdown();
+			threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+			for (Future<EvaluatedGridPosition> futureResult : results) {
+				EvaluatedGridPosition result = futureResult.get();
+				if (result == null)
+					return null;
+				this.gridEvaluation.add(result);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
 		}
 		
 		return this.gridEvaluation;
 	}
 	
-	public GridPosition getBestPosition() {
-		List<Pair<GridPosition, Double>> gridEvaluation = getGridEvaluation();
+	public EvaluatedGridPosition getBestPosition() {
+		return getBestPosition(1);
+	}
+	
+	public EvaluatedGridPosition getBestPosition(int maxThreads) {
+		List<EvaluatedGridPosition> gridEvaluation = getGridEvaluation(maxThreads);
 		double maxValue = Double.NEGATIVE_INFINITY;
-		GridPosition maxPosition = null;
+		EvaluatedGridPosition maxPosition = null;
 		
-		for (Pair<GridPosition, Double> positionValue : gridEvaluation) {
-			if (positionValue.getSecond() > maxValue) {
-				maxValue = positionValue.getSecond();
-				maxPosition = positionValue.getFirst();
+		for (EvaluatedGridPosition positionValue : gridEvaluation) {
+			if (positionValue.getPositionValue() > maxValue) {
+				maxValue = positionValue.getPositionValue();
+				maxPosition = positionValue;
 			}
 		}
 		
@@ -176,31 +224,41 @@ public class GridSearch<D extends Datum<L>, L> {
 		return positions;
 	}
 	
-	private double evaluateGridPosition(GridPosition position) {
-		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
+	private class PositionThread implements Callable<EvaluatedGridPosition> {
+		private GridPosition position;
 		
-		output.debugWriteln("Grid search evaluating " + this.evaluation.toString() + " of model (" + this.name + " " + position.toString() + ")");
-		
-		SupervisedModel<D, L> positionModel = this.model.clone(this.trainData.getDatumTools());
-		Map<String, String> parameterValues = position.getCoordinates();
-		for (Entry<String, String> entry : parameterValues.entrySet()) {
-			positionModel.setHyperParameterValue(entry.getKey(), entry.getValue(), this.trainData.getDatumTools());	
+		public PositionThread(GridPosition position) {
+			this.position = position;
 		}
 		
-		positionModel.setHyperParameterValue("warmRestart", "true", this.trainData.getDatumTools());
-		
-		List<ClassificationEvaluation<D, L>> evaluation = new ArrayList<ClassificationEvaluation<D, L>>(1);
-		evaluation.add(this.evaluation);
-		
-		TrainTestValidation<D, L> validation = new TrainTestValidation<D, L>(this.name + " " + position.toString(), positionModel, this.trainData, this.testData, evaluation);
-		double computedEvaluation = validation.run().get(0);
-		if (computedEvaluation  < 0) {
-			output.debugWriteln("Error: Grid search evaluation failed at position " + position.toString());
-			return -1.0;
-		}
+		@Override
+		public EvaluatedGridPosition call() throws Exception {
+			OutputWriter output = trainData.getDatumTools().getDataTools().getOutputWriter();
+			
+			output.debugWriteln("Grid search evaluating " + evaluation.toString() + " of model (" + name + " " + position.toString() + ")");
+			
+			SupervisedModel<D, L> positionModel = model.clone(trainData.getDatumTools());
+			Map<String, String> parameterValues = position.getCoordinates();
+			for (Entry<String, String> entry : parameterValues.entrySet()) {
+				positionModel.setHyperParameterValue(entry.getKey(), entry.getValue(), trainData.getDatumTools());	
+			}
+			
+			//positionModel.setHyperParameterValue("warmRestart", "true", this.trainData.getDatumTools());
+			
+			List<ClassificationEvaluation<D, L>> evaluations = new ArrayList<ClassificationEvaluation<D, L>>(1);
+			evaluations.add(evaluation);
+			
+			TrainTestValidation<D, L> validation = new TrainTestValidation<D, L>(name + " " + position.toString(), positionModel, trainData, testData, evaluations);
+			double computedEvaluation = validation.run().get(0);
+			if (computedEvaluation  < 0) {
+				output.debugWriteln("Error: Grid search evaluation failed at position " + position.toString());
+				return null;
+			}
 
-		output.debugWriteln("Finished grid search evaluating model with hyper parameters (" + this.name + " " + position.toString() + ")");
+			output.debugWriteln("Finished grid search evaluating model with hyper parameters (" + name + " " + position.toString() + ")");
+			
+			return new EvaluatedGridPosition(this.position, computedEvaluation, validation);
+		}
 		
-		return computedEvaluation;
 	}
 }

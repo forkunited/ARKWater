@@ -139,22 +139,22 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 		 */
 		if (this.possibleParameterValues.size() > 0) {
 			output.resultsWriteln("\nGrid search results:");
-			output.resultsWrite(validationResults.get(0).getGridEvaluation().get(0).getFirst().toKeyString("\t") + "\t");
+			output.resultsWrite(validationResults.get(0).getGridEvaluation().get(0).toKeyString("\t") + "\t");
 			for (int i = 0; i < this.folds.size(); i++)
 				output.resultsWrite("Fold " + i + "\t");
 			output.resultsWrite("\n");
 			
-			List<Pair<GridSearch.GridPosition, List<Double>>> gridFoldResults = new ArrayList<Pair<GridSearch.GridPosition, List<Double>>>();
+			List<Pair<GridSearch<D, L>.GridPosition, List<Double>>> gridFoldResults = new ArrayList<Pair<GridSearch<D, L>.GridPosition, List<Double>>>();
 			for (int i = 0; i < validationResults.size(); i++) {
-				List<Pair<GridSearch.GridPosition, Double>> gridEvaluation = validationResults.get(i).getGridEvaluation();
+				List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation = validationResults.get(i).getGridEvaluation();
 				for (int j = 0; j < gridEvaluation.size(); j++) {
 					if (gridFoldResults.size() <= j)
-						gridFoldResults.add(new Pair<GridSearch.GridPosition, List<Double>>(gridEvaluation.get(j).getFirst(), new ArrayList<Double>()));
-					gridFoldResults.get(j).getSecond().add(gridEvaluation.get(j).getSecond());
+						gridFoldResults.add(new Pair<GridSearch<D, L>.GridPosition, List<Double>>(gridEvaluation.get(j), new ArrayList<Double>()));
+					gridFoldResults.get(j).getSecond().add(gridEvaluation.get(j).getPositionValue());
 				}
 			}
 			
-			for (Pair<GridSearch.GridPosition, List<Double>> gridFoldResult : gridFoldResults) {
+			for (Pair<GridSearch<D, L>.GridPosition, List<Double>> gridFoldResult : gridFoldResults) {
 				output.resultsWrite(gridFoldResult.getFirst().toValueString("\t") + "\t");
 				for (int i = 0; i < gridFoldResult.getSecond().size(); i++) {
 					output.resultsWrite(this.cleanDouble.format(gridFoldResult.getSecond().get(i)) + "\t");
@@ -170,10 +170,10 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 		private int foldIndex;
 		private List<Double> evaluationValues;
 		private ConfusionMatrix<D, L> confusionMatrix;
-		private List<Pair<GridSearch.GridPosition, Double>> gridEvaluation;
-		private GridSearch.GridPosition bestParameters;
+		private List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation;
+		private GridSearch<D, L>.GridPosition bestParameters;
 		
-		public ValidationResult(int foldIndex, List<Double> evaluationValues, ConfusionMatrix<D, L> confusionMatrix, List<Pair<GridSearch.GridPosition, Double>> gridEvaluation, GridSearch.GridPosition bestParameters) {
+		public ValidationResult(int foldIndex, List<Double> evaluationValues, ConfusionMatrix<D, L> confusionMatrix, List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation, GridSearch<D, L>.GridPosition bestParameters) {
 			this.foldIndex = foldIndex;
 			this.evaluationValues = evaluationValues;
 			this.confusionMatrix = confusionMatrix;
@@ -193,11 +193,11 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			return this.confusionMatrix;
 		}
 		
-		public List<Pair<GridSearch.GridPosition, Double>> getGridEvaluation() {
+		public List<GridSearch<D, L>.EvaluatedGridPosition> getGridEvaluation() {
 			return this.gridEvaluation;
 		}
 		
-		public GridSearch.GridPosition getBestParameters() {
+		public GridSearch<D, L>.GridPosition getBestParameters() {
 			return this.bestParameters;
 		}
 	}
