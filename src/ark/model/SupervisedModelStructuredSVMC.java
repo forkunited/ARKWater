@@ -13,6 +13,8 @@ import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
+import ark.data.annotation.structure.DatumStructure;
+import ark.data.annotation.structure.DatumStructureCollection;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.cost.FactoredCost;
 import ark.util.BidirectionalLookupTable;
@@ -20,9 +22,12 @@ import ark.util.OutputWriter;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
-public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<D, L> {
+public class SupervisedModelStructuredSVMC<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	private BidirectionalLookupTable<L, Integer> labelIndices;
 	private FactoredCost<D, L> factoredCost;
+	private String datumStructureOptimizer;
+	private String datumStructureCollection;
+	
 	private int trainingIterations;
 	private int t;
 	private Map<Integer, String> featureNames;
@@ -62,7 +67,7 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 	    }
 	}
 	
-	public SupervisedModelSVMC() {
+	public SupervisedModelStructuredSVMC() {
 		this.featureNames = new HashMap<Integer, String>();
 	}
 	
@@ -86,6 +91,10 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 			this.factoredCost = datumTools.makeFactoredCostInstance(genericCost);
 			if (!this.factoredCost.deserialize(reader, false, datumTools))
 				return false;
+		} else if (name.equals("datumStructureCollection")) {
+			this.datumStructureCollection = SerializationUtil.deserializeAssignmentRight(reader);
+		} else if (name.equals("datumStructureOptimizer")) {
+			this.datumStructureOptimizer = SerializationUtil.deserializeAssignmentRight(reader);
 		}
 		
 		return true;
@@ -103,6 +112,22 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 			writer.write("\t");
 			Pair<String, String> factoredCostAssignment = new Pair<String, String>("factoredCost", this.factoredCost.toString(false));
 			if (!SerializationUtil.serializeAssignment(factoredCostAssignment, writer))
+				return false;
+			writer.write("\n");
+		}
+		
+		if (this.datumStructureCollection != null) {
+			writer.write("\t");
+			Pair<String, String> datumStructureCollectionAssignment = new Pair<String, String>("datumStructureCollection", this.datumStructureCollection);
+			if (!SerializationUtil.serializeAssignment(datumStructureCollectionAssignment, writer))
+				return false;
+			writer.write("\n");
+		}
+		
+		if (this.datumStructureOptimizer != null) {
+			writer.write("\t");
+			Pair<String, String> datumStructureOptimizerAssignment = new Pair<String, String>("datumStructureOptimizer", this.datumStructureOptimizer);
+			if (!SerializationUtil.serializeAssignment(datumStructureOptimizerAssignment, writer))
 				return false;
 			writer.write("\n");
 		}
@@ -136,12 +161,14 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 				this.cost_i[i] = i;
 		}
 		
+		DatumStructureCollection<D, L> datumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
+		
 		double[] prevFeature_w = Arrays.copyOf(this.feature_w, this.feature_w.length);
 		double[] prevBias_b = Arrays.copyOf(this.bias_b, this.bias_b.length);
 		double[] prevCost_v = Arrays.copyOf(this.cost_v, this.cost_v.length);
-		double prevObjectiveValue = objectiveValue(data);
+		double prevObjectiveValue = objectiveValue(data, datumStructureCollection);
 		
-		output.debugWriteln("Training SVMC for " + this.trainingIterations + " iterations...");
+		output.debugWriteln("Training StructuredSVMC for " + this.trainingIterations + " iterations on structures " + datumStructureCollection.size() + " in " + this.datumStructureCollection + "...");
 		
 		CostWeightComparator costWeightComparator = new CostWeightComparator();
 		double[] feature_g = new double[this.feature_w.length];
@@ -149,28 +176,24 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 		double[] cost_g = new double[this.cost_v.length];
 		
 		for (int iteration = 0; iteration < this.trainingIterations; iteration++) {
-			for (D datum : data) {	
-				L datumLabel = this.mapValidLabel(datum.getLabel());
-				L bestLabel = argMaxScoreLabel(data, datum, true);
-				boolean datumLabelBest = datumLabel.equals(bestLabel);
+			for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
+				Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
+				Map<D, L> datumLabels = datumStructure.getDatumLabels(this.labelMapping);
+				Map<D, L> bestDatumLabels = datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping);
 				
-				Map<Integer, Double> bestLabelCosts = this.factoredCost.computeVector(datum, bestLabel);
-				Map<Integer, Double> datumFeatureValues = data.getFeatureVocabularyValues(datum);
-				
-				if (iteration == 0) {
-					List<Integer> missingNameKeys = new ArrayList<Integer>();
-					for (Integer key : datumFeatureValues.keySet())
-						if (!this.featureNames.containsKey(key))
-							missingNameKeys.add(key);
-					this.featureNames.putAll(data.getFeatureVocabularyNamesForIndices(missingNameKeys));
-				}
+				Map<Integer, Double> datumStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, datumLabels, iteration == 0);
+				Map<Integer, Double> bestStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, bestDatumLabels, false);
+				Map<Integer, Double> bestStructureCosts = computeDatumStructureCosts(datumStructure, bestDatumLabels);
 				
 				// Update feature weights
 				for (int i = 0; i < this.feature_w.length; i++) { 
-					if (this.l1 == 0 && this.feature_w[i] == 0 && datumLabelBest)
+					double datumFeatureValue = (datumStructureFeatureValues.containsKey(i)) ? datumStructureFeatureValues.get(i) : 0.0;
+					double bestFeatureValue = (bestStructureFeatureValues.containsKey(i)) ? bestStructureFeatureValues.get(i) : 0.0;
+					
+					if (this.l1 == 0 && this.feature_w[i] == 0 && datumFeatureValue == bestFeatureValue)
 						continue;
 					
-					feature_g[i] = this.l2*this.feature_w[i]-labelFeatureValue(data, datumFeatureValues, i, datumLabel)+labelFeatureValue(data, datumFeatureValues, i, bestLabel);
+					feature_g[i] = this.l2*this.feature_w[i]-datumFeatureValue+bestFeatureValue;
 					
 					this.feature_G[i] += feature_g[i]*feature_g[i];
 					this.feature_u[i] += feature_g[i];
@@ -187,15 +210,12 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 					}
 				}
 				
-				if (datumLabelBest) {
-					this.t++;
-					continue;
-				}
-				
 				// Update label biases
 				for (int i = 0; i < this.bias_b.length; i++) {
-					bias_g[i] = ((this.labelIndices.get(datumLabel) == i) ? -1.0 : 0.0) +
-									(this.labelIndices.get(bestLabel) == i ? 1.0 : 0.0);
+					L label = this.labelIndices.reverseGet(i);
+					int datumLabelCount = getLabelCount(datumLabels, label);
+					int bestLabelCount = getLabelCount(bestDatumLabels, label);
+					bias_g[i] = -datumLabelCount + bestLabelCount;
 					
 					this.bias_G[i] += bias_g[i]*bias_g[i];
 					this.bias_u[i] += bias_g[i];
@@ -206,7 +226,7 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 				
 				// Update cost weights
 				for (int i = 0; i < this.cost_v.length; i++) {
-					cost_g[i] = (bestLabelCosts.containsKey(i)) ? bestLabelCosts.get(i) : 0;
+					cost_g[i] = (bestStructureCosts.containsKey(i)) ? bestStructureCosts.get(i) : 0;
 					this.cost_G[i] += cost_g[i]*cost_g[i];
 					this.cost_u[i] += cost_g[i];
 					
@@ -243,14 +263,14 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 				
 				this.t++;
 			}
-	
+			
 			double vDiff = averageDiff(this.cost_v, prevCost_v);
 			double wDiff = averageDiff(this.feature_w, prevFeature_w);
 			double bDiff = averageDiff(this.bias_b, prevBias_b);
 			double vDiffMax = maxDiff(this.cost_v, prevCost_v);
 			double wDiffMax = maxDiff(this.feature_w, prevFeature_w);
 			double bDiffMax = maxDiff(this.bias_b, prevBias_b);
-			double objectiveValue = objectiveValue(data);
+			double objectiveValue = objectiveValue(data, datumStructureCollection);
 			double objectiveValueDiff = objectiveValue - prevObjectiveValue;
 			
 			double vSum = 0;
@@ -272,7 +292,7 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 		return true;
 	}
 	
-	private double objectiveValue(FeaturizedDataSet<D, L> data) {
+	private double objectiveValue(FeaturizedDataSet<D, L> data, DatumStructureCollection<D, L> datumStructureCollection) {
 		double value = 0;
 		
 		if (this.l1 > 0) {
@@ -289,10 +309,15 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 			value += l2Norm*this.l2*.5;
 		}
 		
-		for (D datum : data) {
-			double maxScore = maxScoreLabel(data, datum, true);
-			double datumScore = scoreLabel(data, datum, datum.getLabel(), false);
-			value += maxScore - datumScore;
+		for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
+			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
+			Map<D, L> datumLabels = datumStructure.getDatumLabels(this.labelMapping);
+			Map<D, L> bestDatumLabels = datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping);
+
+			double datumStructureScore = scoreDatumStructure(data, datumStructure, datumLabels, false);
+			double bestStructureScore = scoreDatumStructure(data, datumStructure, bestDatumLabels, true);
+		
+			value += bestStructureScore - datumStructureScore;
 		}
 		
 		return value;
@@ -312,31 +337,68 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 		return diffSum/v1.length;
 	}
 	
-	private double maxScoreLabel(FeaturizedDataSet<D, L> data, D datum, boolean includeCost) {
-		double maxScore = Double.NEGATIVE_INFINITY;
-		for (L label : this.validLabels) {
-			double score = scoreLabel(data, datum, label, includeCost);
-			if (score >= maxScore) {
-				maxScore = score;
-			}
-		}
-		return maxScore;
+	private int getLabelCount(Map<D, L> datumsToLabels, L countLabel) {
+		int count = 0;
+		for (L label : datumsToLabels.values())
+			if (label.equals(countLabel))
+				count++;
+		return count;
 	}
 	
-	private L argMaxScoreLabel(FeaturizedDataSet<D, L> data, D datum, boolean includeCost) {
-		L maxLabel = null;
-		double maxScore = Double.NEGATIVE_INFINITY;
-		for (L label : this.validLabels) {
-			double score = scoreLabel(data, datum, label, includeCost);
-			if (score >= maxScore) {
-				maxScore = score;
-				maxLabel = label;
+	private Map<D, Map<L, Double>> scoreDatumStructureLabels(FeaturizedDataSet<D, L> data, DatumStructure<D, L> datumStructure, boolean includeCost) {
+		Map<D, Map<L, Double>> datumLabelScores = new HashMap<D, Map<L, Double>>();
+		
+		for (D datum : datumStructure) {
+			datumLabelScores.put(datum, new HashMap<L, Double>());
+			for (L label : this.validLabels) {
+				datumLabelScores.get(datum).put(label,
+						scoreDatumLabel(data, datum, label, includeCost));
 			}
 		}
-		return maxLabel;
+		
+		return datumLabelScores;
 	}
 	
-	private double scoreLabel(FeaturizedDataSet<D, L> data, D datum, L label, boolean includeCost) {
+	private Map<Integer, Double> computeDatumStructureCosts(DatumStructure<D, L> datumStructure, Map<D, L> labels) {
+		Map<Integer, Double> costs = new HashMap<Integer, Double>();
+		
+		for (D datum : datumStructure) {
+			Map<Integer, Double> datumCosts = this.factoredCost.computeVector(datum, labels.get(datum));
+			for (Entry<Integer, Double> entry : datumCosts.entrySet()) {
+				if (!costs.containsKey(entry.getKey()))
+					costs.put(entry.getKey(), 0.0);
+				costs.put(entry.getKey(), costs.get(entry.getKey()) + entry.getValue());
+			}
+		}
+		
+		return costs;
+	}
+	
+	private double scoreDatumStructure(FeaturizedDataSet<D, L> data, DatumStructure<D, L> datumStructure, Map<D, L> structureLabels, boolean includeCost) {
+		double score = 0.0;
+		
+		Map<Integer, Double> datumStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, structureLabels, false);
+		for (Entry<Integer, Double> entry : datumStructureFeatureValues.entrySet()) {
+			score += this.feature_w[entry.getKey()]*entry.getValue();
+		}
+		
+		for (int i = 0; i < this.bias_b.length; i++) {
+			L label = this.labelIndices.reverseGet(i);
+			int datumLabelCount = getLabelCount(structureLabels, label);
+			score += this.bias_b[i]*datumLabelCount;
+		}
+		
+		if (includeCost) {
+			Map<Integer, Double> datumStructureCosts = computeDatumStructureCosts(datumStructure, structureLabels);
+			for (Entry<Integer, Double> entry : datumStructureCosts.entrySet()) {
+				score += this.cost_v[entry.getKey()]*entry.getValue();
+			}
+		}
+		
+		return score;
+	}
+	
+	private double scoreDatumLabel(FeaturizedDataSet<D, L> data, D datum, L label, boolean includeCost) {
 		double score = 0;		
 
 		Map<Integer, Double> featureValues = data.getFeatureVocabularyValues(datum);
@@ -357,54 +419,69 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 		
 		return score;
 	}
-	
-	private double labelFeatureValue(FeaturizedDataSet<D,L> data, Map<Integer, Double> featureValues, int weightIndex, L label) {
-		int labelIndex = this.labelIndices.get(label);
-		int numFeatures = data.getFeatureVocabularySize();
-		int featureLabelIndex = weightIndex / numFeatures;
-		if (featureLabelIndex != labelIndex)
-			return 0.0;
+
+	private Map<Integer, Double> computeDatumStructureFeatureValues(FeaturizedDataSet<D,L> data, DatumStructure<D, L> datumStructure, Map<D, L> structureLabels, boolean cacheFeatureNames) {
+		Map<Integer, Double> featureValues = new HashMap<Integer, Double>();
+		int numDatumFeatures = data.getFeatureVocabularySize();
+		for (D datum : datumStructure) {
+			Map<Integer, Double> datumFeatureValues = data.getFeatureVocabularyValues(datum);
+			int labelIndex = this.labelIndices.get(structureLabels.get(datum));
+			int featureLabelOffset = numDatumFeatures*labelIndex;
+			
+			for (Entry<Integer, Double> entry : datumFeatureValues.entrySet()) {
+				int featureIndex = featureLabelOffset + entry.getKey();
+				if (!featureValues.containsKey(featureIndex))
+					featureValues.put(featureIndex, 0.0);
+				featureValues.put(featureIndex, featureValues.get(featureIndex) + entry.getValue());
+			}
+			
+			if (cacheFeatureNames) {
+				List<Integer> missingNameKeys = new ArrayList<Integer>();
+				for (Integer key : datumFeatureValues.keySet())
+					if (!this.featureNames.containsKey(key))
+						missingNameKeys.add(key);
+				this.featureNames.putAll(data.getFeatureVocabularyNamesForIndices(missingNameKeys));				
+			}
+		}
 		
-		int featureIndex = weightIndex % numFeatures;
-		if (!featureValues.containsKey(featureIndex))
-			return 0.0;
-		else
-			return featureValues.get(featureIndex);
+		return featureValues;
 	}
 
 	@Override
 	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posteriors = new HashMap<D, Map<L, Double>>(data.size());
+		DatumStructureCollection<D, L> datumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
+		Map<D, L> bestDatumLabels = new HashMap<D, L>();
+		
 		if (this.factoredCost != null && !this.factoredCost.init(this, data))
 			return null;
+
+		
+		for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
+			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
+			bestDatumLabels.putAll(
+				datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping)
+			);
+		}
+		
 		for (D datum : data) {
-			posteriors.put(datum, posteriorForDatum(data, datum));
+			posteriors.put(datum, new HashMap<L, Double>());
+			L bestLabel = bestDatumLabels.get(datum);
+			
+			if (bestLabel == null) {
+				double p = 1.0/this.validLabels.size();
+				posteriors.get(datum).put(bestLabel, p);
+			} else {
+				for (L label : this.validLabels) {
+					if (label.equals(bestLabel))
+						posteriors.get(datum).put(label, 1.0);
+					else
+						posteriors.get(datum).put(label, 0.0);
+				}
+			}
 		}
 		
 		return posteriors;
-	}
-
-	private Map<L, Double> posteriorForDatum(FeaturizedDataSet<D, L> data, D datum) {
-		Map<L, Double> posterior = new HashMap<L, Double>(this.validLabels.size());
-		double[] scores = new double[this.validLabels.size()];
-		double max = Double.NEGATIVE_INFINITY;
-		for (L label : this.validLabels) {
-			double score = scoreLabel(data, datum, label, false);
-			scores[this.labelIndices.get(label)] = score;
-			if (score > max)
-				max = score;
-		}
-		
-		double lse = 0;
-		for (int i = 0; i < scores.length; i++)
-			lse += Math.exp(scores[i] - max);
-		lse = max + Math.log(lse);
-		
-		for (L label : this.validLabels) {
-			posterior.put(label, Math.exp(scores[this.labelIndices.get(label)]-lse));
-		}
-		
-		return posterior;
 	}
 	
 	@Override
@@ -447,12 +524,12 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 	
 	@Override
 	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelSVMC<D, L>();
+		return new SupervisedModelStructuredSVMC<D, L>();
 	}
 	
 	@Override
 	public String getGenericName() {
-		return "SVMC";
+		return "StructuredSVMC";
 	}
 	
 	@Override
@@ -609,10 +686,12 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 	}
 	
 	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModelSVMC<D, L> clone = (SupervisedModelSVMC<D, L>)super.clone(datumTools, environment);
+		SupervisedModelStructuredSVMC<D, L> clone = (SupervisedModelStructuredSVMC<D, L>)super.clone(datumTools, environment);
 		
 		clone.labelIndices = this.labelIndices;
 		clone.trainingIterations = this.trainingIterations;
+		clone.datumStructureCollection = this.datumStructureCollection;
+		clone.datumStructureOptimizer = this.datumStructureOptimizer;
 		if (this.factoredCost != null) {
 			clone.factoredCost = this.factoredCost.clone(datumTools, environment);
 		}

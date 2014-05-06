@@ -38,7 +38,8 @@ public class SupervisedModelSVMCAlt<D extends Datum<L>, L> extends SupervisedMod
 	private double l1;
 	private double l2;
 	private double n = 1.0;
-	private String[] hyperParameterNames = { "l2", "l1", "c", "n" };
+	private double epsilon = 0;
+	private String[] hyperParameterNames = { "l2", "l1", "c", "n", "epsilon" };
 	
 	private class CostWeightComparator implements Comparator<Integer> {
 	    @Override
@@ -132,7 +133,7 @@ public class SupervisedModelSVMCAlt<D extends Datum<L>, L> extends SupervisedMod
 		double[] prevCost_v = Arrays.copyOf(this.cost_v, this.cost_v.length);
 		double prevObjectiveValue = objectiveValue(data);
 		
-		output.debugWriteln("Training SVMCostLearner for " + this.trainingIterations + " iterations...");
+		output.debugWriteln("Training SVMCAlt for " + this.trainingIterations + " iterations...");
 		
 		double[] feature_g = new double[this.feature_w.length];
 		double[] bias_g = new double[this.bias_b.length];
@@ -144,11 +145,14 @@ public class SupervisedModelSVMCAlt<D extends Datum<L>, L> extends SupervisedMod
 				boolean datumLabelBest = datumLabel.equals(bestLabel);
 				
 				Map<Integer, Double> datumFeatureValues = data.getFeatureVocabularyValues(datum);
-				List<Integer> missingNameKeys = new ArrayList<Integer>();
-				for (Integer key : datumFeatureValues.keySet())
-					if (!this.featureNames.containsKey(key))
-						missingNameKeys.add(key);
-				this.featureNames.putAll(data.getFeatureVocabularyNamesForIndices(missingNameKeys));
+				
+				if (iteration == 0) {
+					List<Integer> missingNameKeys = new ArrayList<Integer>();
+					for (Integer key : datumFeatureValues.keySet())
+						if (!this.featureNames.containsKey(key))
+							missingNameKeys.add(key);
+					this.featureNames.putAll(data.getFeatureVocabularyNamesForIndices(missingNameKeys));
+				}
 				
 				// Update feature weights
 				for (int i = 0; i < this.feature_w.length; i++) {
@@ -208,11 +212,16 @@ public class SupervisedModelSVMCAlt<D extends Datum<L>, L> extends SupervisedMod
 			for (int i = 0; i < this.cost_v.length; i++)
 				vSum += this.cost_v[i];
 			
-			output.debugWriteln("Finished iteration " + iteration + " objectiveDiff: " + objectiveValueDiff + " objective: " + objectiveValue + " (v-diff (avg, max): (" + vDiff + ", " + vDiffMax + ") w-diff (avg, max): (" + wDiff + ", " + wDiffMax + ") b-diff (avg, max): (" + bDiff + ", " + bDiffMax + ") v-sum: " + vSum + ").");
+			output.debugWriteln("(c=" + this.factoredCost.getParameterValue("c")  + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " (v-diff (avg, max): (" + vDiff + ", " + vDiffMax + ") w-diff (avg, max): (" + wDiff + ", " + wDiffMax + ") b-diff (avg, max): (" + bDiff + ", " + bDiffMax + ") v-sum: " + vSum + ").");
 			prevCost_v = Arrays.copyOf(this.cost_v, prevCost_v.length);
 			prevFeature_w = Arrays.copyOf(this.feature_w, prevFeature_w.length);
 			prevBias_b = Arrays.copyOf(this.bias_b, prevBias_b.length);
 			prevObjectiveValue = objectiveValue;
+			
+			if (iteration > 20 && Math.abs(objectiveValueDiff) < this.epsilon) {
+				output.debugWriteln("(c=" + this.factoredCost.getParameterValue("c")  + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Terminating early at iteration " + iteration);
+				break;
+			}
 		}
 		
 		return true;
@@ -405,7 +414,9 @@ public class SupervisedModelSVMCAlt<D extends Datum<L>, L> extends SupervisedMod
 		else if (parameter.equals("c"))
 			return (this.factoredCost == null) ? "0" : this.factoredCost.getParameterValue("c");
 		else if (parameter.equals("n"))
-			return String.valueOf("n");
+			return String.valueOf(this.n);
+		else if (parameter.equals("epsilon"))
+			return String.valueOf(this.epsilon);
 		return null;
 	}
 
@@ -420,6 +431,8 @@ public class SupervisedModelSVMCAlt<D extends Datum<L>, L> extends SupervisedMod
 			this.factoredCost.setParameterValue("c", parameterValue, datumTools);
 		else if (parameter.equals("n"))
 			this.n = Double.valueOf(parameterValue);
+		else if (parameter.equals("epsilon"))
+			this.epsilon = Double.valueOf(parameterValue);
 		else
 			return false;
 		return true;

@@ -6,7 +6,6 @@ import java.util.Map;
 import ark.data.DataTools;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.data.annotation.structure.DatumStructureCollection;
-import ark.data.annotation.structure.DatumStructureOptimizer;
 import ark.data.feature.Feature;
 import ark.data.feature.FeatureConjunction;
 import ark.data.feature.FeatureConstituencyPath;
@@ -26,6 +25,7 @@ import ark.model.SupervisedModelLabelDistribution;
 import ark.model.SupervisedModelPartition;
 import ark.model.SupervisedModelSVMC;
 import ark.model.SupervisedModelSVMCAlt;
+import ark.model.SupervisedModelStructuredSVMC;
 import ark.model.cost.FactoredCost;
 import ark.model.cost.FactoredCostConstant;
 import ark.model.cost.FactoredCostFeature;
@@ -96,8 +96,7 @@ public abstract class Datum<L> {
 		private Map<String, ClassificationEvaluation<D, L>> genericEvaluations;
 		private Map<String, FactoredCost<D, L>> genericFactoredCosts;
 
-		private Map<String, DatumStructureCollection<?, D, L>> genericDatumStructureCollections;
-		private Map<String, DatumStructureOptimizer<?, D, L>> genericDatumStructureOptimizers;
+		private Map<String, DatumStructureCollection<D, L>> genericDatumStructureCollections;
 		
 		public Tools(DataTools dataTools) {
 			this.dataTools = dataTools;
@@ -111,9 +110,7 @@ public abstract class Datum<L> {
 			this.genericEvaluations = new HashMap<String, ClassificationEvaluation<D, L>>();
 			this.genericFactoredCosts = new HashMap<String, FactoredCost<D, L>>();
 			
-			this.genericDatumStructureCollections = new HashMap<String, DatumStructureCollection<?, D, L>>();
-			this.genericDatumStructureOptimizers = new HashMap<String, DatumStructureOptimizer<?, D, L>>();
-			
+			this.genericDatumStructureCollections = new HashMap<String, DatumStructureCollection<D, L>>();
 			
 			addLabelMapping(new LabelMapping<L>() {
 				public String toString() {
@@ -145,6 +142,7 @@ public abstract class Datum<L> {
 			addGenericModel(new SupervisedModelSVMC<D, L>());
 			addGenericModel(new SupervisedModelSVMCAlt<D, L>());
 			addGenericModel(new SupervisedModelPartition<D, L>());
+			addGenericModel(new SupervisedModelStructuredSVMC<D, L>());
 			
 			addGenericEvaluation(new ClassificationEvaluationAccuracy<D, L>());
 			addGenericEvaluation(new ClassificationEvaluationPrecision<D, L>());
@@ -178,10 +176,6 @@ public abstract class Datum<L> {
 			return this.labelMappings.get(name);
 		}
 		
-		public DatumStructureOptimizer<?, D, L> getDatumStructureOptimizer(String name) {
-			return this.genericDatumStructureOptimizers.get(name);
-		}
-		
 		public Feature<D, L> makeFeatureInstance(String genericFeatureName) {
 			return this.genericFeatures.get(genericFeatureName).clone(this, this.dataTools.getParameterEnvironment());
 		}
@@ -198,7 +192,7 @@ public abstract class Datum<L> {
 			return this.genericFactoredCosts.get(genericFactoredCostName).clone(this, this.dataTools.getParameterEnvironment());
 		}
 		
-		public DatumStructureCollection<?, D, L> makeDatumStructureCollection(String genericCollectionName, DataSet<D, L> data) {
+		public DatumStructureCollection<D, L> makeDatumStructureCollection(String genericCollectionName, DataSet<D, L> data) {
 			return this.genericDatumStructureCollections.get(genericCollectionName).makeInstance(data);
 		}
 		
@@ -242,13 +236,8 @@ public abstract class Datum<L> {
 			return true;
 		}
 		
-		public boolean addGenericDatumStructureCollection(DatumStructureCollection<?, D, L> datumStructureCollection) {
+		public boolean addGenericDatumStructureCollection(DatumStructureCollection<D, L> datumStructureCollection) {
 			this.genericDatumStructureCollections.put(datumStructureCollection.getGenericName(), datumStructureCollection);
-			return true;
-		}
-		
-		public boolean addGenericDatumStructureOptimizer(DatumStructureCollection<?, D, L> datumStructureOptimizer) {
-			this.genericDatumStructureCollections.put(datumStructureOptimizer.getGenericName(), datumStructureOptimizer);
 			return true;
 		}
 		

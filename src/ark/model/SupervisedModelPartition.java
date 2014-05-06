@@ -19,11 +19,13 @@ import ark.util.SerializationUtil;
 public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	private L defaultLabel;
 	private String[] hyperParameterNames = { "defaultLabel" };
+	private List<String> orderedModels;
 	private Map<String, Constraint<D, L>> constraints;
 	private Map<String, SupervisedModel<D, L>> models;
 	private Map<String, List<Feature<D, L>>> features;
 	
 	public SupervisedModelPartition() {
+		this.orderedModels = new ArrayList<String>();
 		this.constraints = new HashMap<String, Constraint<D, L>>();
 		this.models = new HashMap<String, SupervisedModel<D, L>>();
 		this.features = new HashMap<String, List<Feature<D, L>>>();
@@ -31,15 +33,21 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	
 	@Override
 	public boolean train(FeaturizedDataSet<D, L> data) {
-		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
-			FeaturizedDataSet<D, L> modelData = this.constraints.get(entry.getKey()).getSatisfyingSubset(data, this.labelMapping);
-			for (Feature<D, L> feature : this.features.get(entry.getKey())) {
+		Map<D, L> fixedLabels = new HashMap<D, L>();
+		for (int i = 0; i < this.orderedModels.size(); i++) {
+			String modelName = this.orderedModels.get(i);
+			FeaturizedDataSet<D, L> modelData = this.constraints.get(modelName).getSatisfyingSubset(data, this.labelMapping);
+			for (Feature<D, L> feature : this.features.get(modelName)) {
 				if (!feature.init(modelData) || !modelData.addFeature(feature))
 					return false;
 			}
 			
-			if (!entry.getValue().train(modelData))
+			if (!this.models.get(modelName).train(modelData))
 				return false;
+			
+			fixedLabels.putAll(this.models.get(modelName).classify(modelData));
+			for (int j = i + 1; j < this.orderedModels.size(); j++)
+				this.models.get(this.orderedModels.get(j)).fixDatumLabels(fixedLabels);
 		}
 		return true;
 	}
@@ -47,26 +55,39 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	@Override
 	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posterior = new HashMap<D, Map<L, Double>>();
-		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
-			FeaturizedDataSet<D, L> modelData = this.constraints.get(entry.getKey()).getSatisfyingSubset(data, this.labelMapping);
-			for (Feature<D, L> feature : this.features.get(entry.getKey()))
+		Map<D, L> fixedLabels = new HashMap<D, L>();
+		for (int i = 0; i < this.orderedModels.size(); i++) {
+			String modelName = this.orderedModels.get(i);
+			FeaturizedDataSet<D, L> modelData = this.constraints.get(modelName).getSatisfyingSubset(data, this.labelMapping);
+			for (Feature<D, L> feature : this.features.get(modelName))
 				if (!modelData.addFeature(feature))
 					return null;
 			
-			Map<D, Map<L, Double>> modelPosterior = entry.getValue().posterior(modelData);
+			Map<D, Map<L, Double>> modelPosterior = this.models.get(modelName).posterior(modelData);
 			for (Entry<D, Map<L, Double>> pEntry : modelPosterior.entrySet()) {
 				if (posterior.containsKey(pEntry.getKey()))
 					continue;
 				Map<L, Double> p = new HashMap<L, Double>();
+				L bestLabel = this.defaultLabel;
+				double bestLabelValue = 0.0;
 				for (L validLabel : this.validLabels) {
 					if (!pEntry.getValue().containsKey(validLabel)) {
 						p.put(validLabel, 0.0);
 					} else {
-						p.put(validLabel, pEntry.getValue().get(validLabel));
+						double labelValue = pEntry.getValue().get(validLabel);
+						p.put(validLabel, labelValue);
+						if (labelValue >= bestLabelValue) {
+							bestLabel = validLabel;
+							bestLabelValue = labelValue;
+						}
 					}
 				}
 				posterior.put(pEntry.getKey(), p);
+				fixedLabels.put(pEntry.getKey(), bestLabel);
 			}
+			
+			for (int j = i + 1; j < this.orderedModels.size(); j++)
+				this.models.get(this.orderedModels.get(j)).fixDatumLabels(fixedLabels);
 		}
 		
 		for (D datum : data) { // Mark remaining data with default label
@@ -94,6 +115,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 			SupervisedModel<D, L> model = datumTools.makeModelInstance(modelName);
 			if (!model.deserialize(reader, false, false, datumTools, modelReference))
 				return false;
+			this.orderedModels.add(modelReference);
 			this.models.put(modelReference, model);
 		} else if (type.equals("feature")) {
 			String featureReference = null;
@@ -127,14 +149,14 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	
 	@Override
 	protected boolean serializeExtraInfo(Writer writer) throws IOException {
-		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet()) {
-			writer.write("\tmodel" + "_" + entry.getKey() + "=" + entry.getValue().toString(false) + "\n");
+		for (String modelName : this.orderedModels) {
+			writer.write("\tmodel" + "_" + modelName + "=" + this.models.get(modelName).toString(false) + "\n");
 			// FIXME Include extra info in model output
 			
-			writer.write("\tconstraint_" + entry.getKey() + "=" + this.constraints.get(entry.getKey()).toString() + "\n");
-			List<Feature<D, L>> features = this.features.get(entry.getKey());
+			writer.write("\tconstraint_" + modelName + "=" + this.constraints.get(modelName).toString() + "\n");
+			List<Feature<D, L>> features = this.features.get(modelName);
 			for (int i = 0; i < features.size(); i++) {
-				writer.write("\tfeature_" + entry.getKey());
+				writer.write("\tfeature_" + modelName);
 				if (features.get(i).getReferenceName() != null)
 					writer.write("_" + features.get(i).getReferenceName());
 				if (features.get(i).isIgnored())
@@ -230,12 +252,14 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		clone.constraints = this.constraints; 
 		clone.features = new HashMap<String, List<Feature<D, L>>>();
 		clone.models = new HashMap<String, SupervisedModel<D, L>>();
+		clone.orderedModels = new ArrayList<String>();
 
-		for (Entry<String, SupervisedModel<D, L>> entry : models.entrySet()) {
-			clone.models.put(entry.getKey(), entry.getValue().clone(datumTools, environment));
-			clone.features.put(entry.getKey(), new ArrayList<Feature<D, L>>());
-			for (int j = 0; j < this.features.get(entry.getKey()).size(); j++) {
-				clone.features.get(entry.getKey()).add(this.features.get(entry.getKey()).get(j).clone(datumTools, environment));
+		for (String model : this.orderedModels) {
+			clone.orderedModels.add(model);
+			clone.models.put(model, this.models.get(model).clone(datumTools, environment));
+			clone.features.put(model, new ArrayList<Feature<D, L>>());
+			for (int j = 0; j < this.features.get(model).size(); j++) {
+				clone.features.get(model).add(this.features.get(model).get(j).clone(datumTools, environment));
 			}
 		}
 		

@@ -73,8 +73,8 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 						 				this.devData,
 						 				this.possibleParameterValues,
 						 				this.evaluations.get(0)); 
-			this.bestGridPosition = gridSearch.getBestPosition();
-			this.gridEvaluation = gridSearch.getGridEvaluation();
+			this.bestGridPosition = gridSearch.getBestPosition(maxThreads);
+			this.gridEvaluation = gridSearch.getGridEvaluation(maxThreads);
 				
 			output.debugWriteln("Grid search (" + this.name + ": \n" + gridSearch.toString());
 				

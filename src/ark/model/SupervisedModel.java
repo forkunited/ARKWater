@@ -22,6 +22,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 	protected Set<L> validLabels;
 	protected LabelMapping<L> labelMapping;
+	protected Map<D, L> fixedDatumLabels = new HashMap<D, L>();
 	
 	protected abstract String[] getHyperParameterNames();
 	protected abstract SupervisedModel<D, L> makeInstance();
@@ -36,6 +37,11 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 
 	public abstract boolean train(FeaturizedDataSet<D, L> data);
 	public abstract Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data);
+	
+	public boolean fixDatumLabels(Map<D, L> fixedDatumLabels) {
+		this.fixedDatumLabels = fixedDatumLabels;
+		return true;
+	}
 	
 	public Set<L> getValidLabels() {
 		return this.validLabels;
@@ -188,6 +194,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		}
 		
 		clone.referenceName = this.referenceName;
+		clone.fixedDatumLabels = this.fixedDatumLabels;
 		
 		return clone;
 	}
@@ -197,6 +204,11 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		Map<D, Map<L, Double>> posterior = posterior(data);
 	
 		for (Entry<D, Map<L, Double>> datumPosterior : posterior.entrySet()) {
+			if (this.fixedDatumLabels.containsKey(datumPosterior.getKey())) {
+				classifiedData.put(datumPosterior.getKey(), this.fixedDatumLabels.get(datumPosterior.getKey()));
+				continue;
+			}
+			
 			Map<L, Double> p = datumPosterior.getValue();
 			double max = Double.NEGATIVE_INFINITY;
 			L argMax = null;
