@@ -20,12 +20,12 @@ import ark.data.feature.FeatureNGramDep;
 import ark.data.feature.FeatureNGramSentence;
 import ark.data.feature.FeatureNGramPoS;
 import ark.model.SupervisedModel;
+import ark.model.SupervisedModelCLSVM;
+import ark.model.SupervisedModelCLSVMAlt;
+import ark.model.SupervisedModelCLStructuredSVM;
 import ark.model.SupervisedModelCreg;
 import ark.model.SupervisedModelLabelDistribution;
 import ark.model.SupervisedModelPartition;
-import ark.model.SupervisedModelSVMC;
-import ark.model.SupervisedModelSVMCAlt;
-import ark.model.SupervisedModelStructuredSVMC;
 import ark.model.cost.FactoredCost;
 import ark.model.cost.FactoredCostConstant;
 import ark.model.cost.FactoredCostFeature;
@@ -141,10 +141,10 @@ public abstract class Datum<L> {
 			
 			addGenericModel(new SupervisedModelCreg<D, L>());
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());
-			addGenericModel(new SupervisedModelSVMC<D, L>());
-			addGenericModel(new SupervisedModelSVMCAlt<D, L>());
+			addGenericModel(new SupervisedModelCLSVM<D, L>());
+			addGenericModel(new SupervisedModelCLSVMAlt<D, L>());
 			addGenericModel(new SupervisedModelPartition<D, L>());
-			addGenericModel(new SupervisedModelStructuredSVMC<D, L>());
+			addGenericModel(new SupervisedModelCLStructuredSVM<D, L>());
 			
 			addGenericEvaluation(new SupervisedModelEvaluationAccuracy<D, L>());
 			addGenericEvaluation(new SupervisedModelEvaluationPrecision<D, L>());
