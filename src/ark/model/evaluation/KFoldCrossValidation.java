@@ -17,7 +17,7 @@ import ark.data.annotation.Datum;
 import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
-import ark.model.evaluation.metric.ClassificationEvaluation;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 import ark.util.Pair;
 
@@ -25,7 +25,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 	private String name;
 	private SupervisedModel<D, L> model;
 	private List<Feature<D, L>> features;
-	private List<ClassificationEvaluation<D, L>> evaluations;
+	private List<SupervisedModelEvaluation<D, L>> evaluations;
 	private List<DataSet<D, L>> folds;
 	private Map<String, List<String>> possibleParameterValues; // Hyper-parameter values
 	private DecimalFormat cleanDouble;
@@ -33,7 +33,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 	public KFoldCrossValidation(String name,
 								SupervisedModel<D, L> model, 
 								List<Feature<D, L>> features,
-								List<ClassificationEvaluation<D, L>> evaluations,
+								List<SupervisedModelEvaluation<D, L>> evaluations,
 								DataSet<D, L> data,
 								int k,
 								Random random) {

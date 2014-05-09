@@ -10,7 +10,7 @@ import java.util.Map.Entry;
 import ark.data.annotation.Datum;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
-import ark.model.evaluation.metric.ClassificationEvaluation;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 
 public class GridSearchTestValidation<D extends Datum<L>, L> {
@@ -21,7 +21,7 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	private FeaturizedDataSet<D, L> testData;
 	private ConfusionMatrix<D, L> confusionMatrix;
 	private Map<String, List<String>> possibleParameterValues; 
-	private List<ClassificationEvaluation<D, L>> evaluations;
+	private List<SupervisedModelEvaluation<D, L>> evaluations;
 	private DecimalFormat cleanDouble;
 	private List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation;
 	private GridSearch<D,L>.EvaluatedGridPosition bestGridPosition;
@@ -32,7 +32,7 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 							  FeaturizedDataSet<D, L> trainData,
 							  FeaturizedDataSet<D, L> devData,
 							  FeaturizedDataSet<D, L> testData,
-							  List<ClassificationEvaluation<D, L>> evaluations,
+							  List<SupervisedModelEvaluation<D, L>> evaluations,
 							  boolean trainOnDev) {
 		this.name = name;
 		this.model = model;
@@ -139,7 +139,7 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 		return evaluationValues;
 	}
 	
-	public List<ClassificationEvaluation<D, L>> getEvaluations() {
+	public List<SupervisedModelEvaluation<D, L>> getEvaluations() {
 		return this.evaluations;
 	}
 	

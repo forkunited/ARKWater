@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 import ark.data.annotation.Datum;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
-import ark.model.evaluation.metric.ClassificationEvaluation;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 
 public class GridSearch<D extends Datum<L>, L> {
@@ -116,7 +116,7 @@ public class GridSearch<D extends Datum<L>, L> {
 	private FeaturizedDataSet<D, L> testData;
 	private Map<String, List<String>> possibleParameterValues;
 	private List<EvaluatedGridPosition> gridEvaluation;
-	private ClassificationEvaluation<D, L> evaluation;
+	private SupervisedModelEvaluation<D, L> evaluation;
 	private DecimalFormat cleanDouble;
 	
 	public GridSearch(String name,
@@ -124,7 +124,7 @@ public class GridSearch<D extends Datum<L>, L> {
 									FeaturizedDataSet<D, L> trainData, 
 									FeaturizedDataSet<D, L> testData,
 									Map<String, List<String>> possibleParameterValues,
-									ClassificationEvaluation<D, L> evaluation) {
+									SupervisedModelEvaluation<D, L> evaluation) {
 		this.name = name;
 		this.model = model;
 		this.trainData = trainData;
@@ -245,7 +245,7 @@ public class GridSearch<D extends Datum<L>, L> {
 			
 			//positionModel.setHyperParameterValue("warmRestart", "true", this.trainData.getDatumTools());
 			
-			List<ClassificationEvaluation<D, L>> evaluations = new ArrayList<ClassificationEvaluation<D, L>>(1);
+			List<SupervisedModelEvaluation<D, L>> evaluations = new ArrayList<SupervisedModelEvaluation<D, L>>(1);
 			evaluations.add(evaluation);
 			
 			TrainTestValidation<D, L> validation = new TrainTestValidation<D, L>(name + " " + position.toString(), positionModel, trainData, testData, evaluations);

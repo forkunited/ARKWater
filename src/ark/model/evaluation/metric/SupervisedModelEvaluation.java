@@ -6,7 +6,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,39 +13,56 @@ import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelMapping;
+import ark.data.feature.FeaturizedDataSet;
+import ark.model.SupervisedModel;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
-public abstract class ClassificationEvaluation<D extends Datum<L>, L> {
-	private LabelMapping<L> labelMapping;
+public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> {
+	protected LabelMapping<L> labelMapping;
 	
 	public abstract String getGenericName();
 	
-	protected abstract double compute(Collection<Pair<L, L>> actualAndPredicted);
+	protected abstract double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions);
 	protected abstract String[] getParameterNames();
 	protected abstract String getParameterValue(String parameter);
 	protected abstract boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
-	protected abstract ClassificationEvaluation<D, L> makeInstance();
+	protected abstract SupervisedModelEvaluation<D, L> makeInstance();
 	
-	public double evaluate(Collection<Pair<L, L>> actualAndPredicted) {
-		if (this.labelMapping == null)
-			return compute(actualAndPredicted);
-		
-		List<Pair<L, L>> mappedLabels = new ArrayList<Pair<L, L>>(actualAndPredicted.size());
-		for (Pair<L, L> pair : actualAndPredicted) {
-			Pair<L, L> mappedPair = new Pair<L, L>(this.labelMapping.map(pair.getFirst()), this.labelMapping.map(pair.getSecond()));
+	protected List<Pair<L, L>> getMappedActualAndPredictedLabels(Map<D, L> predictions) {
+		List<Pair<L, L>> mappedLabels = new ArrayList<Pair<L, L>>(predictions.size());
+		for (Entry<D, L> prediction : predictions.entrySet()) {
+			L actual = prediction.getKey().getLabel();
+			L predicted = prediction.getValue();
+			if (this.labelMapping != null) {
+				actual = this.labelMapping.map(actual);
+				predicted = this.labelMapping.map(predicted);
+			}
+			
+			Pair<L, L> mappedPair = new Pair<L, L>(actual, predicted);
 			mappedLabels.add(mappedPair);
 		}
-		return compute(mappedLabels);
-
+		
+		return mappedLabels;
 	}
 	
-	public ClassificationEvaluation<D, L> clone(Datum.Tools<D, L> datumTools) {
+	public double evaluate(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
+		LabelMapping<L> modelLabelMapping = model.getLabelMapping();
+		if (this.labelMapping != null)
+			model.setLabelMapping(this.labelMapping);
+		
+		double evaluation = compute(model, data, predictions);
+		model.setLabelMapping(modelLabelMapping);
+		
+		return evaluation;
+	}
+	
+	public SupervisedModelEvaluation<D, L> clone(Datum.Tools<D, L> datumTools) {
 		return clone(datumTools, null);
 	}
 	
-	public ClassificationEvaluation<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		ClassificationEvaluation<D, L> clone = makeInstance();
+	public SupervisedModelEvaluation<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
+		SupervisedModelEvaluation<D, L> clone = makeInstance();
 		String[] parameterNames = getParameterNames();
 		for (int i = 0; i < parameterNames.length; i++) {
 			String parameterValue = getParameterValue(parameterNames[i]);

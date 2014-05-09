@@ -13,7 +13,7 @@ import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.GridSearchTestValidation;
-import ark.model.evaluation.metric.ClassificationEvaluation;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 import ark.util.SerializationUtil;
 
@@ -22,7 +22,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected List<Feature<D, L>> features;
 	protected Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor;
 	protected Map<String, List<String>> gridSearchParameterValues;
-	protected List<ClassificationEvaluation<D, L>> evaluations;
+	protected List<SupervisedModelEvaluation<D, L>> evaluations;
 	protected DataSet<D, L> trainData;
 	protected DataSet<D, L> devData;
 	protected DataSet<D, L> testData;
@@ -33,7 +33,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 		
 		this.features = new ArrayList<Feature<D, L>>();
 		this.gridSearchParameterValues = new HashMap<String, List<String>>();
-		this.evaluations = new ArrayList<ClassificationEvaluation<D, L>>();
+		this.evaluations = new ArrayList<SupervisedModelEvaluation<D, L>>();
 		this.trainData = trainData;
 		this.devData = devData;
 		this.testData = testData;
@@ -116,7 +116,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 		
 		} else if (nextName.startsWith("evaluation")) {
 			String evaluationName = SerializationUtil.deserializeGenericName(reader);
-			ClassificationEvaluation<D, L> evaluation = this.datumTools.makeEvaluationInstance(evaluationName);
+			SupervisedModelEvaluation<D, L> evaluation = this.datumTools.makeEvaluationInstance(evaluationName);
 			if (!evaluation.deserialize(reader, false, this.datumTools))
 				return false;
 			this.evaluations.add(evaluation);

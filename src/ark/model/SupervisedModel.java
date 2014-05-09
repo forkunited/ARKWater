@@ -38,6 +38,11 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	public abstract boolean train(FeaturizedDataSet<D, L> data);
 	public abstract Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data);
 	
+	public boolean setLabelMapping(LabelMapping<L> labelMapping) {
+		this.labelMapping = labelMapping;
+		return true;
+	}
+	
 	public boolean fixDatumLabels(Map<D, L> fixedDatumLabels) {
 		this.fixedDatumLabels = fixedDatumLabels;
 		return true;

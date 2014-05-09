@@ -1,25 +1,25 @@
 package ark.model.evaluation.metric;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
+import ark.data.feature.FeaturizedDataSet;
+import ark.model.SupervisedModel;
 import ark.util.Pair;
 
-public class ClassificationEvaluationF<D extends Datum<L>, L> extends ClassificationEvaluation<D, L> {
-
+public class SupervisedModelEvaluationRecall<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
 	private boolean weighted;
-	private double Beta = 1.0;
-	private String[] parameterNames = { "weighted", "Beta" };
+	private String[] parameterNames = { "weighted" };
 	
 	@Override
-	public double compute(Collection<Pair<L, L>> actualAndPredicted) {
+	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
+		List<Pair<L, L>> actualAndPredicted = this.getMappedActualAndPredictedLabels(predictions);
 		Map<L, Double> weights = new HashMap<L, Double>();
 		Map<L, Double> tps = new HashMap<L, Double>();
-		Map<L, Double> fps = new HashMap<L, Double>();
 		Map<L, Double> fns = new HashMap<L, Double>();
 		
 		for (Pair<L, L> pair : actualAndPredicted) {
@@ -28,14 +28,12 @@ public class ClassificationEvaluationF<D extends Datum<L>, L> extends Classifica
 			if (!weights.containsKey(actual)) {
 				weights.put(actual, 0.0); 
 				tps.put(actual, 0.0);
-				fps.put(actual, 0.0);
 				fns.put(actual, 0.0);
 			}
 			
 			if (!weights.containsKey(predicted)) {
 				weights.put(predicted, 0.0);
 				tps.put(predicted, 0.0);
-				fps.put(predicted, 0.0);
 				fns.put(predicted, 0.0);
 			}
 			
@@ -56,32 +54,29 @@ public class ClassificationEvaluationF<D extends Datum<L>, L> extends Classifica
 			if (actual.equals(predicted)) {
 				tps.put(predicted, tps.get(predicted) + 1.0);
 			} else {
-				fps.put(predicted, tps.get(predicted) + 1.0);
 				fns.put(actual, fns.get(actual) + 1.0);
 			}
 		}
 		
-		double F = 0.0;
-		double Beta2 = this.Beta*this.Beta;
+		double recall = 0.0;
 		for (Entry<L, Double> weightEntry : weights.entrySet()) {
 			L label = weightEntry.getKey();
 			double weight = weightEntry.getValue();
 			double tp = tps.get(label);
-			double fp = fps.get(label);
 			double fn = fns.get(label);
 			
-			if (tp == 0.0 && fn == 0.0 && fp == 0.0)
-				F += weight;
+			if (tp == 0.0 && fn == 0.0)
+				recall += weight;
 			else
-				F += weight*(1.0+Beta2)*tp/((1.0+Beta2)*tp + Beta2*fn + fp);
+				recall += weight*tp/(tp + fn);
 		}
 		
-		return F;
+		return recall;
 	}
 
 	@Override
 	public String getGenericName() {
-		return "F";
+		return "Recall";
 	}
 
 	@Override
@@ -93,8 +88,6 @@ public class ClassificationEvaluationF<D extends Datum<L>, L> extends Classifica
 	protected String getParameterValue(String parameter) {
 		if (parameter.equals("weighted"))
 			return String.valueOf(this.weighted);
-		else if (parameter.equals("Beta"))
-			return String.valueOf(this.Beta);
 		else
 			return null;
 	}
@@ -104,15 +97,14 @@ public class ClassificationEvaluationF<D extends Datum<L>, L> extends Classifica
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("weighted"))
 			this.weighted = Boolean.valueOf(parameterValue);
-		else if (parameter.equals("Beta"))
-			this.Beta = Double.valueOf(parameterValue);
 		else
 			return false;
 		return true;
 	}
 
 	@Override
-	protected ClassificationEvaluation<D, L> makeInstance() {
-		return new ClassificationEvaluationF<D, L>();
+	protected SupervisedModelEvaluation<D, L> makeInstance() {
+		return new SupervisedModelEvaluationRecall<D, L>();
 	}
+
 }

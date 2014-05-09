@@ -163,12 +163,10 @@ public class SupervisedModelStructuredSVMC<D extends Datum<L>, L> extends Superv
 		
 		DatumStructureCollection<D, L> datumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
 		
-		double[] prevFeature_w = Arrays.copyOf(this.feature_w, this.feature_w.length);
-		double[] prevBias_b = Arrays.copyOf(this.bias_b, this.bias_b.length);
-		double[] prevCost_v = Arrays.copyOf(this.cost_v, this.cost_v.length);
-		double prevObjectiveValue = objectiveValue(data, datumStructureCollection);
-		
 		output.debugWriteln("Training StructuredSVMC for " + this.trainingIterations + " iterations on structures " + datumStructureCollection.size() + " in " + this.datumStructureCollection + "...");
+
+		double prevObjectiveValue = objectiveValue(data, datumStructureCollection);
+		Map<D, L> prevPredictions = makeQuickPredictions(data);
 		
 		CostWeightComparator costWeightComparator = new CostWeightComparator();
 		double[] feature_g = new double[this.feature_w.length];
@@ -179,8 +177,9 @@ public class SupervisedModelStructuredSVMC<D extends Datum<L>, L> extends Superv
 			for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
 				Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
 				Map<D, L> datumLabels = datumStructure.getDatumLabels(this.labelMapping);
-				Map<D, L> bestDatumLabels = datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping);
-				
+				// Maybe just optimize here...?
+				Map<D, L> bestDatumLabels = getBestDatumLabels(data, datumStructure, scoredDatumLabels);
+
 				Map<Integer, Double> datumStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, datumLabels, iteration == 0);
 				Map<Integer, Double> bestStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, bestDatumLabels, false);
 				Map<Integer, Double> bestStructureCosts = computeDatumStructureCosts(datumStructure, bestDatumLabels);
@@ -264,32 +263,36 @@ public class SupervisedModelStructuredSVMC<D extends Datum<L>, L> extends Superv
 				this.t++;
 			}
 			
-			double vDiff = averageDiff(this.cost_v, prevCost_v);
-			double wDiff = averageDiff(this.feature_w, prevFeature_w);
-			double bDiff = averageDiff(this.bias_b, prevBias_b);
-			double vDiffMax = maxDiff(this.cost_v, prevCost_v);
-			double wDiffMax = maxDiff(this.feature_w, prevFeature_w);
-			double bDiffMax = maxDiff(this.bias_b, prevBias_b);
 			double objectiveValue = objectiveValue(data, datumStructureCollection);
 			double objectiveValueDiff = objectiveValue - prevObjectiveValue;
+			Map<D, L> predictions = makeQuickPredictions(data);
+			int labelDifferences = countLabelDifferences(prevPredictions, predictions);
 			
 			double vSum = 0;
 			for (int i = 0; i < this.cost_v.length; i++)
 				vSum += this.cost_v[i];
 			
-			output.debugWriteln("(c=" + this.factoredCost.getParameterValue("c")  + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " (v-diff (avg, max): (" + vDiff + ", " + vDiffMax + ") w-diff (avg, max): (" + wDiff + ", " + wDiffMax + ") b-diff (avg, max): (" + bDiff + ", " + bDiffMax + ") v-sum: " + vSum + ").");
-			prevCost_v = Arrays.copyOf(this.cost_v, prevCost_v.length);
-			prevFeature_w = Arrays.copyOf(this.feature_w, prevFeature_w.length);
-			prevBias_b = Arrays.copyOf(this.bias_b, prevBias_b.length);
-			prevObjectiveValue = objectiveValue;
+			output.debugWriteln("(c=" + this.factoredCost.getParameterValue("c")  + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " prediction-diff: " + labelDifferences + "/" + predictions.size() + " v-sum: " + vSum + ").");
 			
 			if (iteration > 20 && Math.abs(objectiveValueDiff) < this.epsilon) {
 				output.debugWriteln("(c=" + this.factoredCost.getParameterValue("c")  + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Terminating early at iteration " + iteration);
 				break;
 			}
+			
+			prevObjectiveValue = objectiveValue;
+			prevPredictions = predictions;
 		}
 		
 		return true;
+	}
+	
+	private int countLabelDifferences(Map<D, L> labels1, Map<D, L> labels2) {
+		int count = 0;
+		for (Entry<D, L> entry: labels1.entrySet()) {
+			if (!labels2.containsKey(entry.getKey()) || !entry.getValue().equals(labels2.get(entry.getKey())))
+				count++;
+		}
+		return count;
 	}
 	
 	private double objectiveValue(FeaturizedDataSet<D, L> data, DatumStructureCollection<D, L> datumStructureCollection) {
@@ -312,8 +315,8 @@ public class SupervisedModelStructuredSVMC<D extends Datum<L>, L> extends Superv
 		for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
 			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
 			Map<D, L> datumLabels = datumStructure.getDatumLabels(this.labelMapping);
-			Map<D, L> bestDatumLabels = datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping);
-
+			Map<D, L> bestDatumLabels = getBestDatumLabels(data, datumStructure, scoredDatumLabels);
+		
 			double datumStructureScore = scoreDatumStructure(data, datumStructure, datumLabels, false);
 			double bestStructureScore = scoreDatumStructure(data, datumStructure, bestDatumLabels, true);
 		
@@ -321,20 +324,6 @@ public class SupervisedModelStructuredSVMC<D extends Datum<L>, L> extends Superv
 		}
 		
 		return value;
-	}
-	
-	private double maxDiff(double[] v1, double[] v2) {
-		double diffMax = 0.0;
-		for (int i = 0; i < v1.length; i++)
-			diffMax = Math.max(Math.abs(v2[i] - v1[i]), diffMax);
-		return diffMax;		
-	}
-	
-	private double averageDiff(double[] v1, double[] v2) {
-		double diffSum = 0.0;
-		for (int i = 0; i < v1.length; i++)
-			diffSum += Math.abs(v2[i] - v1[i]);
-		return diffSum/v1.length;
 	}
 	
 	private int getLabelCount(Map<D, L> datumsToLabels, L countLabel) {
@@ -447,6 +436,33 @@ public class SupervisedModelStructuredSVMC<D extends Datum<L>, L> extends Superv
 		return featureValues;
 	}
 
+	private Map<D, L> getBestDatumLabels(FeaturizedDataSet<D, L> data, DatumStructure<D, L> datumStructure, Map<D, Map<L, Double>> scoredDatumLabels) {
+		Map<D, L> optimizedDatumLabels = datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping);
+		Map<D, L> actualDatumLabels = datumStructure.getDatumLabels(this.labelMapping);
+		
+		double optimizedScore = scoreDatumStructure(data, datumStructure, optimizedDatumLabels, true);
+		double actualScore = scoreDatumStructure(data, datumStructure, actualDatumLabels, false);
+		
+		if (actualScore > optimizedScore)
+			return actualDatumLabels;
+		else
+			return optimizedDatumLabels;
+	}
+	
+	private Map<D, L> makeQuickPredictions(FeaturizedDataSet<D, L> data) {
+		Map<D, L> predictions = new HashMap<D, L>();
+		DatumStructureCollection<D, L> datumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
+		
+		for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
+			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, false);
+			predictions.putAll(
+				datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping)
+			);
+		}
+		
+		return predictions;
+	}
+	
 	@Override
 	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posteriors = new HashMap<D, Map<L, Double>>(data.size());
@@ -458,7 +474,7 @@ public class SupervisedModelStructuredSVMC<D extends Datum<L>, L> extends Superv
 
 		
 		for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
-			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
+			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, false);
 			bestDatumLabels.putAll(
 				datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping)
 			);

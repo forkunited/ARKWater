@@ -3,14 +3,12 @@ package ark.model.evaluation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
-import ark.model.evaluation.metric.ClassificationEvaluation;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
-import ark.util.Pair;
 
 public class TrainTestValidation<D extends Datum<L>, L> {
 	private String name;
@@ -18,14 +16,14 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	private FeaturizedDataSet<D, L> trainData;
 	private FeaturizedDataSet<D, L> testData;
 	private ConfusionMatrix<D, L> confusionMatrix;
-	private List<ClassificationEvaluation<D, L>> evaluations;
+	private List<SupervisedModelEvaluation<D, L>> evaluations;
 	private List<Double> results;
 	
 	public TrainTestValidation(String name,
 							  SupervisedModel<D, L> model, 
 							  FeaturizedDataSet<D, L> trainData,
 							  FeaturizedDataSet<D, L> testData,
-							  List<ClassificationEvaluation<D, L>> evaluations) {
+							  List<SupervisedModelEvaluation<D, L>> evaluations) {
 		this.name = name;
 		this.model = model;
 		this.trainData = trainData;
@@ -46,22 +44,14 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 		
 		output.debugWriteln("Classifying data (" + this.name + ")");
 		
-		Map<D, L> classifiedData =  this.model.classify(this.testData);
+		Map<D, L> classifiedData = this.model.classify(this.testData);
 		if (classifiedData == null)
 			return this.results;
 		
 		output.debugWriteln("Computing model score (" + this.name + ")");
 		
-		List<Pair<L, L>> actualAndPredicted = new ArrayList<Pair<L, L>>();
-		for (Entry<D, L> classifiedDatum : classifiedData.entrySet()) {
-			L actualLabel = this.model.mapValidLabel(classifiedDatum.getKey().getLabel());
-			if (actualLabel == null)
-				continue;
-			actualAndPredicted.add(new Pair<L, L>(actualLabel, classifiedDatum.getValue()));
-		}
-		
 		for (int i = 0; i < this.evaluations.size(); i++)
-			this.results.set(i, this.evaluations.get(i).evaluate(actualAndPredicted));
+			this.results.set(i, this.evaluations.get(i).evaluate(this.model, this.testData, classifiedData));
 		
 		this.confusionMatrix = new ConfusionMatrix<D, L>(this.model.getValidLabels(), this.model.getLabelMapping());
 		this.confusionMatrix.addData(classifiedData);
@@ -69,7 +59,7 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 		return this.results;
 	}
 	
-	public List<ClassificationEvaluation<D, L>> getEvaluations() {
+	public List<SupervisedModelEvaluation<D, L>> getEvaluations() {
 		return this.evaluations;
 	}
 	

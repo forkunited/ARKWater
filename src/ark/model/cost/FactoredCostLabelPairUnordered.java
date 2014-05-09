@@ -10,6 +10,7 @@ import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
+import ark.util.Pair;
 
 public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends FactoredCost<D, L> {
 	
@@ -93,6 +94,18 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 		return new FactoredCostLabelPairUnordered<D, L>();
 	}
 
+	public List<Pair<L, L>> getUnorderedLabelPairs() {
+		int vocabularySize = getVocabularySize();
+		List<Pair<L, L>> unorderedLabelPairs = new ArrayList<Pair<L, L>>();
+		for (int i = 0; i < vocabularySize; i++) {
+			int rowIndex = (int)Math.floor(0.5*(Math.sqrt(8*i+1)+1));
+			int columnIndex = i - rowIndex*(rowIndex-1)/2;
+			unorderedLabelPairs.add(new Pair<L, L>(this.labels.get(rowIndex), this.labels.get(columnIndex)));
+		}
+		
+		return unorderedLabelPairs;
+	}
+	
 	@Override
 	public Map<Integer, Double> computeKappas(Map<D, L> predictions) {
 		Map<Integer, Double> kappas = new HashMap<Integer, Double>();

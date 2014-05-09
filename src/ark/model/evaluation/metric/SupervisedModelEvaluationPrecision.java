@@ -1,20 +1,24 @@
 package ark.model.evaluation.metric;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
+import ark.data.feature.FeaturizedDataSet;
+import ark.model.SupervisedModel;
 import ark.util.Pair;
 
-public class ClassificationEvaluationPrecision<D extends Datum<L>, L> extends ClassificationEvaluation<D, L> {
+public class SupervisedModelEvaluationPrecision<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
 	private boolean weighted;
 	private String[] parameterNames = { "weighted" };
 	
 	@Override
-	public double compute(Collection<Pair<L, L>> actualAndPredicted) {
+	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
+		List<Pair<L, L>> actualAndPredicted = this.getMappedActualAndPredictedLabels(predictions);
+
 		Map<L, Double> weights = new HashMap<L, Double>();
 		Map<L, Double> tps = new HashMap<L, Double>();
 		Map<L, Double> fps = new HashMap<L, Double>();
@@ -100,7 +104,7 @@ public class ClassificationEvaluationPrecision<D extends Datum<L>, L> extends Cl
 	}
 
 	@Override
-	protected ClassificationEvaluation<D, L> makeInstance() {
-		return new ClassificationEvaluationPrecision<D, L>();
+	protected SupervisedModelEvaluation<D, L> makeInstance() {
+		return new SupervisedModelEvaluationPrecision<D, L>();
 	}
 }

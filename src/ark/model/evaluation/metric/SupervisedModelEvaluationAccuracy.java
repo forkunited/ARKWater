@@ -1,15 +1,19 @@
 package ark.model.evaluation.metric;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
+import ark.data.feature.FeaturizedDataSet;
+import ark.model.SupervisedModel;
 import ark.util.Pair;
 
-public class ClassificationEvaluationAccuracy<D extends Datum<L>, L> extends ClassificationEvaluation<D, L> {
+public class SupervisedModelEvaluationAccuracy<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
 
 	@Override
-	protected double compute(Collection<Pair<L, L>> actualAndPredicted) {
+	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
+		List<Pair<L, L>> actualAndPredicted = getMappedActualAndPredictedLabels(predictions);
 		double total = actualAndPredicted.size();
 		double correct = 0;
 		for (Pair<L, L> pair : actualAndPredicted) {
@@ -42,8 +46,8 @@ public class ClassificationEvaluationAccuracy<D extends Datum<L>, L> extends Cla
 	}
 
 	@Override
-	protected ClassificationEvaluation<D, L> makeInstance() {
-		return new ClassificationEvaluationAccuracy<D, L>();
+	protected SupervisedModelEvaluation<D, L> makeInstance() {
+		return new SupervisedModelEvaluationAccuracy<D, L>();
 	}
 
 }

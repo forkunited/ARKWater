@@ -136,10 +136,8 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 				this.cost_i[i] = i;
 		}
 		
-		double[] prevFeature_w = Arrays.copyOf(this.feature_w, this.feature_w.length);
-		double[] prevBias_b = Arrays.copyOf(this.bias_b, this.bias_b.length);
-		double[] prevCost_v = Arrays.copyOf(this.cost_v, this.cost_v.length);
 		double prevObjectiveValue = objectiveValue(data);
+		Map<D, L> prevPredictions = makeQuickPredictions(data);
 		
 		output.debugWriteln("Training SVMC for " + this.trainingIterations + " iterations...");
 		
@@ -244,32 +242,36 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 				this.t++;
 			}
 	
-			double vDiff = averageDiff(this.cost_v, prevCost_v);
-			double wDiff = averageDiff(this.feature_w, prevFeature_w);
-			double bDiff = averageDiff(this.bias_b, prevBias_b);
-			double vDiffMax = maxDiff(this.cost_v, prevCost_v);
-			double wDiffMax = maxDiff(this.feature_w, prevFeature_w);
-			double bDiffMax = maxDiff(this.bias_b, prevBias_b);
 			double objectiveValue = objectiveValue(data);
 			double objectiveValueDiff = objectiveValue - prevObjectiveValue;
+			Map<D, L> predictions = makeQuickPredictions(data);
+			int labelDifferences = countLabelDifferences(prevPredictions, predictions);
 			
 			double vSum = 0;
 			for (int i = 0; i < this.cost_v.length; i++)
 				vSum += this.cost_v[i];
 			
-			output.debugWriteln("(c=" + this.factoredCost.getParameterValue("c")  + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " (v-diff (avg, max): (" + vDiff + ", " + vDiffMax + ") w-diff (avg, max): (" + wDiff + ", " + wDiffMax + ") b-diff (avg, max): (" + bDiff + ", " + bDiffMax + ") v-sum: " + vSum + ").");
-			prevCost_v = Arrays.copyOf(this.cost_v, prevCost_v.length);
-			prevFeature_w = Arrays.copyOf(this.feature_w, prevFeature_w.length);
-			prevBias_b = Arrays.copyOf(this.bias_b, prevBias_b.length);
-			prevObjectiveValue = objectiveValue;
+			output.debugWriteln("(c=" + this.factoredCost.getParameterValue("c")  + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " prediction-diff: " + labelDifferences + "/" + predictions.size() + " v-sum: " + vSum + ").");
 			
 			if (iteration > 20 && Math.abs(objectiveValueDiff) < this.epsilon) {
 				output.debugWriteln("(c=" + this.factoredCost.getParameterValue("c")  + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Terminating early at iteration " + iteration);
 				break;
 			}
+			
+			prevObjectiveValue = objectiveValue;
+			prevPredictions = predictions;
 		}
 		
 		return true;
+	}
+	
+	private int countLabelDifferences(Map<D, L> labels1, Map<D, L> labels2) {
+		int count = 0;
+		for (Entry<D, L> entry: labels1.entrySet()) {
+			if (!labels2.containsKey(entry.getKey()) && !entry.getValue().equals(labels2.get(entry.getKey())))
+				count++;
+		}
+		return count;
 	}
 	
 	private double objectiveValue(FeaturizedDataSet<D, L> data) {
@@ -296,20 +298,6 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 		}
 		
 		return value;
-	}
-	
-	private double maxDiff(double[] v1, double[] v2) {
-		double diffMax = 0.0;
-		for (int i = 0; i < v1.length; i++)
-			diffMax = Math.max(Math.abs(v2[i] - v1[i]), diffMax);
-		return diffMax;		
-	}
-	
-	private double averageDiff(double[] v1, double[] v2) {
-		double diffSum = 0.0;
-		for (int i = 0; i < v1.length; i++)
-			diffSum += Math.abs(v2[i] - v1[i]);
-		return diffSum/v1.length;
 	}
 	
 	private double maxScoreLabel(FeaturizedDataSet<D, L> data, D datum, boolean includeCost) {
@@ -372,6 +360,26 @@ public class SupervisedModelSVMC<D extends Datum<L>, L> extends SupervisedModel<
 			return featureValues.get(featureIndex);
 	}
 
+	private Map<D, L> makeQuickPredictions(FeaturizedDataSet<D, L> data) {
+		Map<D, L> predictions = new HashMap<D, L>();
+		
+		for (D datum : data) {
+			double max = Double.NEGATIVE_INFINITY;
+			L maxLabel = null;
+			for (L label : this.validLabels) {
+				double score = scoreLabel(data, datum, label, false);
+				if (score > max) {
+					max = score;
+					maxLabel = label;
+				}
+			}
+			
+			predictions.put(datum, maxLabel);
+		}
+		
+		return predictions;
+	}
+	
 	@Override
 	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posteriors = new HashMap<D, Map<L, Double>>(data.size());
