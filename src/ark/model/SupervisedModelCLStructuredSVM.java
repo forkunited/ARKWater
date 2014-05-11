@@ -174,11 +174,27 @@ public class SupervisedModelCLStructuredSVM<D extends Datum<L>, L> extends Super
 		Map<D, Map<L, Double>> datumLabelScores = new HashMap<D, Map<L, Double>>();
 		
 		for (D datum : datumStructure) {
-			datumLabelScores.put(datum, new HashMap<L, Double>());
+			Map<L, Double> scores = new HashMap<L, Double>();
+			
+			double max = Double.NEGATIVE_INFINITY;
 			for (L label : this.validLabels) {
-				datumLabelScores.get(datum).put(label,
-						scoreDatumLabel(data, datum, label, includeCost));
+				double score = scoreDatumLabel(data, datum, label, includeCost);
+				scores.put(label, score);
+				if (score > max)
+					max = score;
 			}
+			
+			// Map to simplex
+			/*double lse = 0;
+			for (Double score : scores.values())
+				lse += Math.exp(score - max);
+			lse = max + Math.log(lse);
+		
+			for (Entry<L, Double> scoreEntry : scores.entrySet()) {
+				scoreEntry.setValue(Math.exp(scoreEntry.getValue()-lse));
+			}*/
+			
+			datumLabelScores.put(datum, scores);
 		}
 		
 		return datumLabelScores;

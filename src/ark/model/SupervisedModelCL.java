@@ -160,7 +160,7 @@ public abstract class SupervisedModelCL<D extends Datum<L>, L> extends Supervise
 	private int countLabelDifferences(Map<D, L> labels1, Map<D, L> labels2) {
 		int count = 0;
 		for (Entry<D, L> entry: labels1.entrySet()) {
-			if (!labels2.containsKey(entry.getKey()) && !entry.getValue().equals(labels2.get(entry.getKey())))
+			if (!labels2.containsKey(entry.getKey()) || !entry.getValue().equals(labels2.get(entry.getKey())))
 				count++;
 		}
 		return count;
