@@ -76,4 +76,11 @@ public class FactoredCostConstant<D extends Datum<L>, L> extends FactoredCost<D,
 		kappas.put(0, 1.0);
 		return kappas;
 	}
+
+	@Override
+	public double[] getNorms() {
+		double[] norms = new double[1];
+		norms[0] = 1.0;
+		return norms;
+	}
 }

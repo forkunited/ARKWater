@@ -19,9 +19,11 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 	
 	private SupervisedModel<D, L> model;
 	private List<L> labels;
+	private double[] norms;
 	
 	public FactoredCostLabelPairUnordered() {
 		this.labels = new ArrayList<L>();
+		this.norms =  new double[0];
 	}
 	
 	@Override
@@ -69,6 +71,24 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 		this.model = model;
 		this.labels = new ArrayList<L>();
 		this.labels.addAll(this.model.getValidLabels());
+		
+		// Set norms to label counts
+		int vocabularySize = getVocabularySize();
+		this.norms = new double[vocabularySize];
+		for (int i = 0; i < vocabularySize; i++)
+			this.norms[i] = 0.0;
+		
+		for (D datum : data) {
+			L label = model.mapValidLabel(datum.getLabel());
+			
+			// FIXME This is a hack... but doesn't matter for now
+			for (int i = 0; i < vocabularySize; i++) {
+				if (getVocabularyTerm(i).contains(label.toString())) {
+					this.norms[i]++;
+				}
+			}
+		}
+		
 		return true;
 	}
 	
@@ -157,5 +177,10 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 		}
 		
 		return kappas;
+	}
+	
+	@Override
+	public double[] getNorms() {
+		return this.norms;
 	}
 }

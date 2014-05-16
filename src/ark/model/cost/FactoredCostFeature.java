@@ -98,4 +98,9 @@ public class FactoredCostFeature<D extends Datum<L>, L> extends FactoredCost<D, 
 		return null;
 	}
 
+	@Override
+	public double[] getNorms() {
+		// FIXME
+		return null;
+	}
 }

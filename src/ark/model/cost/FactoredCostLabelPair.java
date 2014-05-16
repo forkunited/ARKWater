@@ -97,5 +97,10 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 		// TODO Auto-generated method stub
 		return null;
 	}
-
+	
+	@Override
+	public double[] getNorms() {
+		// FIXME
+		return null;
+	}
 }

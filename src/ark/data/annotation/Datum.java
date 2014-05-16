@@ -22,6 +22,7 @@ import ark.data.feature.FeatureNGramPoS;
 import ark.model.SupervisedModel;
 import ark.model.SupervisedModelCLSVM;
 import ark.model.SupervisedModelCLSVMAlt;
+import ark.model.SupervisedModelCLSVMN;
 import ark.model.SupervisedModelCLSVMPlusStructure;
 import ark.model.SupervisedModelCLStructuredSVM;
 import ark.model.SupervisedModelCreg;
@@ -144,6 +145,7 @@ public abstract class Datum<L> {
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());
 			addGenericModel(new SupervisedModelCLSVM<D, L>());
 			addGenericModel(new SupervisedModelCLSVMAlt<D, L>());
+			addGenericModel(new SupervisedModelCLSVMN<D, L>());
 			addGenericModel(new SupervisedModelPartition<D, L>());
 			addGenericModel(new SupervisedModelCLStructuredSVM<D, L>());
 			addGenericModel(new SupervisedModelCLSVMPlusStructure<D, L>());
