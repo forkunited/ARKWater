@@ -215,8 +215,13 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	@Override
 	protected boolean serializeParameters(Writer writer) throws IOException {
 		TreeMap<Double, List<String>> sortedWeights = new TreeMap<Double, List<String>>();
+		File modelFile = new File(this.modelPath.getValue());
+		
+		if (!modelFile.exists())
+			return true;
+		
 		try {
-			BufferedReader br = new BufferedReader(new FileReader(this.modelPath.getValue()));
+			BufferedReader br = new BufferedReader(new FileReader(modelFile));
 			String line = null;
 			
 			while ((line = br.readLine()) != null) {
