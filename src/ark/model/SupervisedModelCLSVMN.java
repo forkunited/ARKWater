@@ -80,8 +80,11 @@ public class SupervisedModelCLSVMN<D extends Datum<L>, L> extends SupervisedMode
 				double costNorm = costNorms[i];
 				
 				this.cost_g[i] = cost+c*costNorm*this.cost_v[i]/N-c*costNorm/N;
-				this.cost_G[i] += this.cost_g[i]*this.cost_g[i];
 				this.cost_u[i] += this.cost_g[i];
+				this.cost_G[i] += this.cost_g[i]*this.cost_g[i];
+	
+				if (this.cost_G[i] == 0)
+					continue;
 				
 				this.cost_v[i] -= this.cost_g[i]*this.n/Math.sqrt(this.cost_G[i]); 
 				
@@ -105,6 +108,26 @@ public class SupervisedModelCLSVMN<D extends Datum<L>, L> extends SupervisedMode
 	@Override
 	public String getGenericName() {
 		return "CLSVMN";
+	}
+	
+	public double objectiveValue(FeaturizedDataSet<D, L> data) {
+		double value = super.objectiveValue(data);
+		double c = Double.valueOf(this.getHyperParameterValue("c"));
+		
+		double costNNorm = 0;
+		double costChoices = 0;
+		double[] costNorms = this.factoredCost.getNorms();
+		for (int i = 0; i < this.cost_v.length; i++) {
+			costNNorm += this.cost_v[i]*this.cost_v[i]*costNorms[i];
+			costChoices -= this.cost_v[i]*costNorms[i];
+		}
+		
+		costNNorm *= c/2.0;
+		costChoices *= c;
+		
+		value += costNNorm - costChoices;
+		
+		return value;
 	}
 	
 	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {

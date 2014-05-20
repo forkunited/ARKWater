@@ -13,9 +13,16 @@ import ark.model.SupervisedModel;
 import ark.util.Pair;
 
 public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends FactoredCost<D, L> {
+	public enum Norm {
+		NONE,
+		LOGICAL,
+		EXPECTED
+	}
 	
-	private String[] parameterNames = { "c" };
+	
+	private String[] parameterNames = { "c", "norm" };
 	private double c;
+	private Norm norm = Norm.NONE;
 	
 	private SupervisedModel<D, L> model;
 	private List<L> labels;
@@ -36,8 +43,8 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 		int actualIndex = this.labels.indexOf(actual);
 		int predictedIndex = this.labels.indexOf(prediction);
 		
-		int rowIndex = (actualIndex < predictedIndex) ? actualIndex : predictedIndex;
-		int columnIndex = (actualIndex < predictedIndex) ? predictedIndex : actualIndex;
+		int rowIndex = (actualIndex < predictedIndex) ? predictedIndex : actualIndex;
+		int columnIndex = (actualIndex < predictedIndex) ? actualIndex : predictedIndex;
 		vector.put(rowIndex*(rowIndex-1)/2+columnIndex, this.c);
 		
 		return vector;
@@ -52,6 +59,8 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 	public String getParameterValue(String parameter) {
 		if (parameter.equals("c"))
 			return String.valueOf(this.c);
+		else if (parameter.equals("norm"))
+			return this.norm.toString();
 		else
 			return null;
 	}
@@ -61,6 +70,8 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("c"))
 			this.c = Double.valueOf(parameterValue);
+		else if (parameter.equals("norm"))
+			this.norm = Norm.valueOf(parameterValue);
 		else
 			return false;
 		return true;
@@ -72,23 +83,45 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 		this.labels = new ArrayList<L>();
 		this.labels.addAll(this.model.getValidLabels());
 		
-		// Set norms to label counts
+		int N = data.size();
 		int vocabularySize = getVocabularySize();
 		this.norms = new double[vocabularySize];
-		for (int i = 0; i < vocabularySize; i++)
-			this.norms[i] = 0.0;
-		
+		Map<L, Integer> dist = new HashMap<L, Integer>();
 		for (D datum : data) {
 			L label = model.mapValidLabel(datum.getLabel());
-			
-			// FIXME This is a hack... but doesn't matter for now
-			for (int i = 0; i < vocabularySize; i++) {
-				if (getVocabularyTerm(i).contains(label.toString())) {
-					this.norms[i]++;
-				}
-			}
+			if (!dist.containsKey(label))
+				dist.put(label, 0);
+			dist.put(label, dist.get(label) + 1);
 		}
 		
+		if (this.norm == Norm.EXPECTED) {	
+			for (int i = 0; i < vocabularySize; i++) {
+				int labelIndex1 = (int)Math.floor(0.5*(Math.sqrt(8*i+1)+1));
+				int labelIndex2 = i - labelIndex1*(labelIndex1-1)/2;
+				L label1 = this.labels.get(labelIndex1);
+				L label2 = this.labels.get(labelIndex2);
+				double labelCount1 = dist.containsKey(label1) ? dist.get(label1) : 0;
+				double labelCount2 = dist.containsKey(label2) ? dist.get(label2) : 0;
+				
+				this.norms[i] = 2.0*labelCount1*labelCount2/N;
+			}
+		} else if (this.norm == Norm.LOGICAL) {
+			for (int i = 0; i < vocabularySize; i++) {
+				int labelIndex1 = (int)Math.floor(0.5*(Math.sqrt(8*i+1)+1));
+				int labelIndex2 = i - labelIndex1*(labelIndex1-1)/2;
+				L label1 = this.labels.get(labelIndex1);
+				L label2 = this.labels.get(labelIndex2);
+				double labelCount1 = dist.containsKey(label1) ? dist.get(label1) : 0;
+				double labelCount2 = dist.containsKey(label2) ? dist.get(label2) : 0;
+				
+				this.norms[i] = Math.max(labelCount1, labelCount2);
+			}
+		} else { 
+			for (int i = 0; i < vocabularySize; i++) {
+				this.norms[i] = N;
+			}
+		}
+
 		return true;
 	}
 	
