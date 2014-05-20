@@ -62,6 +62,9 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 		if (!super.initializeTraining(data))
 			return false;
 		
+		if (!this.factoredCost.init(this, data))
+			return false;
+		
 		if (this.cost_v == null) {
 			this.cost_v = new double[this.factoredCost.getVocabularySize()];
 			this.cost_u = new double[this.cost_v.length];
@@ -152,7 +155,9 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 		
 		clone.labelIndices = this.labelIndices;
 		clone.trainingIterations = this.trainingIterations;
-		clone.factoredCost = this.factoredCost;
+		if (this.factoredCost != null) {
+			clone.factoredCost = this.factoredCost.clone(datumTools, environment);
+		}
 		
 		return clone;
 	}
@@ -323,5 +328,13 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 	@Override
 	public String getGenericName() {
 		return "SVMCLN";
+	}
+	
+	@Override
+	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
+		if (this.factoredCost != null && !this.factoredCost.init(this, data))
+			return null;
+
+		return super.posterior(data);
 	}
 }

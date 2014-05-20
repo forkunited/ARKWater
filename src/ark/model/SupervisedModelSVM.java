@@ -189,7 +189,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		if (this.l1 > 0) {
 			for (Entry<Integer, Double> entryG : this.feature_G.entrySet()) {
 				double w = (this.feature_w.containsKey(entryG.getKey()) ? this.feature_w.get(entryG.getKey()) : 0.0);
-				double g = feature_g.get(entryG.getKey()) + this.l2*w/N;
+				double g = (feature_g.containsKey(entryG.getKey())) ? feature_g.get(entryG.getKey()) + this.l2*w/N : 0.0;
 				double u = this.feature_u.get(entryG.getKey()) + g;
 				double G = entryG.getValue() + g*g;
 
@@ -204,7 +204,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			}
 		} else {
 			for (Entry<Integer, Double> entryW : this.feature_w.entrySet()) {
-				double g = feature_g.get(entryW.getKey()) + this.l2*entryW.getValue()/N;
+				double g = (feature_g.containsKey(entryW.getKey())) ? feature_g.get(entryW.getKey()) + this.l2*entryW.getValue()/N : 0.0;
 				double u = this.feature_u.get(entryW.getKey()) + g;
 				double G = this.feature_G.get(entryW.getKey()) + g*g;
 				
@@ -298,7 +298,9 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		Map<Integer, Double> featureValues = data.getFeatureVocabularyValues(datum);
 		int labelIndex = this.labelIndices.get(label);
 		for (Entry<Integer, Double> entry : featureValues.entrySet()) {
-			score += this.feature_w.get(this.getWeightIndex(label, entry.getKey()))*entry.getValue();
+			int wIndex = this.getWeightIndex(label, entry.getKey());
+			if (this.feature_w.containsKey(wIndex))
+				score += this.feature_w.get(wIndex)*entry.getValue();
 		}
 		
 		score += this.bias_b[labelIndex];
@@ -506,7 +508,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		return posteriors;
 	}
 
-	private Map<L, Double> posteriorForDatum(FeaturizedDataSet<D, L> data, D datum) {
+	protected Map<L, Double> posteriorForDatum(FeaturizedDataSet<D, L> data, D datum) {
 		Map<L, Double> posterior = new HashMap<L, Double>(this.validLabels.size());
 		double[] scores = new double[this.validLabels.size()];
 		double max = Double.NEGATIVE_INFINITY;
