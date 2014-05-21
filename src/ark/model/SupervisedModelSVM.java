@@ -91,20 +91,25 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			if (!trainOneIteration(iteration, data)) 
 				return false;
 			
-			double objectiveValue = objectiveValue(data);
-			double objectiveValueDiff = objectiveValue - prevObjectiveValue;
-			Map<D, L> predictions = classify(data);
-			int labelDifferences = countLabelDifferences(prevPredictions, predictions);
+			if (iteration % 20 == 0) {
+				double objectiveValue = objectiveValue(data);
+				double objectiveValueDiff = objectiveValue - prevObjectiveValue;
+				Map<D, L> predictions = classify(data);
+				int labelDifferences = countLabelDifferences(prevPredictions, predictions);
 			
-			output.debugWriteln("(c=" + this.c + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " prediction-diff: " + labelDifferences + "/" + predictions.size() + ").");
+				
+				output.debugWriteln("(c=" + this.c + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " prediction-diff: " + labelDifferences + "/" + predictions.size() + ").");
 			
-			if (iteration > 20 && Math.abs(objectiveValueDiff) < this.epsilon) {
-				output.debugWriteln("(c=" + this.c + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Terminating early at iteration " + iteration);
-				break;
+				if (iteration > 20 && Math.abs(objectiveValueDiff) < this.epsilon) {
+					output.debugWriteln("(c=" + this.c + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Terminating early at iteration " + iteration);
+					break;
+				}
+				
+				prevObjectiveValue = objectiveValue;
+				prevPredictions = predictions;
 			}
 			
-			prevObjectiveValue = objectiveValue;
-			prevPredictions = predictions;
+			output.debugWriteln("(c=" + this.c + ", l1=" + this.l1 + ", l2=" + this.l2 + ") Finished iteration " + iteration + ".");
 		}
 		
 		return true;
@@ -242,7 +247,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		return count;
 	}
 	
-	public double objectiveValue(FeaturizedDataSet<D, L> data) {
+	protected double objectiveValue(FeaturizedDataSet<D, L> data) {
 		double value = 0;
 		
 		if (this.l1 > 0) {

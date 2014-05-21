@@ -30,6 +30,7 @@ import ark.model.SupervisedModelLabelDistribution;
 import ark.model.SupervisedModelPartition;
 import ark.model.SupervisedModelSVM;
 import ark.model.SupervisedModelSVMCLN;
+import ark.model.SupervisedModelSVMStructured;
 import ark.model.cost.FactoredCost;
 import ark.model.cost.FactoredCostConstant;
 import ark.model.cost.FactoredCostFeature;
@@ -147,6 +148,7 @@ public abstract class Datum<L> {
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());
 			addGenericModel(new SupervisedModelSVM<D, L>());
 			addGenericModel(new SupervisedModelSVMCLN<D, L>());
+			addGenericModel(new SupervisedModelSVMStructured<D, L>());
 			addGenericModel(new SupervisedModelPartition<D, L>());
 			
 			// FIXME Remove these soon
