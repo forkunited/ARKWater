@@ -81,7 +81,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return tokens;
 	}
 	
-	public PoSTag[][] makePoSTags() {
+	protected PoSTag[][] makePoSTagsInternal() {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		PoSTag[][] posTags = new PoSTag[sentences.size()][];
 		for (int i = 0; i < sentences.size(); i++) {
@@ -100,7 +100,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return posTags;
 	}
 	
-	public DependencyParse[] makeDependencyParses(Document document, int sentenceIndexOffset) {
+	protected DependencyParse[] makeDependencyParsesInternal(Document document, int sentenceIndexOffset) {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		DependencyParse[] parses = new DependencyParse[sentences.size()];
 		for(int i = 0; i < sentences.size(); i++) {
@@ -164,7 +164,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return parses;
 	}
 	
-	public ConstituencyParse[] makeConstituencyParses(Document document, int sentenceIndexOffset) {
+	protected ConstituencyParse[] makeConstituencyParsesInternal(Document document, int sentenceIndexOffset) {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		ConstituencyParse[] parses = new ConstituencyParse[sentences.size()];
 		

@@ -3,6 +3,7 @@ package ark.data;
 import java.util.Collection;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Random;
 
 import ark.wrapper.BrownClusterer;
 
@@ -64,6 +65,7 @@ public class DataTools {
 	protected Map<String, Path> paths;
 	protected Map<String, String> parameterEnvironment;
 	
+	protected Random random;
 	protected OutputWriter outputWriter;
 	
 	public DataTools(OutputWriter outputWriter) {
@@ -98,6 +100,7 @@ public class DataTools {
 		
 		this.collectionFns.put("None", null);
 		this.brownClusterers.put("None", null);
+		this.random = new Random();
 	}
 	
 	public Gazetteer getGazetteer(String name) {
@@ -126,6 +129,10 @@ public class DataTools {
 	
 	public OutputWriter getOutputWriter() {
 		return this.outputWriter;
+	}
+	
+	public Random getRandom() {
+		return this.random;
 	}
 	
 	public boolean addGazetteer(Gazetteer gazetteer) {
@@ -175,6 +182,11 @@ public class DataTools {
 	
 	public boolean addToParameterEnvironment(String name, String value) {
 		this.parameterEnvironment.put(name, value);
+		return true;
+	}
+	
+	public boolean setRandomSeed(long seed) {
+		this.random.setSeed(seed);
 		return true;
 	}
 }

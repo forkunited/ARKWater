@@ -2,7 +2,6 @@ package ark.experiment;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.util.Random;
 
 import ark.data.annotation.Datum;
 import ark.util.FileUtil;
@@ -12,8 +11,6 @@ public abstract class Experiment<D extends Datum<L>, L> {
 	protected String name;
 	protected String inputPath;
 	protected Datum.Tools<D, L> datumTools;
-	
-	protected Random random;
 	protected int maxThreads;
 	
 	public Experiment(String name, String inputPath, Datum.Tools<D, L> datumTools) {
@@ -37,10 +34,10 @@ public abstract class Experiment<D extends Datum<L>, L> {
 	protected boolean deserialize() throws IOException {
 		BufferedReader reader = FileUtil.getFileReader(this.inputPath);
 		String assignmentLeft = null;
-		
+
 		while ((assignmentLeft = SerializationUtil.deserializeAssignmentLeft(reader)) != null) {
 			if (assignmentLeft.equals("randomSeed"))
-				this.random = new Random(Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader)));
+				this.datumTools.getDataTools().setRandomSeed(Long.valueOf(SerializationUtil.deserializeAssignmentRight(reader)));
 			else if (assignmentLeft.equals("maxThreads"))
 				this.maxThreads = Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
 			else if (!deserializeNext(reader, assignmentLeft))

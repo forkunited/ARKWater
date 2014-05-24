@@ -124,6 +124,10 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		return true;
 	}
 	
+	public D getDatumById(int id) {
+		return this.data.get(id);
+	}
+	
 	public List<D> getDataForLabel(L label) {
 		if (this.labelMapping != null)
 			label = this.labelMapping.map(label);
@@ -137,7 +141,7 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	}
 	
 	public List<DataSet<D, L>> makePartition(double[] distribution, Random random) {
-		List<Integer> dataPermutation = randomDataPermutation(random);
+		List<Integer> dataPermutation = constructRandomDataPermutation(random);
 		List<DataSet<D, L>> partition = new ArrayList<DataSet<D, L>>(distribution.length);
 		
 		int offset = 0;
@@ -250,7 +254,7 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		throw new UnsupportedOperationException();
 	}
 	
-	private List<Integer> randomDataPermutation(Random random) {
+	public List<Integer> constructRandomDataPermutation(Random random) {
 		List<Integer> permutation = new ArrayList<Integer>(this.data.size());
 		for (Integer dataKey : this.data.keySet())
 			permutation.add(dataKey);

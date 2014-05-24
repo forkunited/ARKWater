@@ -5,9 +5,11 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
@@ -83,8 +85,13 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 	
 	@Override
 	protected boolean trainOneIteration(int iteration, FeaturizedDataSet<D, L> data) {
+		if (!this.includeStructuredTraining)
+			return super.trainOneIteration(iteration, data);
+		
 		int N = this.trainingDatumStructureCollection.size();
-		for (DatumStructure<D, L> datumStructure : this.trainingDatumStructureCollection) {
+		List<Integer> dataPermutation = this.trainingDatumStructureCollection.constructRandomDatumStructurePermutation(data.getDatumTools().getDataTools().getRandom());
+		for (Integer datumStructureIndex : dataPermutation) {
+			DatumStructure<D, L> datumStructure = this.trainingDatumStructureCollection.getDatumStructure(datumStructureIndex);
 			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
 			Map<D, L> datumLabels = datumStructure.getDatumLabels(this.labelMapping);
 			// Maybe just optimize here...?
@@ -124,7 +131,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 			if (this.l1 > 0) {
 				for (Entry<Integer, Double> entryG : this.feature_G.entrySet()) {
 					double w = (this.feature_w.containsKey(entryG.getKey()) ? this.feature_w.get(entryG.getKey()) : 0.0);
-					double g = (feature_g.containsKey(entryG.getKey())) ? feature_g.get(entryG.getKey()) + this.l2*w/N : 0.0;
+					double g = this.l2*w/N + ((feature_g.containsKey(entryG.getKey())) ? feature_g.get(entryG.getKey()) : 0.0);
 					double u = this.feature_u.get(entryG.getKey()) + g;
 					double G = entryG.getValue() + g*g;
 
@@ -138,16 +145,24 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 								-Math.signum(u)*(this.t*this.n/(Math.sqrt(G)))*((Math.abs(u)/this.t)-this.l1));
 				}
 			} else {
+				Set<Integer> zeroedW = new HashSet<Integer>();
 				for (Entry<Integer, Double> entryW : this.feature_w.entrySet()) {
-					double g = (feature_g.containsKey(entryW.getKey())) ? feature_g.get(entryW.getKey()) + this.l2*entryW.getValue()/N : 0.0;
+					double g = this.l2*entryW.getValue()/N + ((feature_g.containsKey(entryW.getKey())) ? feature_g.get(entryW.getKey()) : 0.0);
 					double u = this.feature_u.get(entryW.getKey()) + g;
 					double G = this.feature_G.get(entryW.getKey()) + g*g;
 					
 					this.feature_u.put(entryW.getKey(), u);
 					this.feature_G.put(entryW.getKey(), G);
 					
-					entryW.setValue(entryW.getValue() - g*this.n/Math.sqrt(G)); 
+					double newW = entryW.getValue() - g*this.n/Math.sqrt(G);
+					if (Math.abs(newW) <= .00001)
+						zeroedW.add(entryW.getKey());
+					else
+						entryW.setValue(newW); 
 				}
+				
+				for (Integer wIndex : zeroedW)
+					this.feature_w.remove(wIndex);
 			}
 			
 			// Update label biases
@@ -180,14 +195,14 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		if (this.l1 > 0) {
 			double l1Norm = 0;
 			for (double w : this.feature_w.values())
-				value += Math.abs(w);
+				l1Norm += Math.abs(w);
 			value += l1Norm*this.l1;
 		}
 		
 		if (this.l2 > 0) {
 			double l2Norm = 0;
 			for (double w : this.feature_w.values())
-				value += w*w;
+				l2Norm += w*w;
 			value += l2Norm*this.l2*.5;
 		}
 		

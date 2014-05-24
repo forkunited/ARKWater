@@ -41,8 +41,7 @@ public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 			this.features,
 			this.evaluations,
 			this.data,
-			this.crossValidationFolds, 
-			this.random
+			this.crossValidationFolds
 		);
 		
 		validation.setPossibleHyperParameterValues(this.gridSearchParameterValues);

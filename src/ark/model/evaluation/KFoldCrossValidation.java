@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,8 +35,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 								List<Feature<D, L>> features,
 								List<SupervisedModelEvaluation<D, L>> evaluations,
 								DataSet<D, L> data,
-								int k,
-								Random random) {
+								int k) {
 		this.name = name;
 		this.model = model;
 		this.features = features;
@@ -46,7 +45,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 		for (int i = 0; i < k; i++)
 			foldDistribution[i] = 1.0/k;
 
-		this.folds = data.makePartition(foldDistribution, random);
+		this.folds = data.makePartition(foldDistribution, data.getDatumTools().getDataTools().getRandom());
 		this.possibleParameterValues = new HashMap<String, List<String>>();
 		this.cleanDouble = new DecimalFormat("0.00");
 	}
