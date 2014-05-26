@@ -18,8 +18,6 @@ import ark.util.SerializationUtil;
 public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedModelSVM<D, L> {
 	protected FactoredCost<D, L> factoredCost;
 	protected double[] cost_v;
-	protected double[] cost_u; 
-	protected double[] cost_G;  // Just diagonal
 	protected double[] cost_g;
 	
 	public SupervisedModelSVMCLN() {
@@ -67,8 +65,6 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 		
 		if (this.cost_v == null) {
 			this.cost_v = new double[this.factoredCost.getVocabularySize()];
-			this.cost_u = new double[this.cost_v.length];
-			this.cost_G = new double[this.cost_v.length];
 		}
 		
 		this.cost_g = new double[this.cost_v.length];
@@ -93,15 +89,10 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 			
 			double cost = (costs.containsKey(i) ? costs.get(i) : 0);
 			double costNorm = costNorms[i];
+			double eta = 1.0/(this.l2*this.t); // Learning rate
 			
-			this.cost_g[i] = cost+c*costNorm*this.cost_v[i]/N-c*costNorm/N;
-			this.cost_u[i] += this.cost_g[i];
-			this.cost_G[i] += this.cost_g[i]*this.cost_g[i];
-
-			if (this.cost_G[i] == 0)
-				continue;
-			
-			this.cost_v[i] -= this.cost_g[i]*this.n/Math.sqrt(this.cost_G[i]); 
+			this.cost_g[i] = cost+costNorm*this.cost_v[i]/N-costNorm/N;
+			this.cost_v[i] -= this.cost_g[i]*eta; 
 			
 			if (this.cost_v[i] < 0)
 				this.cost_v[i] = 0;
@@ -166,6 +157,7 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 	protected boolean deserializeParameters(BufferedReader reader,
 			Tools<D, L> datumTools) throws IOException {
 		Pair<String, String> tAssign = SerializationUtil.deserializeAssignment(reader);
+		Pair<String, String> sAssign = SerializationUtil.deserializeAssignment(reader);
 		Pair<String, String> numWeightsAssign = SerializationUtil.deserializeAssignment(reader);
 		Pair<String, String> numCostsAssign = SerializationUtil.deserializeAssignment(reader);
 		
@@ -174,19 +166,12 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 		int numFeatures = numWeights / this.labelIndices.size();
 		
 		this.t = Integer.valueOf(tAssign.getSecond());
+		this.s = Double.valueOf(sAssign.getSecond());
 		this.featureNames = new HashMap<Integer, String>();
 		
-		this.feature_w = new HashMap<Integer, Double>();
-		this.feature_u = new HashMap<Integer, Double>();
-		this.feature_G = new HashMap<Integer, Double>();
-		
+		this.feature_W = new HashMap<Integer, Double>();
 		this.bias_b = new double[this.labelIndices.size()];
-		this.bias_u = new double[this.bias_b.length];
-		this.bias_G = new double[this.bias_b.length];
-		
 		this.cost_v = new double[numCosts];
-		this.cost_u = new double[this.cost_v.length];
-		this.cost_G = new double[this.cost_v.length];
 	
 		String assignmentLeft = null;
 		while ((assignmentLeft = SerializationUtil.deserializeAssignmentLeft(reader)) != null) {
@@ -195,42 +180,29 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 				Map<String, String> featureParameters = SerializationUtil.deserializeArguments(reader);
 				
 				String featureName = labelFeature.substring(labelFeature.indexOf("-") + 1);
-				double w = Double.valueOf(featureParameters.get("w"));
-				double G = Double.valueOf(featureParameters.get("G"));
-				double u = Double.valueOf(featureParameters.get("u"));
+				double W = Double.valueOf(featureParameters.get("W"));
 				int labelIndex = Integer.valueOf(featureParameters.get("labelIndex"));
 				int featureIndex = Integer.valueOf(featureParameters.get("featureIndex"));
 				
 				int index = labelIndex*numFeatures+featureIndex;
 				this.featureNames.put(featureIndex, featureName);
 				
-				if (w != 0)
-					this.feature_w.put(index, w);
-				
-				this.feature_u.put(index, u);
-				this.feature_G.put(index, G);
+				if (W != 0)
+					this.feature_W.put(index, W);
 			} else if (assignmentLeft.equals("labelBias")) {
 				SerializationUtil.deserializeGenericName(reader);
 				Map<String, String> biasParameters = SerializationUtil.deserializeArguments(reader);
 				double b = Double.valueOf(biasParameters.get("b"));
-				double G = Double.valueOf(biasParameters.get("G"));
-				double u = Double.valueOf(biasParameters.get("u"));
 				int index = Integer.valueOf(biasParameters.get("index"));
 				
 				this.bias_b[index] = b;
-				this.bias_G[index] = G;
-				this.bias_u[index] = u;
 			} else if (assignmentLeft.equals("cost")) {
 				SerializationUtil.deserializeGenericName(reader);
 				Map<String, String> costParameters = SerializationUtil.deserializeArguments(reader);
 				double v = Double.valueOf(costParameters.get("v"));
-				double G = Double.valueOf(costParameters.get("G"));
-				double u = Double.valueOf(costParameters.get("u"));
 				int index = Integer.valueOf(costParameters.get("index"));
 				
 				this.cost_v[index] = v;
-				this.cost_G[index] = G;
-				this.cost_u[index] = u;
 			} else {
 				break;
 			}
@@ -243,6 +215,11 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 	protected boolean serializeParameters(Writer writer) throws IOException {
 		Pair<String, String> tAssignment = new Pair<String, String>("t", String.valueOf(this.t));
 		if (!SerializationUtil.serializeAssignment(tAssignment, writer))
+			return false;
+		writer.write("\n");
+		
+		Pair<String, String> sAssignment = new Pair<String, String>("s", String.valueOf(this.s));
+		if (!SerializationUtil.serializeAssignment(sAssignment, writer))
 			return false;
 		writer.write("\n");
 		
@@ -260,8 +237,6 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 			String label = this.labelIndices.reverseGet(i).toString();
 			String biasValue = label +
 					  "(b=" + this.bias_b[i] +
-					  ", G=" + this.bias_G[i] +
-					  ", u=" + this.bias_u[i] +
 					  ", index=" + i +
 					  ")";
 
@@ -275,18 +250,14 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 			String label = this.labelIndices.reverseGet(i).toString();
 			for (Entry<Integer, String> featureName : this.featureNames.entrySet()) {
 				int weightIndex = getWeightIndex(i, featureName.getKey());
-				double w = (this.feature_w.containsKey(weightIndex)) ? this.feature_w.get(weightIndex) : 0;
-				double G = (this.feature_G.containsKey(weightIndex)) ? this.feature_G.get(weightIndex) : 0;
-				double u = (this.feature_u.containsKey(weightIndex)) ? this.feature_u.get(weightIndex) : 0;
+				double W = (this.feature_W.containsKey(weightIndex)) ? this.feature_W.get(weightIndex) : 0;
 				
-				if (w == 0 && G == 0 && u == 0)
+				if (W == 0) // Might need to get rid of this line if want to pause training and resume
 					continue;
 				
 				String featureValue = label + "-" + 
 									  featureName.getValue() + 
-									  "(w=" + w +
-									  ", G=" + G +
-									  ", u=" + u +
+									  "(W=" + W +
 									  ", labelIndex=" + i +
 									  ", featureIndex=" + featureName.getKey() + 
 									  ")";
@@ -303,8 +274,6 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 			for (int i = 0; i < costNames.size(); i++) {
 				String costValue = costNames.get(i) +
 								   "(v=" + this.cost_v[i] +
-								   ", G=" + this.cost_G[i] +
-								   ", u=" + this.cost_u[i] +
 								   ", index=" + i +
 								   ")";
 				

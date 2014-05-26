@@ -15,7 +15,7 @@ import ark.model.cost.FactoredCost;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
-public class SupervisedModelSVMCLNAda<D extends Datum<L>, L> extends SupervisedModelSVM<D, L> {
+public class SupervisedModelSVMCLNAda<D extends Datum<L>, L> extends SupervisedModelSVMAda<D, L> {
 	protected FactoredCost<D, L> factoredCost;
 	protected double[] cost_v;
 	protected double[] cost_u; 

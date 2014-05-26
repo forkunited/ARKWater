@@ -19,7 +19,7 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
-public class SupervisedModelSVMStructuredAda<D extends Datum<L>, L> extends SupervisedModelSVM<D, L> {
+public class SupervisedModelSVMStructuredAda<D extends Datum<L>, L> extends SupervisedModelSVMAda<D, L> {
 	protected String datumStructureOptimizer;
 	protected String datumStructureCollection;
 	protected DatumStructureCollection<D, L> trainingDatumStructureCollection;
