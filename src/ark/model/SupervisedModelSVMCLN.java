@@ -111,7 +111,7 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 			value += maxScore - datumScore;
 		}
 		
-		double c = Double.valueOf(this.getHyperParameterValue("c"));
+		double c = Double.valueOf(this.factoredCost.getParameterValue("c"));
 		
 		double costNNorm = 0;
 		double costChoices = 0;
