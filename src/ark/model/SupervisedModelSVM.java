@@ -124,17 +124,18 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	
 	protected boolean trainOneIteration(int iteration, FeaturizedDataSet<D, L> data) {
 		List<Integer> dataPermutation = data.constructRandomDataPermutation(data.getDatumTools().getDataTools().getRandom());
+		
 		for (Integer datumId : dataPermutation) {
 			D datum = data.getDatumById(datumId);
 			L datumLabel = this.mapValidLabel(datum.getLabel());
 			L bestLabel = argMaxScoreLabel(data, datum, true);
-			
-			if (!trainOneDatum(datum, datumLabel, bestLabel, iteration, data))
+
+			if (!trainOneDatum(datum, datumLabel, bestLabel, iteration, data)) {
 				return false;
+			}
 			
 			this.t++;
 		}
-		
 		return true;
 	}
 	
@@ -152,7 +153,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		}
 		
 		double eta = 1.0/(this.l2*this.t); // Learning rate
-		this.s = (1.0-eta*this.l2)*this.s; // Weight scalar
+		this.s = (this.t > 1) ? (1.0-eta*this.l2)*this.s : 1; // Weight scalar
 		
 		// Update feature weights
 		if (!datumLabelBest) {
@@ -235,6 +236,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		double maxScore = Double.NEGATIVE_INFINITY;
 		for (L label : this.validLabels) {
 			double score = scoreLabel(data, datum, label, includeCost);
+
 			if (score >= maxScore) {
 				maxScore = score;
 				maxLabel = label;

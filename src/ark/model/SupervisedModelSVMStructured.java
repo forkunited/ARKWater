@@ -98,7 +98,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 			Map<Integer, Double> bestStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, bestDatumLabels, false);
 			
 			double eta = 1.0/(this.l2*this.t); // Learning rate
-			this.s = (1.0-eta*this.l2)*this.s; // Weight scalar
+			this.s = (this.t > 1) ? (1.0-eta*this.l2)*this.s : 1; // Weight scalar
 			
 			// Update feature weights
 			for (Entry<Integer, Double> featureValue : datumStructureFeatureValues.entrySet()) {	
