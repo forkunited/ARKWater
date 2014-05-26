@@ -7,6 +7,7 @@ import java.util.Random;
 
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
+import ark.util.MathUtil;
 
 public abstract class DatumStructureCollection<D extends Datum<L>, L> implements Iterable<DatumStructure<D, L>> {
 	protected List<DatumStructure<D, L>> datumStructures;
@@ -33,20 +34,12 @@ public abstract class DatumStructureCollection<D extends Datum<L>, L> implements
 	public DatumStructure<D, L> getDatumStructure(int index) {
 		return this.datumStructures.get(index);
 	}
-	
-	// FIXME: Move this and the method in DataSet into utilities to generate
-	// random permutation
+
 	public List<Integer> constructRandomDatumStructurePermutation(Random random) {
 		List<Integer> permutation = new ArrayList<Integer>(this.datumStructures.size());
 		for (int i = 0; i < this.datumStructures.size(); i++)
 			permutation.add(i);
 		
-		for (int i = 0; i < permutation.size(); i++) {
-			int j = random.nextInt(i+1);
-			int temp = permutation.get(i);
-			permutation.set(i, permutation.get(j));
-			permutation.set(j, temp);
-		}
-		return permutation;
+		return MathUtil.randomPermutation(random, permutation);
 	}
 }

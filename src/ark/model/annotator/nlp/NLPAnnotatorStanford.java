@@ -41,10 +41,6 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	
 	public NLPAnnotatorStanford() {
 		setLanguage(Language.English);
-		
-		Properties props = new Properties();
-	    props.put("annotators", "tokenize, ssplit, pos, lemma, parse"); // ner before parse?
-	    this.pipeline = new StanfordCoreNLP(props);
 	}
 	
 	public boolean setLanguage(Language language) {
@@ -59,6 +55,17 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	}
 	
 	public boolean setText(String text) {
+		if (this.pipeline == null) {
+			Properties props = new Properties();
+			String propsStr = "tokenize, ssplit";
+			if (!this.disabledPoSTags)
+				propsStr = propsStr + ", pos";
+			if (!this.disabledConstituencyParses || !this.disabledDependencyParses)
+				propsStr = propsStr + ", lemma, parse";
+		    props.put("annotators", propsStr); // ner before parse?
+		    this.pipeline = new StanfordCoreNLP(props);
+		}
+		
 		this.text = text;
 		this.annotatedText = new Annotation(text);
 		this.pipeline.annotate(this.annotatedText);

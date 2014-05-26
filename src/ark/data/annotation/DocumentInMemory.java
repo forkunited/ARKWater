@@ -224,16 +224,23 @@ public class DocumentInMemory extends Document {
 			
 			JSONArray tokensJson = new JSONArray();
 			JSONArray posTagsJson = new JSONArray();
+			
 			for (int j = 0; j < tokenCount; j++) {
 				tokensJson.add(getToken(i, j));
-				PoSTag posTag = getPoSTag(i, j);
-				if (posTag != null)
-					posTagsJson.add(posTag.toString());
+				if (this.posTags.length > 0) {
+					PoSTag posTag = getPoSTag(i, j);
+					if (posTag != null)
+						posTagsJson.add(posTag.toString());	
+				}
 			}
+			
 			sentenceJson.put("tokens", tokensJson);
-			sentenceJson.put("posTags", posTagsJson);
-			sentenceJson.put("dependencyParse", getDependencyParse(i).toString());
-			sentenceJson.put("constituencyParse", getConstituencyParse(i).toString());
+			if (this.posTags.length > 0)
+				sentenceJson.put("posTags", posTagsJson);
+			if (this.dependencyParses.length > 0)
+				sentenceJson.put("dependencyParse", getDependencyParse(i).toString());
+			if (this.constituencyParses.length > 0)
+				sentenceJson.put("constituencyParse", getConstituencyParse(i).toString());
 			
 			sentencesJson.add(sentenceJson);
 		}
@@ -264,22 +271,27 @@ public class DocumentInMemory extends Document {
 			for (int j = 0; j < sentenceTokenCount; j++) {
 				Element tokenElement = new Element("t");
 				tokenElement.addContent("\" \" \"" + getToken(i, j) + "\" \" \"");
-				
-				PoSTag posTag = getPoSTag(i, j);
-				if (posTag != null)
-					tokenElement.setAttribute("pos", posTag.toString());
+				if (this.posTags.length > 0) {
+					PoSTag posTag = getPoSTag(i, j);
+					if (posTag != null)
+						tokenElement.setAttribute("pos", posTag.toString());
+				}
 				tokensElement.addContent(tokenElement);
 			}
 			entryElement.addContent(sentenceElement);
 			entryElement.addContent(tokensElement);
 			
-			Element depsElement = new Element("deps");
-			depsElement.addContent(getDependencyParse(i).toString());
-			entryElement.addContent(depsElement);
+			if (this.dependencyParses.length > 0) {
+				Element depsElement = new Element("deps");
+				depsElement.addContent(getDependencyParse(i).toString());
+				entryElement.addContent(depsElement);
+			}
 			
-			Element parseElement = new Element("parse");
-			parseElement.addContent(getConstituencyParse(i).toString());
-			entryElement.addContent(parseElement);
+			if (this.constituencyParses.length > 0) {
+				Element parseElement = new Element("parse");
+				parseElement.addContent(getConstituencyParse(i).toString());
+				entryElement.addContent(parseElement);
+			}
 			
 			element.addContent(entryElement);
 		}
@@ -336,18 +348,22 @@ public class DocumentInMemory extends Document {
 		for (int i = 0; i < sentences.size(); i++) {
 			JSONObject sentenceJson = sentences.getJSONObject(i);
 			JSONArray tokensJson = sentenceJson.getJSONArray("tokens");
-			JSONArray posTagsJson = sentenceJson.getJSONArray("posTags");
+			JSONArray posTagsJson = (sentenceJson.has("posTags")) ? sentenceJson.getJSONArray("posTags") : null;
 			
 			this.tokens[i] = new String[tokensJson.size()];
 			for (int j = 0; j < tokensJson.size(); j++)
 				this.tokens[i][j] = tokensJson.getString(j);
 			
-			this.posTags[i] = new PoSTag[posTagsJson.size()];
-			for (int j = 0; j < posTagsJson.size(); j++)
-				this.posTags[i][j] = PoSTag.valueOf(posTagsJson.getString(j));
+			if (posTagsJson != null) {
+				this.posTags[i] = new PoSTag[posTagsJson.size()];
+				for (int j = 0; j < posTagsJson.size(); j++)
+					this.posTags[i][j] = PoSTag.valueOf(posTagsJson.getString(j));
+			}
 			
-			this.dependencyParses[i] = DependencyParse.fromString(sentenceJson.getString("dependencyParse"), this, i);
-			this.constituencyParses[i] = ConstituencyParse.fromString(sentenceJson.getString("constituencyParse"), this, i);
+			if (sentenceJson.has("dependencyParse"))
+				this.dependencyParses[i] = DependencyParse.fromString(sentenceJson.getString("dependencyParse"), this, i);
+			if (sentenceJson.has("constituencyParse"))
+				this.constituencyParses[i] = ConstituencyParse.fromString(sentenceJson.getString("constituencyParse"), this, i);
 		}
 		
 		return true;
@@ -408,12 +424,14 @@ public class DocumentInMemory extends Document {
 					if (attribute.getName().equals("pos"))
 						this.posTags[sentenceIndex][j] = PoSTag.valueOf(attribute.getValue());
 			}
-			
+		
 			Element depsElement = entryElement.getChild("deps");
-			this.dependencyParses[sentenceIndex] = DependencyParse.fromString(depsElement.getText(), this, sentenceIndex);
+			if (depsElement != null)
+				this.dependencyParses[sentenceIndex] = DependencyParse.fromString(depsElement.getText(), this, sentenceIndex);
 			
 			Element parseElement = entryElement.getChild("parse");
-			this.constituencyParses[sentenceIndex] = ConstituencyParse.fromString(parseElement.getText(), this, sentenceIndex);
+			if (parseElement != null)
+				this.constituencyParses[sentenceIndex] = ConstituencyParse.fromString(parseElement.getText(), this, sentenceIndex);
 		}
 				
 		return true;

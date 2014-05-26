@@ -12,6 +12,8 @@ import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeMap;
 
+import ark.util.MathUtil;
+
 public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	private enum DataFilter {
 		All,
@@ -259,12 +261,6 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		for (Integer dataKey : this.data.keySet())
 			permutation.add(dataKey);
 		
-		for (int i = 0; i < permutation.size(); i++) {
-			int j = random.nextInt(i+1);
-			int temp = permutation.get(i);
-			permutation.set(i, permutation.get(j));
-			permutation.set(j, temp);
-		}
-		return permutation;
+		return MathUtil.randomPermutation(random, permutation);
 	}
 }

@@ -19,7 +19,7 @@ import ark.util.OutputWriter;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
-public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D, L> {
+public class SupervisedModelSVMAda<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	protected BidirectionalLookupTable<L, Integer> labelIndices;
 	protected int trainingIterations;
 	protected Map<Integer, String> featureNames;
@@ -42,7 +42,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	protected double c = 1.0;
 	protected String[] hyperParameterNames = { "l2", "l1", "c", "n", "epsilon" };
 
-	public SupervisedModelSVM() {
+	public SupervisedModelSVMAda() {
 		this.featureNames = new HashMap<Integer, String>();
 	}
 	
@@ -377,7 +377,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	}
 	
 	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModelSVM<D, L> clone = (SupervisedModelSVM<D, L>)super.clone(datumTools, environment);
+		SupervisedModelSVMAda<D, L> clone = (SupervisedModelSVMAda<D, L>)super.clone(datumTools, environment);
 		
 		clone.labelIndices = this.labelIndices;
 		clone.trainingIterations = this.trainingIterations;
@@ -506,7 +506,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 
 	@Override
 	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelSVM<D, L>();
+		return new SupervisedModelSVMAda<D, L>();
 	}
 
 	@Override

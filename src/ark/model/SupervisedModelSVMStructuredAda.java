@@ -19,13 +19,13 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
-public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends SupervisedModelSVM<D, L> {
+public class SupervisedModelSVMStructuredAda<D extends Datum<L>, L> extends SupervisedModelSVM<D, L> {
 	protected String datumStructureOptimizer;
 	protected String datumStructureCollection;
 	protected DatumStructureCollection<D, L> trainingDatumStructureCollection;
 	protected boolean includeStructuredTraining;
 	
-	public SupervisedModelSVMStructured() {
+	public SupervisedModelSVMStructuredAda() {
 		super();
 	}
 	
@@ -223,7 +223,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 	}
 	
 	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModelSVMStructured<D, L> clone = (SupervisedModelSVMStructured<D, L>)super.clone(datumTools, environment);
+		SupervisedModelSVMStructuredAda<D, L> clone = (SupervisedModelSVMStructuredAda<D, L>)super.clone(datumTools, environment);
 		
 		clone.labelIndices = this.labelIndices;
 		clone.trainingIterations = this.trainingIterations;
@@ -236,7 +236,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 	
 	@Override
 	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelSVMStructured<D, L>();
+		return new SupervisedModelSVMStructuredAda<D, L>();
 	}
 
 	@Override
