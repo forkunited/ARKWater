@@ -9,11 +9,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.Set;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.BidirectionalLookupTable;
 import ark.util.OutputWriter;
 import ark.util.Pair;
@@ -41,6 +43,8 @@ public class SupervisedModelSVMAda<D extends Datum<L>, L> extends SupervisedMode
 	protected double epsilon = 0;
 	protected double c = 1.0;
 	protected String[] hyperParameterNames = { "l2", "l1", "c", "n", "epsilon" };
+	
+	protected Random random;
 
 	public SupervisedModelSVMAda() {
 		this.featureNames = new HashMap<Integer, String>();
@@ -78,7 +82,7 @@ public class SupervisedModelSVMAda<D extends Datum<L>, L> extends SupervisedMode
 	}
 
 	@Override
-	public boolean train(FeaturizedDataSet<D, L> data) {
+	public boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations) {
 		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
 		
 		if (!initializeTraining(data))
@@ -132,12 +136,13 @@ public class SupervisedModelSVMAda<D extends Datum<L>, L> extends SupervisedMode
 		}
 		
 		this.bias_g = new double[this.bias_b.length];
+		this.random = data.getDatumTools().getDataTools().makeLocalRandom();
 		
 		return true;
 	}
 	
 	protected boolean trainOneIteration(int iteration, FeaturizedDataSet<D, L> data) {
-		List<Integer> dataPermutation = data.constructRandomDataPermutation(data.getDatumTools().getDataTools().getRandom());
+		List<Integer> dataPermutation = data.constructRandomDataPermutation(this.random);
 		for (Integer datumId : dataPermutation) {
 			D datum = data.getDatumById(datumId);
 			L datumLabel = this.mapValidLabel(datum.getLabel());

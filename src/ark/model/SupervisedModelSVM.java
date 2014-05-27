@@ -8,10 +8,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.BidirectionalLookupTable;
 import ark.util.OutputWriter;
 import ark.util.Pair;
@@ -26,12 +28,14 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	protected double[] bias_g;
 
 	protected int t;
-	protected Map<Integer, Double> feature_W; // Labels x Input features (scale by s to get actual weights)
+	protected double[] feature_W; // Labels x Input features (scale by s to get actual weights)
 	protected double s;
 	
 	protected double l2;
 	protected double epsilon = 0;
 	protected String[] hyperParameterNames = { "l2", "epsilon" };
+	
+	protected Random random;
 
 	public SupervisedModelSVM() {
 		this.featureNames = new HashMap<Integer, String>();
@@ -69,14 +73,18 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	}
 
 	@Override
-	public boolean train(FeaturizedDataSet<D, L> data) {
+	public boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations) {
 		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
 		
 		if (!initializeTraining(data))
 			return false;
 		
-		double prevObjectiveValue = objectiveValue(data);
-		Map<D, L> prevPredictions = classify(data);
+		//double prevObjectiveValue = objectiveValue(data);
+		Map<D, L> prevPredictions = classify(testData);
+		List<Double> prevEvaluationValues = new ArrayList<Double>();
+		for (SupervisedModelEvaluation<D, L> evaluation : evaluations) {
+			prevEvaluationValues.add(evaluation.evaluate(this, testData, prevPredictions));
+		}
 		
 		output.debugWriteln("Training " + getGenericName() + " for " + this.trainingIterations + " iterations...");
 		
@@ -85,22 +93,36 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 				return false;
 			
 			if (iteration % 5 == 0) {
-				double objectiveValue = objectiveValue(data);
-				double objectiveValueDiff = objectiveValue - prevObjectiveValue;
-				Map<D, L> predictions = classify(data);
+				//double objectiveValue = objectiveValue(data);
+				//double objectiveValueDiff = objectiveValue - prevObjectiveValue;
+				Map<D, L> predictions = classify(testData);
 				int labelDifferences = countLabelDifferences(prevPredictions, predictions);
 			
-				output.debugWriteln("(l2=" + this.l2 + ") Finished iteration " + iteration + " objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + " prediction-diff: " + labelDifferences + "/" + predictions.size() + " non-zero weights: " + this.feature_W.size() + "/" + this.numFeatures*this.labelIndices.size());
-			
+				List<Double> evaluationValues = new ArrayList<Double>();
+				for (SupervisedModelEvaluation<D, L> evaluation : evaluations) {
+					evaluationValues.add(evaluation.evaluate(this, testData, predictions));
+				}
+				
+				String statusStr = "(l2=" + this.l2 + ") Finished iteration " + iteration + /*" objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + */" prediction-diff: " + labelDifferences + "/" + predictions.size() + " ";
+				for (int i = 0; i < evaluations.size(); i++) {
+					String evaluationName = evaluations.get(i).toString(false);
+					double evaluationDiff = evaluationValues.get(i) - prevEvaluationValues.get(i);
+					statusStr += evaluationName + " diff: " + evaluationDiff + " " + evaluationName + ": " + evaluationValues.get(i) + " ";
+				}
+					
+				output.debugWriteln(statusStr);
+				
+				/*
 				if (iteration > 20 && Math.abs(objectiveValueDiff) < this.epsilon) {
 					output.debugWriteln("(l2=" + this.l2 + ") Terminating early at iteration " + iteration);
 					break;
-				}
+				}*/
 				
-				prevObjectiveValue = objectiveValue;
+				// prevObjectiveValue = objectiveValue;
 				prevPredictions = predictions;
+				prevEvaluationValues = evaluationValues;
 			} else {
-				output.debugWriteln("(l2=" + this.l2 + ") Finished iteration " + iteration + " non-zero weights: " + this.feature_W.size() + "/" + this.numFeatures*this.labelIndices.size());
+				output.debugWriteln("(l2=" + this.l2 + ") Finished iteration " + iteration);
 			}
 		}
 		
@@ -113,17 +135,18 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			this.s = 1;
 			
 			this.bias_b = new double[this.validLabels.size()];
-			this.feature_W = new HashMap<Integer, Double>();
 			this.numFeatures = data.getFeatureVocabularySize();
+			this.feature_W = new double[this.validLabels.size()*this.numFeatures];	
 		}
 		
 		this.bias_g = new double[this.bias_b.length];
+		this.random = data.getDatumTools().getDataTools().makeLocalRandom();
 		
 		return true;
 	}
 	
 	protected boolean trainOneIteration(int iteration, FeaturizedDataSet<D, L> data) {
-		List<Integer> dataPermutation = data.constructRandomDataPermutation(data.getDatumTools().getDataTools().getRandom());
+		List<Integer> dataPermutation = data.constructRandomDataPermutation(this.random);
 		
 		for (Integer datumId : dataPermutation) {
 			D datum = data.getDatumById(datumId);
@@ -160,21 +183,10 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			for (Entry<Integer, Double> featureValue : datumFeatureValues.entrySet()) {
 				int datumLabelWeightIndex = getWeightIndex(datumLabel, featureValue.getKey());
 				int bestLabelWeightIndex = getWeightIndex(bestLabel, featureValue.getKey());
+				double delta = eta*featureValue.getValue()/this.s;
+				this.feature_W[datumLabelWeightIndex] += delta;
+				this.feature_W[bestLabelWeightIndex] -= delta;
 				
-				if (!this.feature_W.containsKey(datumLabelWeightIndex)) {
-					this.feature_W.put(datumLabelWeightIndex, eta*featureValue.getValue()/this.s);
-				} else {
-					this.feature_W.put(datumLabelWeightIndex, 
-							this.feature_W.get(datumLabelWeightIndex)+eta*featureValue.getValue()/this.s);
-				}
-				
-				if (!this.feature_W.containsKey(bestLabelWeightIndex)) {
-					this.feature_W.put(bestLabelWeightIndex, -eta*featureValue.getValue()/this.s);
-				} else {
-					this.feature_W.put(datumLabelWeightIndex, 
-							this.feature_W.get(datumLabelWeightIndex)-eta*featureValue.getValue()/this.s);
-				
-				}
 			}
 		}
 		
@@ -206,7 +218,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		
 		if (this.l2 > 0) {
 			double l2Norm = 0;
-			for (double W : this.feature_W.values())
+			for (double W : this.feature_W)
 				l2Norm += W*W*this.s*this.s;
 			value += l2Norm*this.l2*.5;
 		}
@@ -252,8 +264,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		int labelIndex = this.labelIndices.get(label);
 		for (Entry<Integer, Double> entry : featureValues.entrySet()) {
 			int wIndex = this.getWeightIndex(label, entry.getKey());
-			if (this.feature_W.containsKey(wIndex))
-				score += this.s*this.feature_W.get(wIndex)*entry.getValue();
+			score += this.s*this.feature_W[wIndex]*entry.getValue();
 		}
 		
 		score += this.bias_b[labelIndex];
@@ -323,7 +334,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		this.s = Double.valueOf(sAssign.getSecond());
 		this.featureNames = new HashMap<Integer, String>();
 		
-		this.feature_W = new HashMap<Integer, Double>();
+		this.feature_W = new double[numWeights];
 		
 		this.bias_b = new double[this.labelIndices.size()];
 			
@@ -340,9 +351,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 				
 				int index = labelIndex*this.numFeatures+featureIndex;
 				this.featureNames.put(featureIndex, featureName);
-				
-				if (W != 0)
-					this.feature_W.put(index, W);
+				this.feature_W[index] = W;
 			} else if (assignmentLeft.equals("labelBias")) {
 				SerializationUtil.deserializeGenericName(reader);
 				Map<String, String> biasParameters = SerializationUtil.deserializeArguments(reader);
@@ -392,7 +401,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			String label = this.labelIndices.reverseGet(i).toString();
 			for (Entry<Integer, String> featureName : this.featureNames.entrySet()) {
 				int weightIndex = getWeightIndex(i, featureName.getKey());
-				double W = (this.feature_W.containsKey(weightIndex)) ? this.feature_W.get(weightIndex) : 0;
+				double W = this.feature_W[weightIndex];
 				
 				if (W == 0) // Might need to get rid of this line if want to pause training and resume
 					continue;

@@ -65,7 +65,8 @@ public class DataTools {
 	protected Map<String, Path> paths;
 	protected Map<String, String> parameterEnvironment;
 	
-	protected Random random;
+	protected long randomSeed;
+	protected Random globalRandom;
 	protected OutputWriter outputWriter;
 	
 	public DataTools(OutputWriter outputWriter) {
@@ -100,7 +101,7 @@ public class DataTools {
 		
 		this.collectionFns.put("None", null);
 		this.brownClusterers.put("None", null);
-		this.random = new Random();
+		this.globalRandom = new Random();
 	}
 	
 	public Gazetteer getGazetteer(String name) {
@@ -131,8 +132,12 @@ public class DataTools {
 		return this.outputWriter;
 	}
 	
-	public Random getRandom() {
-		return this.random;
+	public Random getGlobalRandom() {
+		return this.globalRandom;
+	}
+	
+	public Random makeLocalRandom() {
+		return new Random(this.randomSeed);
 	}
 	
 	public boolean addGazetteer(Gazetteer gazetteer) {
@@ -186,7 +191,8 @@ public class DataTools {
 	}
 	
 	public boolean setRandomSeed(long seed) {
-		this.random.setSeed(seed);
+		this.randomSeed = seed;
+		this.globalRandom.setSeed(this.randomSeed);
 		return true;
 	}
 }

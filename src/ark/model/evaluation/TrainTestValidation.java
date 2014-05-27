@@ -39,7 +39,7 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 			this.results.add(-1.0);
 		
 		output.debugWriteln("Training model (" + this.name + ")");
-		if (!this.model.train(this.trainData))
+		if (!this.model.train(this.trainData, this.testData, this.evaluations))
 			return this.results;
 		
 		output.debugWriteln("Classifying data (" + this.name + ")");

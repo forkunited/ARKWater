@@ -45,7 +45,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 		for (int i = 0; i < k; i++)
 			foldDistribution[i] = 1.0/k;
 
-		this.folds = data.makePartition(foldDistribution, data.getDatumTools().getDataTools().getRandom());
+		this.folds = data.makePartition(foldDistribution, data.getDatumTools().getDataTools().getGlobalRandom());
 		this.possibleParameterValues = new HashMap<String, List<String>>();
 		this.cleanDouble = new DecimalFormat("0.00");
 	}

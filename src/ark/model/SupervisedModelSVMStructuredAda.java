@@ -89,7 +89,7 @@ public class SupervisedModelSVMStructuredAda<D extends Datum<L>, L> extends Supe
 			return super.trainOneIteration(iteration, data);
 		
 		int N = this.trainingDatumStructureCollection.size();
-		List<Integer> dataPermutation = this.trainingDatumStructureCollection.constructRandomDatumStructurePermutation(data.getDatumTools().getDataTools().getRandom());
+		List<Integer> dataPermutation = this.trainingDatumStructureCollection.constructRandomDatumStructurePermutation(this.random);
 		for (Integer datumStructureIndex : dataPermutation) {
 			DatumStructure<D, L> datumStructure = this.trainingDatumStructureCollection.getDatumStructure(datumStructureIndex);
 			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);

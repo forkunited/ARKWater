@@ -14,6 +14,7 @@ import ark.data.annotation.Datum.Tools;
 import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.constraint.Constraint;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.SerializationUtil;
 
 public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedModel<D, L> {
@@ -32,7 +33,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	}
 	
 	@Override
-	public boolean train(FeaturizedDataSet<D, L> data) {
+	public boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations) {
 		Map<D, L> fixedLabels = new HashMap<D, L>();
 		for (int i = 0; i < this.orderedModels.size(); i++) {
 			String modelName = this.orderedModels.get(i);
@@ -42,7 +43,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 					return false;
 			}
 			
-			if (!this.models.get(modelName).train(modelData))
+			if (!this.models.get(modelName).train(modelData, testData, evaluations))
 				return false;
 			
 			fixedLabels.putAll(this.models.get(modelName).classify(modelData));

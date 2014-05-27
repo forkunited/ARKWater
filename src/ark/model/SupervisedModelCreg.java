@@ -21,6 +21,7 @@ import ark.data.DataTools;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.CommandRunner;
 import ark.util.OutputWriter;
 
@@ -33,7 +34,7 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	private String[] hyperParameterNames = { "cmdPath", "modelPath", "l1", "l2", "warmRestart" };
 
 	@Override
-	public boolean train(FeaturizedDataSet<D, L> data) {
+	public boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations) {
 		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
 		
 		String trainXPath = this.modelPath.getValue() + ".train.x";

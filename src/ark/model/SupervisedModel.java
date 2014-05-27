@@ -15,6 +15,7 @@ import java.util.TreeSet;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.data.feature.FeaturizedDataSet;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.SerializationUtil;
 
 public abstract class SupervisedModel<D extends Datum<L>, L> {
@@ -35,7 +36,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	public abstract String getHyperParameterValue(String parameter);
 	public abstract boolean setHyperParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
 
-	public abstract boolean train(FeaturizedDataSet<D, L> data);
+	public abstract boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations);
 	public abstract Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data);
 	
 	public boolean setLabelMapping(LabelMapping<L> labelMapping) {

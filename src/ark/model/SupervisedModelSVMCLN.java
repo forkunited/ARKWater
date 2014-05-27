@@ -169,7 +169,7 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 		this.s = Double.valueOf(sAssign.getSecond());
 		this.featureNames = new HashMap<Integer, String>();
 		
-		this.feature_W = new HashMap<Integer, Double>();
+		this.feature_W = new double[numWeights];
 		this.bias_b = new double[this.labelIndices.size()];
 		this.cost_v = new double[numCosts];
 	
@@ -186,9 +186,7 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 				
 				int index = labelIndex*numFeatures+featureIndex;
 				this.featureNames.put(featureIndex, featureName);
-				
-				if (W != 0)
-					this.feature_W.put(index, W);
+				this.feature_W[index] = W;
 			} else if (assignmentLeft.equals("labelBias")) {
 				SerializationUtil.deserializeGenericName(reader);
 				Map<String, String> biasParameters = SerializationUtil.deserializeArguments(reader);
@@ -250,7 +248,7 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 			String label = this.labelIndices.reverseGet(i).toString();
 			for (Entry<Integer, String> featureName : this.featureNames.entrySet()) {
 				int weightIndex = getWeightIndex(i, featureName.getKey());
-				double W = (this.feature_W.containsKey(weightIndex)) ? this.feature_W.get(weightIndex) : 0;
+				double W = this.feature_W[weightIndex];
 				
 				if (W == 0) // Might need to get rid of this line if want to pause training and resume
 					continue;

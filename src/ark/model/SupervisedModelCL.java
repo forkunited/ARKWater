@@ -12,6 +12,7 @@ import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.cost.FactoredCost;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.BidirectionalLookupTable;
 import ark.util.OutputWriter;
 import ark.util.Pair;
@@ -95,7 +96,7 @@ public abstract class SupervisedModelCL<D extends Datum<L>, L> extends Supervise
 	}
 
 	@Override
-	public boolean train(FeaturizedDataSet<D, L> data) {
+	public boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations) {
 		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
 		
 		if (!this.factoredCost.init(this, data))

@@ -3,12 +3,14 @@ package ark.model;
 import java.io.BufferedReader;
 import java.io.Writer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
+import ark.model.evaluation.metric.SupervisedModelEvaluation;
 
 public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	private Map<L, Double> labelDistribution;
@@ -18,7 +20,7 @@ public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends Sup
 	}
 	
 	@Override
-	public boolean train(FeaturizedDataSet<D, L> data) {
+	public boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations) {
 		double total = 0;
 		
 		for (L label : this.validLabels)

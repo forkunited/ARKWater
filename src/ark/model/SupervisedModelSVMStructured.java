@@ -86,7 +86,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		if (!this.includeStructuredTraining)
 			return super.trainOneIteration(iteration, data);
 		
-		List<Integer> dataPermutation = this.trainingDatumStructureCollection.constructRandomDatumStructurePermutation(data.getDatumTools().getDataTools().getRandom());
+		List<Integer> dataPermutation = this.trainingDatumStructureCollection.constructRandomDatumStructurePermutation(this.random);
 		for (Integer datumStructureIndex : dataPermutation) {
 			DatumStructure<D, L> datumStructure = this.trainingDatumStructureCollection.getDatumStructure(datumStructureIndex);
 			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
@@ -103,23 +103,12 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 			// Update feature weights
 			for (Entry<Integer, Double> featureValue : datumStructureFeatureValues.entrySet()) {	
 				int weightIndex = featureValue.getKey();
-				if (!this.feature_W.containsKey(weightIndex)) {
-					this.feature_W.put(weightIndex, eta*featureValue.getValue()/this.s);
-				} else {
-					this.feature_W.put(weightIndex, 
-							this.feature_W.get(weightIndex)+eta*featureValue.getValue()/this.s);
-				}				
+				this.feature_W[weightIndex] += eta*featureValue.getValue()/this.s;		
 			}
 			
 			for (Entry<Integer, Double> bestFeatureValue : bestStructureFeatureValues.entrySet()) {
 				int weightIndex = bestFeatureValue.getKey();
-				if (!this.feature_W.containsKey(weightIndex)) {
-					this.feature_W.put(weightIndex, -eta*bestFeatureValue.getValue()/this.s);
-				} else {
-					this.feature_W.put(weightIndex, 
-							this.feature_W.get(weightIndex)-eta*bestFeatureValue.getValue()/this.s);
-				
-				}
+				this.feature_W[weightIndex] -= eta*bestFeatureValue.getValue()/this.s;
 			}
 			
 			// Update label biases
@@ -146,7 +135,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		
 		if (this.l2 > 0) {
 			double l2Norm = 0;
-			for (double W : this.feature_W.values())
+			for (double W : this.feature_W)
 				l2Norm += W*W*this.s*this.s;
 			value += l2Norm*this.l2*.5;
 		}
@@ -292,8 +281,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		
 		Map<Integer, Double> datumStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, structureLabels, false);
 		for (Entry<Integer, Double> entry : datumStructureFeatureValues.entrySet()) {
-			if (this.feature_W.containsKey(entry.getKey()))
-				score += this.s*this.feature_W.get(entry.getKey())*entry.getValue();
+			score += this.s*this.feature_W[entry.getKey()]*entry.getValue();
 		}
 		
 		for (int i = 0; i < this.bias_b.length; i++) {
