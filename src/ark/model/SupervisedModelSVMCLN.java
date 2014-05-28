@@ -296,12 +296,4 @@ public class SupervisedModelSVMCLN<D extends Datum<L>, L> extends SupervisedMode
 	public String getGenericName() {
 		return "SVMCLN";
 	}
-	
-	@Override
-	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
-		if (this.factoredCost != null && !this.factoredCost.init(this, data))
-			return null;
-
-		return super.posterior(data);
-	}
 }

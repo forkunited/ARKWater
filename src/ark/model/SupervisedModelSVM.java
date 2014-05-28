@@ -92,7 +92,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			if (!trainOneIteration(iteration, data)) 
 				return false;
 			
-			if (iteration % 5 == 0) {
+			if (iteration % 10 == 0) {
 				//double objectiveValue = objectiveValue(data);
 				//double objectiveValueDiff = objectiveValue - prevObjectiveValue;
 				Map<D, L> predictions = classify(testData);
@@ -254,12 +254,13 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 				maxLabel = label;
 			}
 		}
+		
 		return maxLabel;
 	}
 	
 	protected double scoreLabel(FeaturizedDataSet<D, L> data, D datum, L label, boolean includeCost) {
 		double score = 0;		
-
+		
 		Map<Integer, Double> featureValues = data.getFeatureVocabularyValues(datum);
 		int labelIndex = this.labelIndices.get(label);
 		for (Entry<Integer, Double> entry : featureValues.entrySet()) {
@@ -467,5 +468,16 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		}
 		
 		return posterior;
+	}
+	
+	@Override
+	public Map<D, L> classify(FeaturizedDataSet<D, L> data) {
+		Map<D, L> classifiedData = new HashMap<D, L>();
+		
+		for (D datum : data) {
+			classifiedData.put(datum, argMaxScoreLabel(data, datum, false));
+		}
+	
+		return classifiedData;
 	}
 }

@@ -248,6 +248,56 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		return structurePosteriors;
 	}
 	
+	@Override
+	public Map<D, L> classify(FeaturizedDataSet<D, L> data) {
+		Map<D, L> classifiedData = null;
+
+		if (this.includeStructuredTraining) {
+			classifiedData = classifyFromStructureScores(data);
+		} else {
+			classifiedData = classifyFromDatumScores(data);
+		}
+
+		return classifiedData;
+	}
+	
+	protected Map<D, L> classifyFromStructureScores(FeaturizedDataSet<D, L> data) {
+		Map<D, L> classifiedData = new HashMap<D, L>(data.size());
+		DatumStructureCollection<D, L> datumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
+		Map<D, L> bestDatumLabels = new HashMap<D, L>();
+
+		for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
+			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, false);
+			bestDatumLabels.putAll(
+				datumStructure.optimize(this.datumStructureOptimizer, scoredDatumLabels, this.fixedDatumLabels, this.validLabels, this.labelMapping)
+			);
+		}
+		
+		for (D datum : data) {
+			L bestLabel = bestDatumLabels.get(datum);
+			classifiedData.put(datum, (bestLabel == null) ? this.labelIndices.reverseGet(0) : bestLabel);
+		}
+		
+		return classifiedData;
+	}
+	
+	protected Map<D, L> classifyFromDatumScores(FeaturizedDataSet<D, L> data) {
+		Map<D, Map<L, Double>> datumPosteriors = new HashMap<D, Map<L, Double>>(data.size());
+		Map<D, L> classifiedData = new HashMap<D, L>(data.size());
+		
+		for (D datum : data) {
+			datumPosteriors.put(datum, posteriorForDatum(data, datum));
+		}
+		
+		DatumStructureCollection<D, L> datumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
+		for (DatumStructure<D, L> datumStructure : datumStructureCollection) {
+			Map<D, L> optimizedDatumLabels = datumStructure.optimize(this.datumStructureOptimizer, datumPosteriors, this.fixedDatumLabels, this.validLabels, this.labelMapping);
+			classifiedData.putAll(optimizedDatumLabels);
+		}
+
+		return classifiedData;
+	}
+	
 	protected int getLabelCount(Map<D, L> datumsToLabels, L countLabel) {
 		int count = 0;
 		for (L label : datumsToLabels.values())
