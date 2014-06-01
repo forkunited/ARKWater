@@ -1,9 +1,9 @@
 package ark.data.feature;
 
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.nlp.TokenSpan;
@@ -31,9 +31,9 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	}
 	
 	@Override
-	protected Set<String> getNGramsForDatum(D datum) {
+	protected Map<String, Integer> getNGramsForDatum(D datum) {
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
-		Set<String> retNgrams = new HashSet<String>();
+		Map<String, Integer> retNgrams = new HashMap<String, Integer>();
 		
 		for (TokenSpan tokenSpan : tokenSpans) {
 			if (tokenSpan.getSentenceIndex() < 0)
@@ -57,7 +57,11 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 								String retNgram = ngram + "_C";
 								if (this.useRelationTypes)
 									retNgram += "_" + ((dependency.getType() == null) ? "" : dependency.getType());
-								retNgrams.add(retNgram);
+								
+								if (!retNgrams.containsKey(retNgram))
+									retNgrams.put(retNgram, 1);
+								else
+									retNgrams.put(ngram, retNgrams.get(retNgram) + 1);
 							}
 						}
 					}
@@ -73,7 +77,11 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 								String retNgram = ngram + "_P";
 								if (this.useRelationTypes)
 									retNgram += "_" + ((dependency.getType() == null) ? "" : dependency.getType());
-								retNgrams.add(retNgram);
+								
+								if (!retNgrams.containsKey(retNgram))
+									retNgrams.put(retNgram, 1);
+								else
+									retNgrams.put(ngram, retNgrams.get(retNgram) + 1);
 							}
 						}
 					}

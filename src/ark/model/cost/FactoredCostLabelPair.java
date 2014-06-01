@@ -1,26 +1,35 @@
 package ark.model.cost;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
+import ark.util.FileUtil;
 
 public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D, L> {
 	public enum Norm {
 		NONE,
 		LOGICAL,
-		EXPECTED
+		EXPECTED,
+		MODEL
 	}
 	
 	
-	private String[] parameterNames = { "c", "norm" };
+	private String[] parameterNames = { "c", "norm", "modelPath", "modelType", "modelName" };
 	private double c;
 	private Norm norm = Norm.NONE;
+	private String modelPath;
+	private String modelType;
+	private String modelName;
 	
 	private SupervisedModel<D, L> model;
 	private List<L> labels;
@@ -29,6 +38,9 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 	public FactoredCostLabelPair() {
 		this.labels = new ArrayList<L>();
 		this.norms = new double[0];
+		this.modelPath = "";
+		this.modelName = "";
+		this.modelType = "";
 	}
 	
 	@Override
@@ -57,6 +69,12 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 			return String.valueOf(this.c);
 		else if (parameter.equals("norm"))
 			return this.norm.toString();
+		else if (parameter.equals("modelPath"))
+			return this.modelPath;
+		else if (parameter.equals("modelType"))
+			return this.modelType;
+		else if (parameter.equals("modelName"))
+			return this.modelName;
 		else
 			return null;
 	}
@@ -68,6 +86,12 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 			this.c = Double.valueOf(parameterValue);
 		else if (parameter.equals("norm"))
 			this.norm = Norm.valueOf(parameterValue);
+		else if (parameter.equals("modelPath"))
+			this.modelPath = parameterValue;
+		else if (parameter.equals("modelType"))
+			this.modelType = parameterValue;
+		else if (parameter.equals("modelName"))
+			this.modelName = parameterValue;
 		else
 			return false;
 		return true;
@@ -109,6 +133,38 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 				L actualLabel = this.labels.get(actualIndex);
 				double actualCount = dist.containsKey(actualLabel) ? dist.get(actualLabel) : 0;
 				this.norms[i] = actualCount;
+			}
+		} else if (this.norm == Norm.MODEL) {
+			SupervisedModel<D, L> normModel = data.getDatumTools().makeModelInstance(this.modelType);
+			File modelFile = new File(this.modelPath, this.modelName);
+			BufferedReader reader = FileUtil.getFileReader(modelFile.getAbsolutePath());
+			try {
+				normModel.deserialize(reader, true, true, data.getDatumTools(), "");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+			Map<D, L> predictions = normModel.classify(data);
+			Map<L, Map<L, Integer>> actualPredictedCounts = new HashMap<L, Map<L, Integer>>();
+			for (Entry<D, L> entry : predictions.entrySet()) {
+				L actualLabel = model.mapValidLabel(entry.getKey().getLabel());
+				L predictedLabel = model.mapValidLabel(entry.getValue());
+				if (!actualPredictedCounts.containsKey(actualLabel))
+					actualPredictedCounts.put(actualLabel, new HashMap<L, Integer>());
+				if (!actualPredictedCounts.get(actualLabel).containsKey(predictedLabel))
+					actualPredictedCounts.get(actualLabel).put(predictedLabel, 0);
+				actualPredictedCounts.get(actualLabel).put(predictedLabel, actualPredictedCounts.get(actualLabel).get(predictedLabel) + 1);		
+			}
+			
+			for (int i = 0; i < vocabularySize; i++) {
+				int labelIndex1 = (int)Math.floor(0.5*(Math.sqrt(8*i+1)+1));
+				int labelIndex2 = i - labelIndex1*(labelIndex1-1)/2;
+				L label1 = this.labels.get(labelIndex1);
+				L label2 = this.labels.get(labelIndex2);
+				int count = 0;
+				if (actualPredictedCounts.containsKey(label1) && actualPredictedCounts.get(label1).containsKey(label2))
+					count += actualPredictedCounts.get(label1).get(label2);
+				this.norms[i] = count;
 			}
 		} else { 
 			for (int i = 0; i < vocabularySize; i++) {

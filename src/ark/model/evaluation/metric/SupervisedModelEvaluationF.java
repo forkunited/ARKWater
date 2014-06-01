@@ -12,13 +12,43 @@ import ark.model.SupervisedModel;
 import ark.util.Pair;
 
 public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
-
-	private boolean weighted;
+	public enum Mode {
+		MACRO,
+		MACRO_WEIGHTED,
+		MICRO
+	}
+	
+	private Mode mode;
 	private double Beta = 1.0;
-	private String[] parameterNames = { "weighted", "Beta" };
+	private String[] parameterNames = { "mode", "Beta" };
 	
 	@Override
 	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
+		if (this.mode == Mode.MICRO)
+			return computeMicro(model, data, predictions);
+		else
+			return computeMacro(model, data, predictions);
+	}
+
+	// Equal to micro accuracy...
+	private double computeMicro(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
+		List<Pair<L, L>> actualAndPredicted = this.getMappedActualAndPredictedLabels(predictions);
+		double tp = 0;
+		double f = 0; // fp or fn
+		
+		for (Pair<L, L> pair : actualAndPredicted) {
+			if (pair.getFirst().equals(pair.getSecond()))
+				tp++;
+			else {
+				f++;
+			}
+		}
+		
+		double pr = tp/(tp + f);
+		return pr;//2*pr*pr/(pr+pr);
+	}
+	
+	private double computeMacro(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
 		List<Pair<L, L>> actualAndPredicted = this.getMappedActualAndPredictedLabels(predictions);
 		Map<L, Double> weights = new HashMap<L, Double>();
 		Map<L, Double> tps = new HashMap<L, Double>();
@@ -46,7 +76,7 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 		}
 		
 		for (Entry<L, Double> entry : weights.entrySet()) {
-			if (this.weighted)
+			if (this.mode == Mode.MACRO_WEIGHTED)
 				entry.setValue(entry.getValue()/actualAndPredicted.size());
 			else
 				entry.setValue(1.0/weights.size());
@@ -59,7 +89,7 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 			if (actual.equals(predicted)) {
 				tps.put(predicted, tps.get(predicted) + 1.0);
 			} else {
-				fps.put(predicted, tps.get(predicted) + 1.0);
+				fps.put(predicted, fps.get(predicted) + 1.0);
 				fns.put(actual, fns.get(actual) + 1.0);
 			}
 		}
@@ -81,7 +111,7 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 		
 		return F;
 	}
-
+	
 	@Override
 	public String getGenericName() {
 		return "F";
@@ -94,8 +124,8 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 
 	@Override
 	protected String getParameterValue(String parameter) {
-		if (parameter.equals("weighted"))
-			return String.valueOf(this.weighted);
+		if (parameter.equals("mode"))
+			return this.mode.toString();
 		else if (parameter.equals("Beta"))
 			return String.valueOf(this.Beta);
 		else
@@ -105,8 +135,8 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 	@Override
 	protected boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
-		if (parameter.equals("weighted"))
-			this.weighted = Boolean.valueOf(parameterValue);
+		if (parameter.equals("mode"))
+			this.mode = Mode.valueOf(parameterValue);
 		else if (parameter.equals("Beta"))
 			this.Beta = Double.valueOf(parameterValue);
 		else

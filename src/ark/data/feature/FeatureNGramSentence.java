@@ -1,8 +1,8 @@
 package ark.data.feature;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.nlp.TokenSpan;
@@ -10,9 +10,9 @@ import ark.data.annotation.nlp.TokenSpan;
 public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 
 	@Override
-	protected Set<String> getNGramsForDatum(D datum) {
+	protected Map<String, Integer> getNGramsForDatum(D datum) {
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
-		Set<String> retNgrams = new HashSet<String>();
+		Map<String, Integer> retNgrams = new HashMap<String, Integer>();
 		
 		for (TokenSpan tokenSpan : tokenSpans) {
 			if (tokenSpan.getSentenceIndex() < 0)
@@ -24,7 +24,29 @@ public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D,
 			for (int i = 0; i < tokens.size()-this.n+1; i++) {
 				List<String> ngrams = getCleanNGrams(tokens, i);
 				if (ngrams != null) {
-					retNgrams.addAll(ngrams);
+					for (String ngram : ngrams) {
+						if (this.n == 1) {
+							// FIXME: This further splits unigrams if 
+							// the cleaning process inserts spaces into
+							// them.  It's currently a hack for the
+							// text classification project, but it should
+							// be done differently. It shouldn't affect
+							// anything if the clean function never inserts
+							// spaces
+							String[] ngramParts = ngram.split("\\s+");
+							for (String ngramPart : ngramParts) {
+								if (!retNgrams.containsKey(ngramPart))
+									retNgrams.put(ngramPart, 1);
+								else
+									retNgrams.put(ngramPart, retNgrams.get(ngramPart) + 1);
+							}
+						} else {
+							if (!retNgrams.containsKey(ngram))
+								retNgrams.put(ngram, 1);
+							else
+								retNgrams.put(ngram, retNgrams.get(ngram) + 1);
+						}
+					}
 				}
 			}
 		}

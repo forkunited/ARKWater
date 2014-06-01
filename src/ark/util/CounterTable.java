@@ -66,6 +66,10 @@ public class CounterTable<T>{
 		return sortedCounts;
 	}
 	
+	public Map<T, Integer> getCounts() {
+		return this.counts;
+	}
+	
 	public int getSize() {
 		return this.counts.size();
 	}
