@@ -64,6 +64,7 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	}
 	
 	public List<Double> run(Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor, boolean outputResults, int maxThreads) {
+		Long startTime = System.currentTimeMillis();
 		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
 		
 		if (this.possibleParameterValues.size() > 0) {
@@ -135,7 +136,9 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 				}
 			}
 		}
-		
+		output.debugWriteln("The total runtime, in seconds: " + (System.currentTimeMillis() - startTime) / 1000.0);
+		output.debugWriteln("The total runtime, in seconds: " + ((System.currentTimeMillis() - startTime) / 1000.0) / 60.0);
+		output.debugWriteln("The total runtime, in seconds: " + (((System.currentTimeMillis() - startTime) / 1000.0) / 60.0) / 60.0);
 		return evaluationValues;
 	}
 	
