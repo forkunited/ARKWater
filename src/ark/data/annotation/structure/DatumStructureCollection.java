@@ -1,6 +1,6 @@
 package ark.data.annotation.structure;
 
-import java.util.ArrayList;
+import java.util.*;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -42,4 +42,13 @@ public abstract class DatumStructureCollection<D extends Datum<L>, L> implements
 		
 		return MathUtil.randomPermutation(random, permutation);
 	}
+	
+	public List<Map<String, Integer>> checkConstraints(boolean useDisjunctiveConstraints){
+		List<Map<String, Integer>> violations = new ArrayList<Map<String, Integer>>();
+		for (DatumStructure<D,L> ds : datumStructures){
+			violations.add(ds.constraintsHold(useDisjunctiveConstraints));
+		}
+		return violations;
+	}
+	
 }

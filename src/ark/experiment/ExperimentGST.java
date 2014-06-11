@@ -27,6 +27,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected DataSet<D, L> devData;
 	protected DataSet<D, L> testData;
 	protected boolean trainOnDev;
+	protected Map<D, L> classifiedData;
 	
 	public ExperimentGST(String name, String inputPath, DataSet<D, L> trainData, DataSet<D, L> devData, DataSet<D, L> testData) {
 		super(name, inputPath, trainData.getDatumTools());
@@ -75,8 +76,10 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 				this.evaluations,
 				this.trainOnDev);
 		gridSearchValidation.setPossibleHyperParameterValues(this.gridSearchParameterValues);
-		if (gridSearchValidation.run(this.errorExampleExtractor, true, this.maxThreads).get(0) < 0)
+		if (gridSearchValidation.run(this.errorExampleExtractor, true, this.maxThreads).get(0) < 0){
+			this.classifiedData = gridSearchValidation.getClassifiedData();
 			return false;
+		}
 
 		return true;
 	}
@@ -126,5 +129,12 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 		}
 		
 		return true;
+	}
+	
+	public Map<D, L> getClassifiedData(){
+		if (this.classifiedData == null)
+			throw new IllegalStateException("data hasn't been classified yet!");
+		else
+			return this.classifiedData;
 	}
 }

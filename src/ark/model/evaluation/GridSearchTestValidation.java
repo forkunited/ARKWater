@@ -28,6 +28,7 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	private List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation;
 	private GridSearch<D,L>.EvaluatedGridPosition bestGridPosition;
 	private boolean trainOnDev;
+	private Map<D, L> classifiedData;
 	
 	public GridSearchTestValidation(String name,
 							  SupervisedModel<D, L> model, 
@@ -66,10 +67,10 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	}
 	
 	public List<Double> run(Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor, boolean outputResults, int maxThreads) {
-		Long startTime = System.currentTimeMillis();
+		long startTime = System.currentTimeMillis();
 		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
 		
-		Long startGridSearch = System.currentTimeMillis();
+		long startGridSearch = System.currentTimeMillis();
 		if (this.possibleParameterValues.size() > 0) {
 			GridSearch<D, L> gridSearch = new GridSearch<D,L>(this.name,
 										this.model,
@@ -85,11 +86,13 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 			if (this.bestGridPosition != null)
 				this.model.setHyperParameterValues(this.bestGridPosition.getCoordinates(), this.trainData.getDatumTools());
 		}
-		Long totalGridSearchTime = System.currentTimeMillis() - startGridSearch;
+		long totalGridSearchTime = System.currentTimeMillis() - startGridSearch;
 			
 		output.debugWriteln("Training model with best parameters (" + this.name + ")");
 		
 		Pair<Long, Long> trainAndTestTime;
+		
+		evaluateConstraints(this.trainData, this.devData, this.testData);
 		
 		List<Double> evaluationValues = null;
 		if (this.testData != null) {
@@ -103,12 +106,14 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 				return null;
 			} 
 			
+			this.classifiedData = accuracy.getClassifiedData();
 			this.confusionMatrix = accuracy.getConfusionMatrix();
 			output.debugWriteln("Test " + this.evaluations.get(0).toString() + " (" + this.name + ": " + cleanDouble.format(evaluationValues.get(0)));
 			
 			trainAndTestTime = accuracy.getTrainAndTestTime();
 		} else {
 			evaluationValues = this.bestGridPosition.getValidation().getResults();
+			this.classifiedData = this.bestGridPosition.getValidation().getClassifiedData();
 			this.confusionMatrix = this.bestGridPosition.getValidation().getConfusionMatrix();
 			output.debugWriteln("Dev best " + this.evaluations.get(0).toString() + " (" + this.name + ": " + cleanDouble.format(evaluationValues.get(0)));
 			this.model = this.bestGridPosition.getValidation().getModel();
@@ -146,12 +151,18 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 			}
 		}
 
-		Long totalTime = System.currentTimeMillis() - startTime;
+		long totalTime = System.currentTimeMillis() - startTime;
 		writeTimers(output, trainAndTestTime, totalGridSearchTime, totalTime);
 		
 		return evaluationValues;
 	}
 	
+	private void evaluateConstraints(FeaturizedDataSet<D, L> trainData2,
+			FeaturizedDataSet<D, L> devData2, FeaturizedDataSet<D, L> testData2) {
+		
+		
+	}
+
 	public List<SupervisedModelEvaluation<D, L>> getEvaluations() {
 		return this.evaluations;
 	}
@@ -167,9 +178,13 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	public GridSearch<D, L>.EvaluatedGridPosition getBestGridPosition() {
 		return this.bestGridPosition;
 	}
+	 
+	public Map<D, L> getClassifiedData(){
+		return this.classifiedData;
+	}
 	
 	// I'm choosing to write this info to debug, but eventually it may deserve its own file.
-	public void writeTimers(OutputWriter output, Pair<Long, Long> trainAndTestTime, Long totalGridSearchTime, Long totalTime){
+	public void writeTimers(OutputWriter output, Pair<Long, Long> trainAndTestTime, long totalGridSearchTime, long totalTime){
 		// things i want to print: train time, test time, total time.
 		// format I want to print them in: 
 		output.debugWriteln("");
@@ -180,11 +195,13 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 		output.debugWriteln("The total from start to finish: " + formatTime(totalTime));
 	}
 	
-	public String formatTime(Long duration){
+	public String formatTime(long duration){
 		return String.format("%d:%d:%d", 
 				TimeUnit.MILLISECONDS.toHours(duration),
 			    TimeUnit.MILLISECONDS.toMinutes(duration) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(duration)),
-			    TimeUnit.MILLISECONDS.toSeconds(duration) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(duration)) - 
+			    TimeUnit.MILLISECONDS.toSeconds(duration) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(duration) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(duration))) - 
 			    	TimeUnit.HOURS.toSeconds(TimeUnit.MILLISECONDS.toHours(duration)));
 	}
+	
+	
 }

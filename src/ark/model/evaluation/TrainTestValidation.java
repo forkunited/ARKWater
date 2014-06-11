@@ -20,6 +20,7 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	private List<SupervisedModelEvaluation<D, L>> evaluations;
 	private List<Double> results;
 	private Pair<Long, Long> trainAndTestTime;
+	private Map<D, L> classifiedData;
 	
 	public TrainTestValidation(String name,
 							  SupervisedModel<D, L> model, 
@@ -54,6 +55,7 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 			return this.results;
 		Long totalTestTime = System.currentTimeMillis() - startTest;
 		this.trainAndTestTime = new Pair<Long, Long>(totalTrainTime, totalTestTime);
+		this.classifiedData = classifiedData;
 		
 		output.debugWriteln("Computing model score (" + this.name + ")");
 		
@@ -84,5 +86,9 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	
 	public Pair<Long, Long> getTrainAndTestTime(){
 		return this.trainAndTestTime;
+	}
+	
+	public Map<D, L> getClassifiedData(){
+		return this.classifiedData;
 	}
 }
