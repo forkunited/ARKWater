@@ -80,6 +80,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 			this.classifiedData = gridSearchValidation.getClassifiedData();
 			return false;
 		}
+		this.classifiedData = gridSearchValidation.getClassifiedData();
 
 		return true;
 	}
@@ -133,7 +134,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	
 	public Map<D, L> getClassifiedData(){
 		if (this.classifiedData == null)
-			throw new IllegalStateException("data hasn't been classified yet!");
+			throw new IllegalStateException("Trying to return classified data, but the data hasn't been classified yet.");
 		else
 			return this.classifiedData;
 	}
