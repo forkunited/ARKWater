@@ -136,7 +136,7 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 			}
 		} else if (this.norm == Norm.MODEL) {
 			SupervisedModel<D, L> normModel = data.getDatumTools().makeModelInstance(this.modelType);
-			File modelFile = new File(this.modelPath, this.modelName);
+			File modelFile = new File(data.getDatumTools().getDataTools().getPath(this.modelPath).getValue(), this.modelName);
 			BufferedReader reader = FileUtil.getFileReader(modelFile.getAbsolutePath());
 			try {
 				normModel.deserialize(reader, true, true, data.getDatumTools(), "");
@@ -157,13 +157,14 @@ public class FactoredCostLabelPair<D extends Datum<L>, L> extends FactoredCost<D
 			}
 			
 			for (int i = 0; i < vocabularySize; i++) {
-				int labelIndex1 = (int)Math.floor(0.5*(Math.sqrt(8*i+1)+1));
-				int labelIndex2 = i - labelIndex1*(labelIndex1-1)/2;
-				L label1 = this.labels.get(labelIndex1);
-				L label2 = this.labels.get(labelIndex2);
+				int actualIndex = i / (this.labels.size() - 1);
+				int rowPosition = i % (this.labels.size() - 1);
+				int predictedIndex = rowPosition < actualIndex ? rowPosition : rowPosition + 1;
+				L actual = this.labels.get(actualIndex);
+				L predicted = this.labels.get(predictedIndex);
 				int count = 0;
-				if (actualPredictedCounts.containsKey(label1) && actualPredictedCounts.get(label1).containsKey(label2))
-					count += actualPredictedCounts.get(label1).get(label2);
+				if (actualPredictedCounts.containsKey(actual) && actualPredictedCounts.get(actual).containsKey(predicted))
+					count += actualPredictedCounts.get(actual).get(predicted);
 				this.norms[i] = count;
 			}
 		} else { 

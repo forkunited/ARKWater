@@ -137,11 +137,11 @@ public class FactoredCostLabelPairUnordered<D extends Datum<L>, L> extends Facto
 				double labelCount1 = dist.containsKey(label1) ? dist.get(label1) : 0;
 				double labelCount2 = dist.containsKey(label2) ? dist.get(label2) : 0;
 				
-				this.norms[i] = Math.max(labelCount1, labelCount2);
+				this.norms[i] = labelCount1 + labelCount2;
 			}
 		} else if (this.norm == Norm.MODEL) {
 			SupervisedModel<D, L> normModel = data.getDatumTools().makeModelInstance(this.modelType);
-			File modelFile = new File(this.modelPath, this.modelName);
+			File modelFile = new File(data.getDatumTools().getDataTools().getPath(this.modelPath).getValue(), this.modelName);
 			BufferedReader reader = FileUtil.getFileReader(modelFile.getAbsolutePath());
 			try {
 				normModel.deserialize(reader, true, true, data.getDatumTools(), "");

@@ -4,52 +4,39 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 
-public class FactoredCostLabel<D extends Datum<L>, L> extends FactoredCost<D, L> {
-	public enum FactorMode {
-		ACTUAL,
-		PREDICTED
-	}
-	
-	public enum Norm {
-		NONE,
-		SOME
-	}
-	
-	private String[] parameterNames = { "c", "factorMode", "norm" };
+public class FactoredCostActualLabelCount<D extends Datum<L>, L> extends FactoredCost<D, L> {	
+	private String[] parameterNames = { "c" };
 	private double c;
-	private FactorMode factorMode;
-	private Norm norm;
 	
 	private SupervisedModel<D, L> model;
 	private List<L> labels;
 	private double[] norms;
+	private int[] labelCountThreshholds;
+	private Map<L, Integer> labelsToIndices;
 	
-	public FactoredCostLabel() {
+	public FactoredCostActualLabelCount() {
 		this.labels = new ArrayList<L>();
-		this.factorMode = FactorMode.ACTUAL;
-		this.norm = Norm.SOME;
 		this.norms = new double[0];
+		this.labelCountThreshholds = new int[]{ 0, 10, 20, 40, 80, 160 };
+		this.labelsToIndices = new HashMap<L, Integer>();
 	}
 	
 	@Override
 	public Map<Integer, Double> computeVector(D datum, L prediction) {
 		Map<Integer, Double> vector = new HashMap<Integer, Double>();
 		L actual = this.model.mapValidLabel(datum.getLabel());
-		if (prediction.equals(actual))
+		if (prediction.equals(actual) || actual == null || prediction == null)
 			return vector;
 		
-		for (int i = 0; i < this.labels.size(); i++) {
-			if ((this.factorMode.equals(FactorMode.PREDICTED) && this.labels.get(i).equals(prediction))
-					|| (this.factorMode.equals(FactorMode.ACTUAL) && this.labels.get(i).equals(actual))) {
-				vector.put(i, this.c);
-			}
-		}
+		int actualIndex = this.labelsToIndices.get(actual);
+		vector.put(actualIndex, this.c);
 		
 		return vector;
 	}
@@ -63,10 +50,6 @@ public class FactoredCostLabel<D extends Datum<L>, L> extends FactoredCost<D, L>
 	public String getParameterValue(String parameter) {
 		if (parameter.equals("c"))
 			return String.valueOf(this.c);
-		else if (parameter.equals("factorMode"))
-			return this.factorMode.toString();
-		else if (parameter.equals("norm"))
-			return String.valueOf(this.norm);
 		else
 			return null;
 	}
@@ -76,10 +59,6 @@ public class FactoredCostLabel<D extends Datum<L>, L> extends FactoredCost<D, L>
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("c"))
 			this.c = Double.valueOf(parameterValue);
-		else if (parameter.equals("factorMode"))
-			this.factorMode = FactorMode.valueOf(parameterValue);
-		else if (parameter.equals("norm"))
-			this.norm = Norm.valueOf(parameterValue);
 		else
 			return false;
 		return true;
@@ -90,28 +69,27 @@ public class FactoredCostLabel<D extends Datum<L>, L> extends FactoredCost<D, L>
 		this.model = model;
 		this.labels = new ArrayList<L>();
 		this.labels.addAll(this.model.getValidLabels());
+		this.norms = new double[this.labelCountThreshholds.length];
 		
-		int N = data.size();
-		int vocabularySize = getVocabularySize();
-		this.norms = new double[vocabularySize];
-		Map<L, Integer> dist = new HashMap<L, Integer>();
+		Map<L, Integer> labelCounts = new HashMap<L, Integer>();
 		for (D datum : data) {
-			L label = model.mapValidLabel(datum.getLabel());
-			if (!dist.containsKey(label))
-				dist.put(label, 0);
-			dist.put(label, dist.get(label) + 1);
+			L actualLabel = this.model.mapValidLabel(datum.getLabel());
+			if (labelCounts.containsKey(actualLabel))
+				labelCounts.put(actualLabel, labelCounts.get(actualLabel) + 1);
+			else
+				labelCounts.put(actualLabel, 1);
 		}
-		
-		if (this.norm == Norm.SOME) {
-			for (int i = 0; i < vocabularySize; i++) {
-				int actualIndex = i / (this.labels.size() - 1);
-				L actualLabel = this.labels.get(actualIndex);
-				double actualCount = dist.containsKey(actualLabel) ? dist.get(actualLabel) : 0;
-				this.norms[i] = actualCount;
-			}
-		} else { 
-			for (int i = 0; i < vocabularySize; i++) {
-				this.norms[i] = N;
+
+		for (Entry<L, Integer> entry : labelCounts.entrySet()) {
+			for (int i = 1; i < this.labelCountThreshholds.length; i++) {
+				this.labelsToIndices.put(entry.getKey(), this.labelCountThreshholds.length - 1);
+				this.norms[this.labelCountThreshholds.length - 1] += entry.getValue();
+				if (entry.getValue() < this.labelCountThreshholds[i]) {
+					this.labelsToIndices.put(entry.getKey(), i-1);
+					this.norms[this.labelCountThreshholds.length - 1] -= entry.getValue();
+					this.norms[i-1] += entry.getValue();
+					break;
+				}
 			}
 		}
 		
@@ -120,22 +98,22 @@ public class FactoredCostLabel<D extends Datum<L>, L> extends FactoredCost<D, L>
 	
 	@Override
 	public String getGenericName() {
-		return "Label";
+		return "ActualLabelCount";
 	}
 
 	@Override
 	public int getVocabularySize() {
-		return this.labels.size();
+		return this.labelCountThreshholds.length;
 	}
 
 	@Override
 	protected String getVocabularyTerm(int index) {
-		return this.labels.get(index).toString();
-	}
+		return "T_" + this.labelCountThreshholds[index];
+			}
 	
 	@Override
 	protected FactoredCost<D, L> makeInstance() {
-		return new FactoredCostLabel<D, L>();
+		return new FactoredCostActualLabelCount<D, L>();
 	}
 
 	@Override
@@ -148,5 +126,4 @@ public class FactoredCostLabel<D extends Datum<L>, L> extends FactoredCost<D, L>
 	public double[] getNorms() {
 		return this.norms;
 	}
-
 }

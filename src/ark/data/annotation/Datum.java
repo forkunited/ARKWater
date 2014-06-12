@@ -32,6 +32,7 @@ import ark.model.SupervisedModelSVM;
 import ark.model.SupervisedModelSVMCLN;
 import ark.model.SupervisedModelSVMStructured;
 import ark.model.cost.FactoredCost;
+import ark.model.cost.FactoredCostActualLabelCount;
 import ark.model.cost.FactoredCostConstant;
 import ark.model.cost.FactoredCostFeature;
 import ark.model.cost.FactoredCostLabel;
@@ -170,6 +171,7 @@ public abstract class Datum<L> {
 			addGenericFactoredCost(new FactoredCostLabelPair<D, L>());
 			addGenericFactoredCost(new FactoredCostLabelPairUnordered<D, L>());
 			addGenericFactoredCost(new FactoredCostFeature<D, L>());
+			addGenericFactoredCost(new FactoredCostActualLabelCount<D, L>());
 		}
 		
 		public DataTools getDataTools() {

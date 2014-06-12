@@ -15,7 +15,8 @@ import ark.wrapper.BrownClusterer;
 public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> {
 	public enum Scale {
 		INDICATOR,
-		NORMALIZED_LOG
+		NORMALIZED_LOG,
+		NORMALIZED_TFIDF
 	}
 	
 	protected BidirectionalLookupTable<String, Integer> vocabulary;
@@ -49,7 +50,14 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> 
 		}
 		
 		counter.removeCountsLessThan(this.minFeatureOccurrence);
+		
 		this.vocabulary = new BidirectionalLookupTable<String, Integer>(counter.buildIndex());
+		
+		Map<String, Integer> counts = counter.getCounts();
+		double N = dataSet.size();
+		for (Entry<String, Integer> entry : counts.entrySet()) {
+			this.idfs.put(this.vocabulary.get(entry.getKey()), Math.log(N/(1.0 + entry.getValue())));
+		}
 		
 		return true;
 	}
@@ -71,6 +79,22 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> 
 					continue;
 				int index = this.vocabulary.get(entry.getKey());
 				double value = Math.log(entry.getValue() + 1.0);
+				norm += value*value;
+				vector.put(index, value);
+			}
+			
+			norm = Math.sqrt(norm);
+			
+			for (Entry<Integer, Double> entry : vector.entrySet()) {
+				entry.setValue(entry.getValue()/norm);
+			}
+		} else if (this.scale == Scale.NORMALIZED_TFIDF) {
+			double norm = 0.0;
+			for (Entry<String, Integer> entry : ngramsForDatum.entrySet()) {
+				if (!this.vocabulary.containsKey(entry.getKey()))
+					continue;
+				int index = this.vocabulary.get(entry.getKey());
+				double value = entry.getValue()*this.idfs.get(index);//Math.log(entry.getValue() + 1.0);
 				norm += value*value;
 				vector.put(index, value);
 			}
