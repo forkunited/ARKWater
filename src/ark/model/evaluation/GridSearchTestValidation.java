@@ -6,12 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
 import ark.data.annotation.Datum;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
+import ark.util.Pair;
 
 public class GridSearchTestValidation<D extends Datum<L>, L> {
 	private String name;
@@ -26,6 +28,7 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	private List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation;
 	private GridSearch<D,L>.EvaluatedGridPosition bestGridPosition;
 	private boolean trainOnDev;
+	private Map<D, L> classifiedData;
 	
 	public GridSearchTestValidation(String name,
 							  SupervisedModel<D, L> model, 
@@ -64,8 +67,10 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	}
 	
 	public List<Double> run(Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor, boolean outputResults, int maxThreads) {
+		long startTime = System.currentTimeMillis();
 		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
 		
+		long startGridSearch = System.currentTimeMillis();
 		if (this.possibleParameterValues.size() > 0) {
 			GridSearch<D, L> gridSearch = new GridSearch<D,L>(this.name,
 										this.model,
@@ -81,9 +86,14 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 			if (this.bestGridPosition != null)
 				this.model.setHyperParameterValues(this.bestGridPosition.getCoordinates(), this.trainData.getDatumTools());
 		}
+		long totalGridSearchTime = System.currentTimeMillis() - startGridSearch;
 			
 		output.debugWriteln("Training model with best parameters (" + this.name + ")");
-
+		
+		Pair<Long, Long> trainAndTestTime;
+		
+		evaluateConstraints(this.trainData, this.devData, this.testData);
+		
 		List<Double> evaluationValues = null;
 		if (this.testData != null) {
 			if (this.trainOnDev)
@@ -96,18 +106,23 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 				return null;
 			} 
 			
+			this.classifiedData = accuracy.getClassifiedData();
 			this.confusionMatrix = accuracy.getConfusionMatrix();
 			output.debugWriteln("Test " + this.evaluations.get(0).toString() + " (" + this.name + ": " + cleanDouble.format(evaluationValues.get(0)));
+			
+			trainAndTestTime = accuracy.getTrainAndTestTime();
 		} else {
 			evaluationValues = this.bestGridPosition.getValidation().getResults();
+			this.classifiedData = this.bestGridPosition.getValidation().getClassifiedData();
 			this.confusionMatrix = this.bestGridPosition.getValidation().getConfusionMatrix();
 			output.debugWriteln("Dev best " + this.evaluations.get(0).toString() + " (" + this.name + ": " + cleanDouble.format(evaluationValues.get(0)));
 			this.model = this.bestGridPosition.getValidation().getModel();
+			trainAndTestTime = this.bestGridPosition.getValidation().getTrainAndTestTime();
 		}
 		
 		output.dataWriteln(this.confusionMatrix.getActualToPredictedDescription(errorExampleExtractor));
 		output.modelWriteln(this.model.toString());
-		
+				
 		if (outputResults) {
 			if (this.bestGridPosition != null) {
 				Map<String, String> parameters = this.bestGridPosition.getCoordinates();
@@ -135,10 +150,19 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 				}
 			}
 		}
+
+		long totalTime = System.currentTimeMillis() - startTime;
+		writeTimers(output, trainAndTestTime, totalGridSearchTime, totalTime);
 		
 		return evaluationValues;
 	}
 	
+	private void evaluateConstraints(FeaturizedDataSet<D, L> trainData2,
+			FeaturizedDataSet<D, L> devData2, FeaturizedDataSet<D, L> testData2) {
+		
+		
+	}
+
 	public List<SupervisedModelEvaluation<D, L>> getEvaluations() {
 		return this.evaluations;
 	}
@@ -154,4 +178,30 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	public GridSearch<D, L>.EvaluatedGridPosition getBestGridPosition() {
 		return this.bestGridPosition;
 	}
+	 
+	public Map<D, L> getClassifiedData(){
+		return this.classifiedData;
+	}
+	
+	// I'm choosing to write this info to debug, but eventually it may deserve its own file.
+	public void writeTimers(OutputWriter output, Pair<Long, Long> trainAndTestTime, long totalGridSearchTime, long totalTime){
+		// things i want to print: train time, test time, total time.
+		// format I want to print them in: 
+		output.debugWriteln("");
+		output.debugWriteln("The times for running the experiment, in \"HOURS:MINUTES:SECONDS\" format:");
+		output.debugWriteln("The total train time: " + formatTime(trainAndTestTime.getFirst()));
+		output.debugWriteln("The total test time: " + formatTime(trainAndTestTime.getSecond()));
+		output.debugWriteln("The total grid search time: " + formatTime(totalGridSearchTime));
+		output.debugWriteln("The total from start to finish: " + formatTime(totalTime));
+	}
+	
+	public String formatTime(long duration){
+		return String.format("%d:%d:%d", 
+				TimeUnit.MILLISECONDS.toHours(duration),
+			    TimeUnit.MILLISECONDS.toMinutes(duration) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(duration)),
+			    TimeUnit.MILLISECONDS.toSeconds(duration) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(duration) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(duration))) - 
+			    	TimeUnit.HOURS.toSeconds(TimeUnit.MILLISECONDS.toHours(duration)));
+	}
+	
+	
 }

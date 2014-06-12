@@ -77,7 +77,6 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 	
 		if (this.includeStructuredTraining)
 			this.trainingDatumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
-
 		return true;
 	}
 	

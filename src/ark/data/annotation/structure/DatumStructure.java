@@ -14,12 +14,21 @@ public abstract class DatumStructure<D extends Datum<L>, L> implements Collectio
 		String getGenericName();
 	}
 	
+	public interface DatumStructureConstraints<D extends Datum<L>, L> {
+		L[][][] getCompositionRules();
+		L getConverse(L label);
+		L getRuleBasedFixedLabel(D datum);
+		String getGenericName();
+	}
+	
 	protected String id;
 	protected Map<String, DatumStructureOptimizer<D, L>> datumStructureOptimizers;
+	protected DatumStructureConstraints<D, L> labelInferenceRules;
 	
-	public DatumStructure(String id) {
+	public DatumStructure(String id, DatumStructureConstraints<D, L> labelInferenceRules) {
 		this.id = id;
 		this.datumStructureOptimizers = new HashMap<String, DatumStructureOptimizer<D, L>>();
+		this.labelInferenceRules= labelInferenceRules;
 	}
 	
 	public String getId() {
@@ -60,4 +69,6 @@ public abstract class DatumStructure<D extends Datum<L>, L> implements Collectio
 		this.datumStructureOptimizers.put(datumStructureOptimizer.getGenericName(), datumStructureOptimizer);
 		return true;
 	}
+	
+	public abstract Map<String, Integer> constraintsHold(boolean useDisjunctiveConstraints);
 }

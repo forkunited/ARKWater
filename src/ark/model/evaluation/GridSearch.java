@@ -17,6 +17,7 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
+import ark.util.Pair;
 
 public class GridSearch<D extends Datum<L>, L> {
 	public class GridPosition {
@@ -93,11 +94,13 @@ public class GridSearch<D extends Datum<L>, L> {
 	public class EvaluatedGridPosition extends GridPosition {
 		private double positionValue;
 		private TrainTestValidation<D, L> validation;
+		private Pair<Long, Long> trainAndTestTime;
 		
-		public EvaluatedGridPosition(GridPosition position, double positionValue, TrainTestValidation<D, L> validation) {
+		public EvaluatedGridPosition(GridPosition position, double positionValue, TrainTestValidation<D, L> validation, Pair<Long, Long> trainAndTestTime) {
 			this.coordinates = position.coordinates;
 			this.positionValue = positionValue;
 			this.validation = validation;
+			this.trainAndTestTime = trainAndTestTime;
 		}
 
 		
@@ -107,6 +110,10 @@ public class GridSearch<D extends Datum<L>, L> {
 		
 		public TrainTestValidation<D, L> getValidation() {
 			return this.validation;
+		}
+		
+		public Pair<Long, Long> getTrainAndTestTime(){
+			return this.trainAndTestTime;
 		}
 	}
 	
@@ -257,7 +264,7 @@ public class GridSearch<D extends Datum<L>, L> {
 
 			output.debugWriteln("Finished grid search evaluating model with hyper parameters (" + name + " " + position.toString() + ")");
 			
-			return new EvaluatedGridPosition(this.position, computedEvaluation, validation);
+			return new EvaluatedGridPosition(this.position, computedEvaluation, validation, validation.getTrainAndTestTime());
 		}
 		
 	}

@@ -9,6 +9,7 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
+import ark.util.Pair;
 
 public class TrainTestValidation<D extends Datum<L>, L> {
 	private String name;
@@ -18,6 +19,8 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	private ConfusionMatrix<D, L> confusionMatrix;
 	private List<SupervisedModelEvaluation<D, L>> evaluations;
 	private List<Double> results;
+	private Pair<Long, Long> trainAndTestTime;
+	private Map<D, L> classifiedData;
 	
 	public TrainTestValidation(String name,
 							  SupervisedModel<D, L> model, 
@@ -39,14 +42,20 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 			this.results.add(-1.0);
 		
 		output.debugWriteln("Training model (" + this.name + ")");
+		Long startTrain = System.currentTimeMillis();
 		if (!this.model.train(this.trainData, this.testData, this.evaluations))
 			return this.results;
+		Long totalTrainTime = System.currentTimeMillis() - startTrain;
 		
 		output.debugWriteln("Classifying data (" + this.name + ")");
 		
+		Long startTest = System.currentTimeMillis();
 		Map<D, L> classifiedData = this.model.classify(this.testData);
 		if (classifiedData == null)
 			return this.results;
+		Long totalTestTime = System.currentTimeMillis() - startTest;
+		this.trainAndTestTime = new Pair<Long, Long>(totalTrainTime, totalTestTime);
+		this.classifiedData = classifiedData;
 		
 		output.debugWriteln("Computing model score (" + this.name + ")");
 		
@@ -73,5 +82,13 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	
 	public List<Double> getResults() {
 		return this.results;
+	}
+	
+	public Pair<Long, Long> getTrainAndTestTime(){
+		return this.trainAndTestTime;
+	}
+	
+	public Map<D, L> getClassifiedData(){
+		return this.classifiedData;
 	}
 }
