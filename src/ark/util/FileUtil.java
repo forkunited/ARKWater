@@ -20,6 +20,8 @@ public class FileUtil {
 		try {
 			if (localFile.exists())
 				return new BufferedReader(new FileReader(localFile));
+			else 
+				System.err.println("WARNING: FileUtil failed to read file at " + path); // Do something better later
 		} catch (Exception e) { }
 		return HadoopUtil.getFileReader(path);
 	}

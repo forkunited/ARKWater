@@ -294,7 +294,6 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 	@Override
 	public Map<D, L> classify(FeaturizedDataSet<D, L> data) {
 		Map<D, L> classifiedData = null;
-
 		if (this.includeStructuredTraining) {
 			classifiedData = classifyFromStructureScores(data);
 		} else {
@@ -318,6 +317,8 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		
 		for (D datum : data) {
 			L bestLabel = bestDatumLabels.get(datum);
+			if (bestLabel == null)
+				data.getDatumTools().getDataTools().getOutputWriter().debugWriteln("WARNING: Optimizer returned no label for datum " + datum.getId());
 			classifiedData.put(datum, (bestLabel == null) ? this.labelIndices.reverseGet(0) : bestLabel);
 		}
 		

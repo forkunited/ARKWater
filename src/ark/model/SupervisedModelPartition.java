@@ -38,12 +38,14 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		for (int i = 0; i < this.orderedModels.size(); i++) {
 			String modelName = this.orderedModels.get(i);
 			FeaturizedDataSet<D, L> modelData = this.constraints.get(modelName).getSatisfyingSubset(data, this.labelMapping);
+			FeaturizedDataSet<D, L> modelTestData = this.constraints.get(modelName).getSatisfyingSubset(testData, this.labelMapping);
+		
 			for (Feature<D, L> feature : this.features.get(modelName)) {
 				if (!feature.init(modelData) || !modelData.addFeature(feature))
 					return false;
 			}
 			
-			if (!this.models.get(modelName).train(modelData, testData, evaluations))
+			if (!this.models.get(modelName).train(modelData, modelTestData, evaluations))
 				return false;
 			
 			fixedLabels.putAll(this.models.get(modelName).classify(modelData));

@@ -142,6 +142,14 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		return labelData;
 	}
 	
+	public List<DataSet<D, L>> makePartition(int parts, Random random) {
+		double[] distribution = new double[parts];
+		for (int i = 0; i < distribution.length; i++)
+			distribution[i] = 1.0/parts;
+	
+		return makePartition(distribution, random);
+	}
+	
 	public List<DataSet<D, L>> makePartition(double[] distribution, Random random) {
 		List<Integer> dataPermutation = constructRandomDataPermutation(random);
 		List<DataSet<D, L>> partition = new ArrayList<DataSet<D, L>>(distribution.length);
