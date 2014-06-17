@@ -180,13 +180,14 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	}
 	 
 	public Map<D, L> getClassifiedData(){
-		return this.classifiedData;
+		if (this.classifiedData == null)
+			throw new IllegalStateException("Trying to return classified data, but the data hasn't been classified yet.");
+		else
+			return this.classifiedData;
 	}
 	
-	// I'm choosing to write this info to debug, but eventually it may deserve its own file.
+	// Outputting the timing info to the debug file.
 	public void writeTimers(OutputWriter output, Pair<Long, Long> trainAndTestTime, long totalGridSearchTime, long totalTime){
-		// things i want to print: train time, test time, total time.
-		// format I want to print them in: 
 		output.debugWriteln("");
 		output.debugWriteln("The times for running the experiment, in \"HOURS:MINUTES:SECONDS\" format:");
 		output.debugWriteln("The total train time: " + formatTime(trainAndTestTime.getFirst()));

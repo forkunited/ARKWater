@@ -89,6 +89,9 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	}
 	
 	public Map<D, L> getClassifiedData(){
-		return this.classifiedData;
+		if (this.classifiedData == null)
+			throw new IllegalStateException("Trying to return classified data, but the data hasn't been classified yet.");
+		else
+			return this.classifiedData;
 	}
 }
