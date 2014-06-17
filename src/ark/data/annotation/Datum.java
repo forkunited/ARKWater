@@ -20,28 +20,13 @@ import ark.data.feature.FeatureNGramDep;
 import ark.data.feature.FeatureNGramSentence;
 import ark.data.feature.FeatureNGramPoS;
 import ark.model.SupervisedModel;
-import ark.model.SupervisedModelCLSVM;
-import ark.model.SupervisedModelCLSVMAlt;
-import ark.model.SupervisedModelCLSVMN;
-import ark.model.SupervisedModelCLSVMPlusStructure;
-import ark.model.SupervisedModelCLStructuredSVM;
 import ark.model.SupervisedModelCreg;
 import ark.model.SupervisedModelLabelDistribution;
 import ark.model.SupervisedModelPartition;
 import ark.model.SupervisedModelSVM;
-import ark.model.SupervisedModelSVMCLN;
 import ark.model.SupervisedModelSVMStructured;
-import ark.model.cost.FactoredCost;
-import ark.model.cost.FactoredCostActualLabelCount;
-import ark.model.cost.FactoredCostConstant;
-import ark.model.cost.FactoredCostFeature;
-import ark.model.cost.FactoredCostLabel;
-import ark.model.cost.FactoredCostLabelPair;
-import ark.model.cost.FactoredCostLabelPairUnordered;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.model.evaluation.metric.SupervisedModelEvaluationAccuracy;
-import ark.model.evaluation.metric.SupervisedModelEvaluationCLLabelPairUnorderedAccuracy;
-import ark.model.evaluation.metric.SupervisedModelEvaluationCLLoss;
 import ark.model.evaluation.metric.SupervisedModelEvaluationF;
 import ark.model.evaluation.metric.SupervisedModelEvaluationPrecision;
 import ark.model.evaluation.metric.SupervisedModelEvaluationRecall;
@@ -102,7 +87,6 @@ public abstract class Datum<L> {
 		private Map<String, Feature<D, L>> genericFeatures;
 		private Map<String, SupervisedModel<D, L>> genericModels;
 		private Map<String, SupervisedModelEvaluation<D, L>> genericEvaluations;
-		private Map<String, FactoredCost<D, L>> genericFactoredCosts;
 
 		private Map<String, DatumStructureCollection<D, L>> genericDatumStructureCollections;
 		
@@ -116,7 +100,6 @@ public abstract class Datum<L> {
 			this.genericFeatures = new HashMap<String, Feature<D, L>>();
 			this.genericModels = new HashMap<String, SupervisedModel<D, L>>();
 			this.genericEvaluations = new HashMap<String, SupervisedModelEvaluation<D, L>>();
-			this.genericFactoredCosts = new HashMap<String, FactoredCost<D, L>>();
 			
 			this.genericDatumStructureCollections = new HashMap<String, DatumStructureCollection<D, L>>();
 			
@@ -148,30 +131,13 @@ public abstract class Datum<L> {
 			addGenericModel(new SupervisedModelCreg<D, L>());
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());
 			addGenericModel(new SupervisedModelSVM<D, L>());
-			addGenericModel(new SupervisedModelSVMCLN<D, L>());
 			addGenericModel(new SupervisedModelSVMStructured<D, L>());
 			addGenericModel(new SupervisedModelPartition<D, L>());
-			
-			// FIXME Remove these soon
-			addGenericModel(new SupervisedModelCLSVM<D, L>());
-			addGenericModel(new SupervisedModelCLSVMAlt<D, L>());
-			addGenericModel(new SupervisedModelCLSVMN<D, L>());
-			addGenericModel(new SupervisedModelCLStructuredSVM<D, L>());
-			addGenericModel(new SupervisedModelCLSVMPlusStructure<D, L>());
 			
 			addGenericEvaluation(new SupervisedModelEvaluationAccuracy<D, L>());
 			addGenericEvaluation(new SupervisedModelEvaluationPrecision<D, L>());
 			addGenericEvaluation(new SupervisedModelEvaluationRecall<D, L>());
 			addGenericEvaluation(new SupervisedModelEvaluationF<D, L>());
-			addGenericEvaluation(new SupervisedModelEvaluationCLLoss<D, L>());
-			addGenericEvaluation(new SupervisedModelEvaluationCLLabelPairUnorderedAccuracy<D, L>());
-			
-			addGenericFactoredCost(new FactoredCostConstant<D, L>());
-			addGenericFactoredCost(new FactoredCostLabel<D, L>());
-			addGenericFactoredCost(new FactoredCostLabelPair<D, L>());
-			addGenericFactoredCost(new FactoredCostLabelPairUnordered<D, L>());
-			addGenericFactoredCost(new FactoredCostFeature<D, L>());
-			addGenericFactoredCost(new FactoredCostActualLabelCount<D, L>());
 		}
 		
 		public DataTools getDataTools() {
@@ -204,10 +170,6 @@ public abstract class Datum<L> {
 		
 		public SupervisedModelEvaluation<D, L> makeEvaluationInstance(String genericEvaluationName) {
 			return this.genericEvaluations.get(genericEvaluationName).clone(this, this.dataTools.getParameterEnvironment());
-		}
-		
-		public FactoredCost<D, L> makeFactoredCostInstance(String genericFactoredCostName) {
-			return this.genericFactoredCosts.get(genericFactoredCostName).clone(this, this.dataTools.getParameterEnvironment());
 		}
 		
 		public DatumStructureCollection<D, L> makeDatumStructureCollection(String genericCollectionName, DataSet<D, L> data) {
@@ -246,11 +208,6 @@ public abstract class Datum<L> {
 		
 		public boolean addGenericEvaluation(SupervisedModelEvaluation<D, L> evaluation) {
 			this.genericEvaluations.put(evaluation.getGenericName(), evaluation);
-			return true;
-		}
-		
-		public boolean addGenericFactoredCost(FactoredCost<D, L> factoredCost) {
-			this.genericFactoredCosts.put(factoredCost.getGenericName(), factoredCost);
 			return true;
 		}
 		
