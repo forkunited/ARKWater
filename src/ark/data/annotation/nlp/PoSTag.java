@@ -4,9 +4,12 @@ package ark.data.annotation.nlp;
  * PoSTag represents a PoSTag from the Penn Treebank (see 
  * http://www.ling.upenn.edu/courses/Fall_2003/ling001/penn_treebank_pos.html).
  * 
- * These tags are used by the Stanford CoreNLP library.  The tags used by the
- * multi-lingual PoS tagger in the FreeLing library can be mapped onto these
- * by way of the rules given in the comments below (where "." represents a 
+ * These tags are used by the Stanford CoreNLP library, but other tagging
+ * conventions can be mapped into these.  For example, the TemporalOrdering
+ * project at https://github.com/forkunited/TemporalOrdering maps the tags
+ * from the multi-lingual PoS tagger in the FreeLing library 
+ * (see http://nlp.lsi.upc.edu/freeling/).  The rules for the mapping from 
+ * the Freeling tags is given in the comments below (where "." represents a 
  * wildcard).
  * 
  * @author Bill McDowell

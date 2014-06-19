@@ -13,8 +13,21 @@ import ark.data.Gazetteer;
 
 /**
  * 
- * DataTools loads various gazetteers and other data used in various 
+ * DataTools loads gazetteers and other data used in various 
  * models and experiments.  
+ * 
+ * A DataSet (in ark.data.annotation) has
+ * access to a Tools object (defined in ark.data.annotation.Datum),
+ * and that object contains a pointer to a DataTools object, so
+ * any place in the code that has access to a DataSet also has access
+ * to DataTools.  The difference between DataTools and Datum.Tools is
+ * that Datum.Tools contains tools specific to a particular kind of
+ * datum (e.g. a document datum in text classification or a tlink datum
+ * in temporal ordering), whereas DataTools contains generic tools
+ * that can be useful when working with many kinds of Datums.  This
+ * split between generic tools and datum-specific tools allows the generic
+ * tools to be loaded into memory only once even if you're working with
+ * many kinds of datums at the same time.
  * 
  * Currently, for convenience, DataTools just loads everything into 
  * memory upon construction.  If memory conservation becomes particularly
@@ -25,21 +38,43 @@ import ark.data.Gazetteer;
  *
  */
 public class DataTools {
+	/**
+	 * Interface for a function that maps a string to another string--for
+	 * example, for cleaning out garbage text before processing by features
+	 * or models.
+	 *
+	 */
 	public interface StringTransform {
 		String transform(String str);
 		// Return constant name for this transformation (used for deserializing features)
 		String toString(); 
 	}
 	
+	/**
+	 * Interface for a function that maps a pair of strings to a real number--
+	 * for example, as a measure of their similarity.
+	 *
+	 */
 	public interface StringPairMeasure {
 		double compute(String str1, String str2);
 	}
 	
+	/**
+	 * Interface for a function that maps a string to a collection of strings--
+	 * for example, to compute a collection of prefixes or suffixes for a string.
+	 *
+	 */
 	public interface StringCollectionTransform {
 		Collection<String> transform(String str);
 		String toString();
 	}
 	
+	/**
+	 * Represents a named file path.  It's useful for file paths to have
+	 * names so that they can be referenced in experiment configuration files
+	 * without machine specific file locations.
+	 *
+	 */
 	public class Path {
 		private String name;
 		private String value;
@@ -63,7 +98,7 @@ public class DataTools {
 	protected Map<String, DataTools.StringCollectionTransform> collectionFns;
 	protected Map<String, BrownClusterer> brownClusterers;
 	protected Map<String, Path> paths;
-	protected Map<String, String> parameterEnvironment;
+	protected Map<String, String> parameterEnvironment; // Environment variables that have been set 
 	
 	protected long randomSeed;
 	protected Random globalRandom;
@@ -132,12 +167,25 @@ public class DataTools {
 		return this.outputWriter;
 	}
 	
+	/**
+	 * @return a Random object instance that was instantiated when the DataTools
+	 * object was instantiated. 
+	 */
 	public Random getGlobalRandom() {
 		return this.globalRandom;
 	}
 	
+	/**
+	 * @return a Random object instance that is instantiated when makeLocalRandom 
+	 * is called.  This is useful when there are multiple threads that require
+	 * their own Random instances in order to preserve determinism with respect
+	 * to a single Random seed.  Otherwise, if threads share the same Random 
+	 * instance, then the order in which they interleave execution will determine 
+	 * the behavior of the program.
+	 * 
+	 */
 	public Random makeLocalRandom() {
-		return new Random(this.randomSeed);
+		return new Random(this.randomSeed); 
 	}
 	
 	public boolean addGazetteer(Gazetteer gazetteer) {

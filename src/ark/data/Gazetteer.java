@@ -99,6 +99,11 @@ public class Gazetteer {
 		return max;
 	}
 	
+	/**
+	 * 
+	 * @param str
+	 * @return str without tokens contained in the gazetteer.
+	 */
 	public String removeTerms(String str) {
 		String[] strTokens = str.split("\\s+");
 		StringBuilder termsRemoved = new StringBuilder();
