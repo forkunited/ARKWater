@@ -22,6 +22,7 @@ import ark.util.SerializationUtil;
 public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	protected BidirectionalLookupTable<L, Integer> labelIndices;
 	protected int trainingIterations;
+	protected boolean earlyStopIfNoLabelChange;
 	protected Map<Integer, String> featureNames;
 	protected int numFeatures;
 	protected double[] bias_b;
@@ -57,7 +58,12 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		
 		if (name.equals("trainingIterations")) {
 			this.trainingIterations = Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
-		} 
+		} else if (name.equals("earlyStopIfNoLabelChange")){
+			this.earlyStopIfNoLabelChange = Boolean.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
+			System.out.println("\n\n\n");
+			System.out.println("earlyStopIfnoLabelChange: " + earlyStopIfNoLabelChange);
+			System.out.println("\n\n\n");
+		}
 		
 		return true;
 	}
@@ -98,6 +104,8 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 				//double objectiveValueDiff = objectiveValue - prevObjectiveValue;
 				Map<D, L> predictions = classify(testData);
 				int labelDifferences = countLabelDifferences(prevPredictions, predictions);
+				if (earlyStopIfNoLabelChange && labelDifferences == 0 && iteration > 10)
+					break;
 			
 				List<Double> evaluationValues = new ArrayList<Double>();
 				for (SupervisedModelEvaluation<D, L> evaluation : evaluations) {
@@ -393,6 +401,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		
 		clone.labelIndices = this.labelIndices;
 		clone.trainingIterations = this.trainingIterations;
+		clone.earlyStopIfNoLabelChange = this.earlyStopIfNoLabelChange;
 		
 		return clone;
 	}
