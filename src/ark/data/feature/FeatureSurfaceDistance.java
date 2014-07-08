@@ -9,6 +9,14 @@ import ark.data.annotation.nlp.TokenSpan;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 
+/**
+ * FIXME Fill this in sometime maybe
+ * 
+ * @author Jesse Dodge
+ *
+ * @param <D>
+ * @param <L>
+ */
 public class FeatureSurfaceDistance <D extends Datum<L>, L> extends Feature<D, L>{
 	
 	protected BidirectionalLookupTable<String, Integer> vocabulary;

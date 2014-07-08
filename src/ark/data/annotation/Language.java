@@ -1,7 +1,7 @@
 package ark.data.annotation;
 
 /**
- * Language specifies a language
+ * Language specifies a language.
  * 
  * @author Bill McDowell
  */

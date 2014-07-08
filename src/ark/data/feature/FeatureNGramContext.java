@@ -8,6 +8,23 @@ import java.util.Map;
 import ark.data.annotation.Datum;
 import ark.data.annotation.nlp.TokenSpan;
 
+/**
+ * For each datum d FeatureNGramContext computes a
+ * vector:
+ * 
+ * <c(v_1\in C(T(d),k)), c(v_2 \in C(T(d),k)), ... , c(v_n \in C(T(d),k))>
+ * 
+ * Where T is a token extractor, C(T(d), k) computes a context of window-size
+ * k of n-grams surrounding the tokens given by T(d) in a source text document,
+ * and c(v \in S) computes the number of occurrences of n-gram v in S.  The resulting
+ * vector is given to methods in ark.data.feature.FeatureNGram to be normalized
+ * and scaled in some way.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	private int contextWindowSize;
 	

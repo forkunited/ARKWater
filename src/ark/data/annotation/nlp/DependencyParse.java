@@ -8,7 +8,8 @@ import ark.data.annotation.Document;
 import ark.util.Pair;
 
 /**
- * DependencyParse represents a typed dependency parse for a sentence.  
+ * DependencyParse represents a typed dependency parse for a sentence 
+ * (http://en.wikipedia.org/wiki/Parse_tree#Dependency-based_parse_trees).  
  * 
  * The 'type' for each dependency in the parse can be any string value.
  * The lack of restriction on the 'type' allows this class to represent 
@@ -111,6 +112,13 @@ public class DependencyParse {
 		}
 	}
 	
+	/**
+	 * DependencyPath represents a path through a 
+	 * DependencyParse.
+	 * 
+	 * @author Bill McDowell
+	 *
+	 */
 	public class DependencyPath {
 		private List<Node> nodes;
 		

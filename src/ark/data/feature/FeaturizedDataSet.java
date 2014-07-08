@@ -11,6 +11,22 @@ import java.util.TreeMap;
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 
+/**
+ * DataSet represents a collection of labeled and/or unlabeled 'datums'
+ * that have been featurized by a provided set of features to train and 
+ * evaluate models.  
+ * 
+ * The current implementation computes the features on demand as their
+ * values are requested, and permanently caches their values in memory.
+ * In the future, this might be improved so that some values can be
+ * evicted from the cache and possibly serialized/deserialized from
+ * disk.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> Datum type
+ * @param <L> Datum label type
+ */
 public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	private String name;
 	private int maxThreads;
@@ -52,6 +68,27 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		return this.maxThreads;
 	}
 	
+	/**
+	 * @param feature
+	 * @return true if the feature has been added.  This does *not* call
+	 * the feature's initialization method, so it must be called outside
+	 * the FeaturizedDataSet before the feature is added to the set (this
+	 * is necessary so that the feature can sometimes be initialized using
+	 * a different data set from the one to which it is added)
+	 * 
+	 * If the feature is ignored (feature.isIgnored returns true), then
+	 * the feature's values will not be included in vectors returned by requests
+	 * to this FeaturizedDataSet, and so it will not be used by models that
+	 * used this FeaturizedDataSet.
+	 * 
+	 * Features can be retrieved from this by their 'reference names' (even
+	 * if they are ignored features).  This is useful when one feature is computed
+	 * using the values of another.  If one feature requires another for its
+	 * computation, but the required feature should not be included in a model that
+	 * refers to FeaturizedDataSet, then the required feature should be 
+	 * set to be 'ignored'.
+	 * 
+	 */
 	public boolean addFeature(Feature<D, L> feature) {
 		if (!feature.isIgnored()) {
 			this.features.put(this.featureVocabularySize, feature);

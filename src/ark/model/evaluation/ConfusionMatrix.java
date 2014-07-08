@@ -12,21 +12,43 @@ import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.data.annotation.nlp.TokenSpan;
 
+/**
+ * ConfusionMatrix represents a confusion matrix for assignments
+ * of labels to a data set.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class ConfusionMatrix<D extends Datum<L>, L> {
+	// map from actual to predicted label to datums
 	private Map<L, Map<L, List<D>>> actualToPredicted;
 	private Set<L> validLabels;
 	private LabelMapping<L> labelMapping;
 	
+	/**
+	 * @param validLabels - labels to include in the matrix
+	 */
 	public ConfusionMatrix(Set<L> validLabels) {
 		this(validLabels, null);
 	}
 	
+	/**
+	 * 
+	 * @param validLabels - labels to include in the matrix
+	 * @param labelMapping - mapping from all labels to validLabels
+	 */
 	public ConfusionMatrix(Set<L> validLabels, LabelMapping<L> labelMapping) {
 		this.validLabels = validLabels;
 		this.labelMapping = labelMapping;
 		this.actualToPredicted = new HashMap<L, Map<L, List<D>>>();
 	}
 	
+	/**
+	 * @param otherMatrix
+	 * @return true if otherMatrix values have been added to this matrix's values
+	 */
 	public boolean add(ConfusionMatrix<D, L> otherMatrix) {
 		for (Entry<L, Map<L, List<D>>> otherMatrixEntryActual : otherMatrix.actualToPredicted.entrySet()) {
 			L actual = otherMatrixEntryActual.getKey();
@@ -43,6 +65,10 @@ public class ConfusionMatrix<D extends Datum<L>, L> {
 		return true;
 	}
 	
+	/**
+	 * @param classifiedData
+	 * @return true if classifiedData has been added to the confusion matrix
+	 */
 	public boolean addData(Map<D, L> classifiedData) {
 		for (L actual : this.validLabels) {
 			this.actualToPredicted.put(actual, new HashMap<L, List<D>>());
@@ -66,6 +92,10 @@ public class ConfusionMatrix<D extends Datum<L>, L> {
 		return true;
 	}
 	
+	/**
+	 * @param scale
+	 * @return the matrix as map of maps scaled by scale
+	 */
 	public Map<L, Map<L, Double>> getConfusionMatrix(double scale) {
 		if (this.actualToPredicted == null)
 			return null;
@@ -150,6 +180,13 @@ public class ConfusionMatrix<D extends Datum<L>, L> {
 		return toString(1.0);
 	}
 	
+	/**
+	 * @param tokenExtractor
+	 * @return a description of data for each entry in the 
+	 * confusion matrix.  The description currently just
+	 * contains the sentences associated with data that
+	 * contributed to the value of an entry of the matrix.
+	 */
 	public String getActualToPredictedDescription(Datum.Tools.TokenSpanExtractor<D, L> tokenExtractor) {
 		StringBuilder description = new StringBuilder();
 		
@@ -178,6 +215,11 @@ public class ConfusionMatrix<D extends Datum<L>, L> {
 		return description.toString();
 	}
 	
+	/**
+	 * @param actual
+	 * @return a mapping from predicted labels to the lists of datums for
+	 * which they were predicted
+	 */
 	public Map<L, List<D>> getPredictedForActual(L actual) {
 		return this.actualToPredicted.get(actual);
 	}

@@ -9,6 +9,20 @@ import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.util.MathUtil;
 
+/**
+ * DatumStructureCollection represents a collection of datum structures
+ * (ark.data.annotation.structure.DatumStructure). A particular domain-
+ * specific datum structure collection should partition the datums of 
+ * a data set into structures upon construction.  For example, one 
+ * collection might partition the data into one structure per document,
+ * whereas another might partition the data into one structure per
+ * sentence.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> label type
+ */
 public abstract class DatumStructureCollection<D extends Datum<L>, L> implements Iterable<DatumStructure<D, L>> {
 	protected List<DatumStructure<D, L>> datumStructures;
 	

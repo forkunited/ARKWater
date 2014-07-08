@@ -4,6 +4,21 @@ import ark.data.DataTools;
 import ark.data.annotation.Datum;
 import ark.util.StringUtil;
 
+/**
+ * For datum d, string extractor S, and gazetteer G, 
+ * FeatureGazetteerEditDistance computes
+ * 
+ * max_{g\in G} E(g, S(d))
+ * 
+ * Where E is measures the normalized edit-distance 
+ * between g and S(d).
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ * 
+ */
 public class FeatureGazetteerEditDistance<D extends Datum<L>, L> extends FeatureGazetteer<D, L> {
 	private DataTools.StringPairMeasure editDistanceMeasure;
 	

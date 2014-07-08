@@ -21,15 +21,42 @@ import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 import ark.util.Pair;
 
+/**
+ * KFoldCrossValidation performs a k-fold cross validation with 
+ * a given model on set of annotated 
+ * organization mentions 
+ * (http://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation).  
+ * For each fold, there is an  
+ * optional grid-search for hyper-parameter values using
+ * ark.model.evaluation.HyperParameterGridSearch with
+ * (k-2) parts as training, one part as dev, and one part as
+ * test data.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class KFoldCrossValidation<D extends Datum<L>, L> {
 	private String name;
 	private SupervisedModel<D, L> model;
 	private List<Feature<D, L>> features;
 	private List<SupervisedModelEvaluation<D, L>> evaluations;
 	private List<DataSet<D, L>> folds;
-	private Map<String, List<String>> possibleParameterValues; // Hyper-parameter values
+	// Map from hyper-parameters to possible values for grid search
+	// This will be null if there shouldn't be a grid search
+	private Map<String, List<String>> possibleParameterValues; 
 	private DecimalFormat cleanDouble;
 	
+	/**
+	 * @param name
+	 * @param model
+	 * @param features - Features (uninitialized) to use in the model
+	 * @param evaluations - Metrics by which to evaluate the model.  The
+	 * grid-search will use the first of these if there is a grid search.
+	 * @param data - Dataset to randomly partition into k disjoint sets
+	 * @param k - Number of folds
+	 */
 	public KFoldCrossValidation(String name,
 								SupervisedModel<D, L> model, 
 								List<Feature<D, L>> features,
@@ -165,6 +192,13 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 		return averageEvaluations;
 	}
 	
+	/**
+	 * ValidationResult stores the results of training and evaluating 
+	 * the model on a single fold
+	 * 
+	 * @author Bill McDowell
+	 *
+	 */
 	private class ValidationResult  {
 		private int foldIndex;
 		private List<Double> evaluationValues;
@@ -201,11 +235,20 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 		}
 	}
 	
+	/**
+	 * ValidationThread trains and evaluates the model on a single
+	 * fold (with optional single-threaded grid search).
+	 * 
+	 * @author Bill McDowell
+	 *
+	 */
 	private class ValidationThread implements Callable<ValidationResult> {
 		private int foldIndex;
 		private int maxThreads;
 		private Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor;
-		private Map<String, String> parameterEnvironment;
+		// fold-specific environment variables that can be referenced by
+		// experiment configuration files
+		private Map<String, String> parameterEnvironment; 
 		
 		public ValidationThread(int foldIndex, int maxThreads, Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor) {
 			this.foldIndex = foldIndex;
@@ -222,7 +265,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			String namePrefix = name + " Fold " + foldIndex;
 			
 			/*
-			 * Initialize training, dev, and test sets for each fold
+			 * Initialize training, dev, and test sets
 			 */
 			output.debugWriteln("Initializing CV data sets for " + name);
 			Datum.Tools<D, L> datumTools = folds.get(this.foldIndex).getDatumTools();
@@ -240,8 +283,8 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 				}
 			}
 			
-			/* Need cloned bunch of features for each fold so that they can be 
-			 * reinitialized for each training set */
+			/* Need cloned bunch of features for the fold so that they can be 
+			 * reinitialized without affecting other folds' results */
 			output.debugWriteln("Initializing features for CV fold " + this.foldIndex);
 			for (Feature<D, L> feature : features) {
 				Feature<D, L> foldFeature = feature.clone(datumTools, this.parameterEnvironment);
@@ -258,6 +301,9 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			output.dataWriteln("--------------- Fold: " + this.foldIndex + " ---------------");
 			output.modelWriteln("--------------- Fold: " + this.foldIndex + " ---------------");
 			
+			/*
+			 *  Run either TrainTestValidation or GridSearchTestValidation on the fold
+			 */
 			ValidationResult result = null;
 			List<Double> evaluationValues = null;
 			if (possibleParameterValues.size() > 0) {

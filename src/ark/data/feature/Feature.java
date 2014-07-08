@@ -15,26 +15,118 @@ import ark.data.annotation.Datum;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
+/**
+ * Feature represents an abstract feature to be computed on data and
+ * used in a model.
+ * 
+ * Implementations of particular features derive from Feature,
+ * and the Feature class is primarily responsible for providing the
+ * methods necessary for deserializing particular features from
+ * configuration files.
+ * 
+ * A feature's value is generally a vector of real values.  Each component
+ * of the vector has a name, and the set of all names for components
+ * is the feature's 'vocabulary'.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public abstract class Feature<D extends Datum<L>, L> {
-	private String referenceName;
+	// particular name by which the feature is referenced in configuration files
+	private String referenceName; 
+	// indicator of whether to ignore the feature in data sets so that it
+	// isn't included in models
 	private boolean ignored;
 	
+	/**
+	 * @param dataSet
+	 * @return true if the feature has been initialized for the dataSet
+	 */
 	public abstract boolean init(FeaturizedDataSet<D, L> dataSet);
+	
+	/**
+	 * @param datum
+	 * @return a sparse mapping from vector indices to values of the feature
+	 * for the given datum.
+	 */
 	public abstract Map<Integer, Double> computeVector(D datum);
+	
+	/**
+	 * @return the generic name of the feature in the configuration files.  For
+	 * feature class Feature[X], the generic name should usually be X.
+	 */
 	public abstract String getGenericName();
+	
+	/**
+	 * @return the length of the vector computed by this feature for each
+	 * datum
+	 */
 	public abstract int getVocabularySize();
+	
+	/**
+	 * 
+	 * @param index
+	 * @return the name of the component at the given index within vectors
+	 * computed by this feature
+	 * 
+	 */
 	public abstract String getVocabularyTerm(int index); 
 	
+	/**
+	 * 
+	 * @param index
+	 * @param term
+	 * @return true if the name of component at the given index has been set
+	 * to the value of term.  This is used when deserializing features that 
+	 * were previously computed and saved.
+	 * 
+	 */
 	protected abstract boolean setVocabularyTerm(int index, String term);
+
+	/**
+	 * @return parameters of the feature that can be set through the experiment 
+	 * configuration file
+	 */
 	protected abstract String[] getParameterNames();
+	
+	/**
+	 * @param parameter
+	 * @return the value of the given parameter
+	 */
 	protected abstract String getParameterValue(String parameter);
+	
+	/**
+	 * 
+	 * @param parameter
+	 * @param parameterValue
+	 * @param datumTools
+	 * @return true if the parameter has been set to parameterValue.  Some parameters are set to
+	 * objects retrieved through datumTools that are named by parameterValue.
+	 */
 	protected abstract boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
+	
+	/**
+	 * @return a generic instance of the feature.  This is used when deserializing
+	 * the parameters for the feature from a configuration file
+	 */
 	protected abstract Feature<D, L> makeInstance();
 	
+	/**
+	 * @return a name by which this particular feature is referenced by other
+	 * features in experiment configuration files.  This feature can be retrieved
+	 * from a FeaturizedDataSet using this name.
+	 * 
+	 */
 	public String getReferenceName() {
 		return this.referenceName;
 	}
 	
+	/**
+	 * @return true if this feature should be ignored by models (it is only used for the
+	 * computation of other features)
+	 */
 	public boolean isIgnored() {
 		return this.ignored;
 	}

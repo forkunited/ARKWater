@@ -12,7 +12,55 @@ import ark.data.annotation.Datum;
 import ark.util.BidirectionalLookupTable;
 import ark.wrapper.BrownClusterer;
 
+/**
+ * 
+ * FeatureNGram computes n-gram features for datums.  For
+ * a datum d and token-extractor T, and scaling function s:R->R the feature computes 
+ * the vector:
+ * 
+ * <s(1(v_1\in F(T(d))))), s(1(v_2 \in F(T(d)))), ... , s(1(v_n \in F(T(d))))>
+ * 
+ * Where F(T(d)) is a subset of the tokens given by T(d) that 
+ * depends on the 
+ * particular n-gram feature that is being computed (e.g. NGramContext,
+ * NGramDep, etc), and v_i 
+ * is an n-gram in vocabulary of possible n-grams from the full
+ * data-set.  
+ * 
+ * For examples of possible F, see the feature types that extend 
+ * this class.  Possibilities for s are given by the Scale enum 
+ * defined below.
+ * 
+ * The minFeatureOccurrence parameter determineds the minimum number
+ * of times an n-gram must occur in the data-set for it to be included
+ * as a component in the computed vectors.
+ * 
+ * The cleanFn parameter is a string cleaning function that is applied to
+ * each gram in each n-gram before the vectors are computed.
+ * 
+ * Optionally, if a clusterer (Brown) parameter is provided, then grams of
+ * the n-grams are first mapped to their clusters or sets of 
+ * prefixes of their clusters.
+ * 
+ * @author Bill McDowell
+ * 
+ * @param <D> datum type
+ * @param <L> datum label type
+ *
+ */
 public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> {
+	/**
+	 * 
+	 * Scale gives possible functions by which to scale the computed
+	 * feature vectors.  The INDICATOR function just returns 1 if an n-gram is 
+	 * in F(T(d)) for datum d (F and T defined in documenation above).  The
+	 * NORMALIZED_LOG function applies log(1+tf(F(T(d)), v) to n-gram v, where
+	 * tf(x,v) computes the frequency of v in x.   Similarly, NORMALIZED_TFIDF
+	 * applies tfidf for each n-gram.  Both NORMALIZED_LOG and NORMALIZED_TFIDF
+	 * are normalized in the sense that the feature vector for n-gram v is 
+	 * scaled to length 1.
+	 * 
+	 */
 	public enum Scale {
 		INDICATOR,
 		NORMALIZED_LOG,
@@ -20,7 +68,7 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> 
 	}
 	
 	protected BidirectionalLookupTable<String, Integer> vocabulary;
-	protected Map<Integer, Double> idfs;
+	protected Map<Integer, Double> idfs; // maps vocabulary term indices to idf values to use in tfidf scale function
 	
 	protected int minFeatureOccurrence;
 	protected int n;
@@ -30,7 +78,12 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends Feature<D, L> 
 	protected Scale scale;
 	protected String[] parameterNames = {"minFeatureOccurrence", "n", "cleanFn", "clusterer", "tokenExtractor", "scale"};
 	
-	
+	/**
+	 * @param datum
+	 * @return n-grams associated with the datum in a certain way that
+	 * depends on the the particular NGram feature that is being computed.  See
+	 * ark.data.feature.FeatureNGramContext for example.
+	 */
 	protected abstract Map<String, Integer> getNGramsForDatum(D datum);
 	
 	public FeatureNGram() {

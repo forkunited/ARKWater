@@ -7,6 +7,15 @@ import java.util.Map;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 
+/**
+ * FeatureIdentity returns a vector D(d) for double
+ * extractor D applied to datum d.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class FeatureIdentity<D extends Datum<L>, L> extends Feature<D, L> {
 	protected Datum.Tools.DoubleExtractor<D, L> doubleExtractor;
 	protected String[] parameterNames = {"doubleExtractor"};

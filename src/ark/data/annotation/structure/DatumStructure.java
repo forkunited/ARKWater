@@ -8,8 +8,43 @@ import java.util.Set;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelMapping;
 
+/**
+ * DatumStructure represents a collection of datums (training/evaluation
+ * examples from a data set) over which hard constraints can be imposed within
+ * models.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> Datum type
+ * @param <L> Label type
+ */
 public abstract class DatumStructure<D extends Datum<L>, L> implements Collection<D> {
+	/**
+	 * DatumStructureOptimizer chooses a good set of labels to assign to 
+	 * datums in a structure which satisfy some constraints.
+	 */
 	protected interface DatumStructureOptimizer<D extends Datum<L>, L> {
+		/** 
+		 *
+		 * @param scoredDatumLabels represents a scoring function s:DxL->R
+		 * that assigns a score to each datum-label pair.  
+		 * 
+		 * @param fixedDatumLabels constrains some datums in the structure 
+		 * to have some labels.  The optimizer should adhere to these 
+		 * constraints.
+		 * 
+		 * @param validLabels is the set of labels that the optimizer can
+		 * assign to datums.
+		 * 
+		 * @param labelMapping represents a mapping from labels to labels that
+		 * the optimizer should apply before returning the assignment of 
+		 * labels to datums.
+		 * 
+		 * @return a mapping from datums to labels that maximizes the sum
+		 * of scores across datums (according to scoredDatumLabels) subject
+		 * to some constraints.
+		 * 
+		 */
 		Map<D, L> optimize(Map<D, Map<L, Double>> scoredDatumLabels, Map<D, L> fixedDatumLabels, Set<L> validLabels, LabelMapping<L> labelMapping);
 		String getGenericName();
 	}

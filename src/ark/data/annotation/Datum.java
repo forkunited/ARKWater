@@ -31,6 +31,14 @@ import ark.model.evaluation.metric.SupervisedModelEvaluationF;
 import ark.model.evaluation.metric.SupervisedModelEvaluationPrecision;
 import ark.model.evaluation.metric.SupervisedModelEvaluationRecall;
 
+/**
+ * Datum represents a (possibly) labeled datum (training/evaluation
+ * example).
+ * 
+ * @author Bill McDowell
+ *
+ * @param <L> label type
+ */
 public abstract class Datum<L> {	
 	protected int id;
 	protected L label;
@@ -56,6 +64,20 @@ public abstract class Datum<L> {
 		return datum.id == this.id;
 	}
 	
+	/**
+	 * Tools contains tools for working with a particular type
+	 * of datum.  For example, each type of datum type has a 
+	 * collection of "extractors" for retrieving associated strings or 
+	 * token spans that are necessary for computing features, and 
+	 * each datum type also has an associated set of models and
+	 * features that can be used with them.
+	 * 
+	 * @author Bill McDowell
+	 *
+	 * @param <D> datum type
+	 * @param <L> label type
+	 * 
+	 */
 	public static abstract class Tools<D extends Datum<L>, L> {
 		public static interface StringExtractor<D extends Datum<L>, L> {
 			String toString();

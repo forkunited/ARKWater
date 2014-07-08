@@ -1,5 +1,13 @@
 package ark.util;
 
+/**
+ * Pair holds a pair of objects
+ * 
+ * @author Bill McDowell
+ *
+ * @param <F> type of first object in pair
+ * @param <S> type of second object in pair
+ */
 public class Pair<F, S> {
     private F first; 
     private S second; 

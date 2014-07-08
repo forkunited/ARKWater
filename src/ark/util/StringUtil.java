@@ -99,6 +99,10 @@ public class StringUtil {
 		return cleanStr.trim();
 	}
 	
+	/**
+	 * @param str
+	 * @return a collection of prefixes to str
+	 */
 	public static Collection<String> prefixes(String str) {
 		List<String> prefixes = new ArrayList<String>();
 		for (int i = 1; i <= str.length(); i++) {

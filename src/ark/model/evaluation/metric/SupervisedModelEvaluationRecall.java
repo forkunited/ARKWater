@@ -11,6 +11,19 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.util.Pair;
 
+/**
+ * SupervisedModelEvaluationRecall computes the recall
+ * (http://en.wikipedia.org/wiki/Precision_and_recall)
+ * for a supervised classification model on a data set.
+ * 
+ * The 'weighted' parameter indicates whether the measure for a particular
+ * label should be weighted by the labels frequency within the data set.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class SupervisedModelEvaluationRecall<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
 	private boolean weighted;
 	private String[] parameterNames = { "weighted" };

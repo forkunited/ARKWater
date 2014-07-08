@@ -14,6 +14,20 @@ import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.PoSTag;
 import ark.util.FileUtil;
 
+/**
+ * 
+ * Document represents a JSON-serializable text document with 
+ * various NLP annotations (e.g. PoS tags, parses, etc).  The methods
+ * for getting the NLP annotations are kept abstract so 
+ * that they can be implemented in ways that allow for
+ * caching in cases when all of the documents don't fit
+ * in memory.  In-memory implementations of these methods
+ * are given by the ark.data.annotation.DocumentInMemory 
+ * class.
+ * 
+ * @author Bill McDowell
+ *
+ */
 public abstract class Document {
 	protected String name;
 	protected Language language;

@@ -14,6 +14,15 @@ import java.util.TreeMap;
 
 import ark.util.MathUtil;
 
+/**
+ * DataSet represents a collection of labeled and/or unlabeled 'datums'
+ * to be used to train and evaluate models.  
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> Datum type
+ * @param <L> Datum label type
+ */
 public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	private enum DataFilter {
 		All,
@@ -150,6 +159,14 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		return makePartition(distribution, random);
 	}
 	
+	/**
+	 * 
+	 * @param distribution
+	 * @param random
+	 * @return a random partition of the dataset with whose sets have sizes given
+	 * by the distribution
+	 * 
+	 */
 	public List<DataSet<D, L>> makePartition(double[] distribution, Random random) {
 		List<Integer> dataPermutation = constructRandomDataPermutation(random);
 		List<DataSet<D, L>> partition = new ArrayList<DataSet<D, L>>(distribution.length);

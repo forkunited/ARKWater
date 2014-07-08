@@ -9,6 +9,32 @@ import ark.data.annotation.Datum;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.data.annotation.nlp.DependencyParse;
 
+/**
+ * For each datum d FeatureNGramDep computes a
+ * vector:
+ * 
+ * <c(v_1\in D_p(T(d))), c(v_2 \in D_p(T(d))), ... , c(v_n \in D_p(T(d)))>
+ * 
+ * Where T is a token extractor, D_p(T(d)) computes n-grams related to tokens
+ * given by T(d) in the dependency parse trees containing elements of T(d) in
+ * a source document.  The particular way in which the n-grams in D_p(T(d))
+ * are related to tokens in T(d) in a dependency parse tree depends on parameters
+ * p.  Currently, p can specify that the n-grams in D_p(T(d)) must be immediate
+ * children in the trees of T(d) or immediate parents in the trees of T(d).
+ * The function c(v \in S) computes the number of occurrences of n-gram v in S.  
+ * The resulting vector is given to methods in ark.data.feature.FeatureNGram to 
+ * be normalized and scaled in some way.
+ * 
+ * The 'mode' parameter useRelationTypes determines whether different typed relations
+ * in the dependency tree should have their own corresponding sets of components
+ * in the returned vector.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ * 
+ */
 public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	public enum Mode {
 		ParentsOnly,
@@ -17,7 +43,7 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	}
 	
 	private FeatureNGramDep.Mode mode;
-	private boolean useRelationTypes;
+	private boolean useRelationTypes; // include dependency relation types
 	
 	public FeatureNGramDep() {
 		super();

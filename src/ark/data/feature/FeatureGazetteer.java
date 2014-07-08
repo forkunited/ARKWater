@@ -6,12 +6,32 @@ import java.util.Map;
 import ark.data.Gazetteer;
 import ark.data.annotation.Datum;
 
+/**
+ * FeatureGazetteer computes gazetteer features.  For a datum d, 
+ * the feature computes the maximum or
+ * minimum of a function f_{S(d)}:G ->R where G is a gazetteer of names,
+ * and f_{S(d)} is a function defined for string extractor S used on
+ * datum d.  For examples, see
+ * the feature types that extend this class under the ark.data.feature
+ * package.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ * 
+ */
 public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D, L> {
+	/**
+	 * ExtremumType determines whether the minimum or maximum
+	 * of the appropriate function should be computed
+	 *
+	 */
 	protected enum ExtremumType {
 		Minimum,
 		Maximum
 	}
-	
+
 	protected FeatureGazetteer.ExtremumType extremumType;
 	
 	protected Gazetteer gazetteer;

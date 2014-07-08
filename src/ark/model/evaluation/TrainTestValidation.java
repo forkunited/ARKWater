@@ -11,6 +11,14 @@ import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 import ark.util.Pair;
 
+/**
+ * TrainTestValidation trains a model on a training data
+ * set and evaluates it on a test data set by given 
+ * evaluation metrics
+ * 
+ * @author Bill McDowell
+ *
+ */
 public class TrainTestValidation<D extends Datum<L>, L> {
 	private String name;
 	private SupervisedModel<D, L> model;
@@ -18,10 +26,18 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 	private FeaturizedDataSet<D, L> testData;
 	private ConfusionMatrix<D, L> confusionMatrix;
 	private List<SupervisedModelEvaluation<D, L>> evaluations;
-	private List<Double> results;
+	private List<Double> results; // Results of evaluations
 	private Pair<Long, Long> trainAndTestTime;
 	private Map<D, L> classifiedData;
 	
+	/**
+	 * 
+	 * @param name
+	 * @param model
+	 * @param trainData 
+	 * @param testData
+	 * @param evaluations - Measures by which to evaluate the model
+	 */
 	public TrainTestValidation(String name,
 							  SupervisedModel<D, L> model, 
 							  FeaturizedDataSet<D, L> trainData,
@@ -35,6 +51,10 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 		this.results = new ArrayList<Double>(this.evaluations.size());
 	}
 	
+	/**
+	 * @return trains and evaluates the model, returning a list of values as results
+	 * of the evaluations
+	 */
 	public List<Double> run() {
 		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
 		

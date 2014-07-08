@@ -10,6 +10,14 @@ import java.util.Stack;
 import ark.data.annotation.Document;
 import ark.util.Pair;
 
+/**
+ * Constituency parse represents a constituency parse for 
+ * a sentence 
+ * (http://en.wikipedia.org/wiki/Parse_tree#Constituency-based_parse_trees).
+ * 
+ * @author Bill McDowell
+ * 
+ */
 public class ConstituencyParse {
 	public class Constituent {
 		private Constituent parent;
@@ -76,6 +84,11 @@ public class ConstituencyParse {
 		}
 	}
 	
+	/**
+	 * ConstituentPath represents a path through a ConstituencyParse
+	 * 
+	 * @author Bill McDowell
+	 */
 	public class ConstituentPath {
 		private List<Constituent> constituents;
 		
@@ -152,6 +165,11 @@ public class ConstituencyParse {
 		return this.root;
 	}
 	
+	/**
+	 * @param tokenIndex
+	 * @return the constituent immediately containing the token
+	 * at tokenIndex
+	 */
 	public Constituent getTokenConstituent(int tokenIndex) {
 		Stack<Constituent> toVisit = new Stack<Constituent>();
 		toVisit.add(this.root);

@@ -4,6 +4,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+/**
+ * BidirectionalLookupTable is a data-structure math maps objects 
+ * of type S to objects of type T.  The data-structure allows 
+ * constant-type lookups of objects in both directions (lookup an
+ * S givent a T, or lookup a T given an S).
+ * 
+ * @author Bill McDowell
+ *
+ * @param <S> source type
+ * @param <T> target type
+ */
 public class BidirectionalLookupTable<S, T> {
 	private Map<S, T> forwardLookup;
 	private Map<T, S> reverseLookup;

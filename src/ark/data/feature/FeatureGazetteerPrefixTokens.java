@@ -6,6 +6,20 @@ import ark.data.DataTools;
 import ark.data.annotation.Datum;
 import ark.util.StringUtil;
 
+/**
+ * For datum d, string extractor S, and gazetteer G, 
+ * FeatureGazetteerPrefixTokens computes
+ * 
+ * max_{g\in G} 1(S(d) shares k prefix tokens with G)
+ * 
+ * The value of k is determined by the parameter 'minTokens'
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ *
+ */
 public class FeatureGazetteerPrefixTokens<D extends Datum<L>, L> extends FeatureGazetteer<D, L> {
 	private DataTools.StringPairMeasure prefixTokensMeasure;
 	private int minTokens;

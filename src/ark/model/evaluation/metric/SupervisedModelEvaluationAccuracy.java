@@ -9,6 +9,15 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.util.Pair;
 
+/**
+ * SupervisedModelEvaluationAccuracy computes the micro-averaged accuracy
+ * for a supervised classification model on a data set.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class SupervisedModelEvaluationAccuracy<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
 
 	@Override

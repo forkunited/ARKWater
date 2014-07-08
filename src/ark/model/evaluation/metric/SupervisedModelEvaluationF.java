@@ -11,7 +11,22 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.util.Pair;
 
+/**
+ * SupervisedModelEvaluationAccuracy computes an F measure
+ * (http://en.wikipedia.org/wiki/F1_score)
+ * for a supervised classification model on a data set.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
+	/**
+	 * Mode determines whether the F measure should be macro-averaged, micro-averaged,
+	 * or macro-averaged weighted by actual label frequencies.
+	 *
+	 */
 	public enum Mode {
 		MACRO,
 		MACRO_WEIGHTED,

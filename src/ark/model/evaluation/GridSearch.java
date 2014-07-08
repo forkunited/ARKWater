@@ -19,7 +19,25 @@ import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 import ark.util.Pair;
 
+/**
+ * GridSearch performs a grid-search for hyper-parameter values
+ * of a given model using a training and test (dev) data
+ * set.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class GridSearch<D extends Datum<L>, L> {
+	/**
+	 * GridPosition represents a position in the grid
+	 * of parameter values (a setting of values for the
+	 * parameters)
+	 * 
+	 * @author Bill McDowell
+	 *
+	 */
 	public class GridPosition {
 		protected TreeMap<String, String> coordinates;
 		
@@ -91,9 +109,16 @@ public class GridSearch<D extends Datum<L>, L> {
 		}
 	}
 	
+	/**
+	 * EvaluatedGridPosition is a GridPosition that has been
+	 * evaluated according to some measure and given a value
+	 * 
+	 * @author Bill McDowell
+	 *
+	 */
 	public class EvaluatedGridPosition extends GridPosition {
 		private double positionValue;
-		private TrainTestValidation<D, L> validation;
+		private TrainTestValidation<D, L> validation; // determines the evaluation
 		private Pair<Long, Long> trainAndTestTime;
 		
 		public EvaluatedGridPosition(GridPosition position, double positionValue, TrainTestValidation<D, L> validation, Pair<Long, Long> trainAndTestTime) {
@@ -121,11 +146,23 @@ public class GridSearch<D extends Datum<L>, L> {
 	private SupervisedModel<D, L> model;
 	private FeaturizedDataSet<D, L> trainData;
 	private FeaturizedDataSet<D, L> testData;
+	// map from parameters to lists of possible values
 	private Map<String, List<String>> possibleParameterValues;
+	// grid of evaluated grid positions (evaluated parameter settings)
 	private List<EvaluatedGridPosition> gridEvaluation;
+	// evaluation measure
 	private SupervisedModelEvaluation<D, L> evaluation;
 	private DecimalFormat cleanDouble;
 	
+	/**
+	 * 
+	 * @param name
+	 * @param model
+	 * @param trainData
+	 * @param testData
+	 * @param possibleParameterValues - Map from parameters to lists of their possible values
+	 * @param evaluation - Evaluation measure by which to search
+	 */
 	public GridSearch(String name,
 									SupervisedModel<D, L> model,
 									FeaturizedDataSet<D, L> trainData, 

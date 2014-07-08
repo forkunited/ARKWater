@@ -1,3 +1,14 @@
+Generally how experiment parsing works, featurization, model evaluation works
+	- Datum tools, data tools
+	- Should be improved later
+
+Generally how document NLP annotation works
+	- Should improve with DocumentSet later
+	
+Feature references
+Parameter environment during deserialization
+Datum extractor types used by features.
+
 # ARKWater #
 
 This repository contains miscellaneous Java utilities for some projects

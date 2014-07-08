@@ -15,6 +15,18 @@ import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 import ark.util.Pair;
 
+/**
+ * GridSearchTestValidation performs a grid search for model
+ * hyper-parameter values using a training and dev data sets.
+ * Then, it sets the hyper-parameters to the best values from
+ * the grid search, retrains on the train+dev data, and
+ * gives a final evaluation on the test data. 
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class GridSearchTestValidation<D extends Datum<L>, L> {
 	private String name;
 	private SupervisedModel<D, L> model;
@@ -30,6 +42,22 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	private boolean trainOnDev;
 	private Map<D, L> classifiedData;
 	
+	/**
+	 * 
+	 * @param name - Name for the validation used in debug output strings
+	 * @param model
+	 * @param trainData
+	 * @param devData
+	 * @param testData - Data on which to give the final evaluation.  This 
+	 * can be null if you want to only do the grid search without any final 
+	 * evaluation
+	 * 
+	 * @param evaluations - Measures by which to evaluate the model.  The
+	 * first of these is used for the grid search
+	 * 
+	 * @param trainOnDev - Indicates whether or not to use the dev data 
+	 * for training in the final evaluation
+	 */
 	public GridSearchTestValidation(String name,
 							  SupervisedModel<D, L> model, 
 							  FeaturizedDataSet<D, L> trainData,

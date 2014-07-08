@@ -13,7 +13,8 @@ import ark.data.Gazetteer;
 
 /**
  * 
- * DataTools loads gazetteers and other data used in various 
+ * DataTools loads gazetteers, brown clusterers, string cleaning 
+ * functions, and other tools used in various 
  * models and experiments.  
  * 
  * A DataSet (in ark.data.annotation) has

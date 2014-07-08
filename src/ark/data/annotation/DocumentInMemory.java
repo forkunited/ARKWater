@@ -8,6 +8,14 @@ import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.PoSTag;
 import ark.model.annotator.nlp.NLPAnnotator;
 
+/**
+ * DocumentInMemory represents a text document with various 
+ * NLP annotations (e.g. PoS tags, parses, etc) kept in 
+ * memory.  
+ * 
+ * @author Bill McDowell
+ * 
+ */
 public class DocumentInMemory extends Document {	
 	protected String[][] tokens;
 	protected PoSTag[][] posTags;

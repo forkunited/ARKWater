@@ -35,6 +35,25 @@ import ark.data.annotation.nlp.DependencyParse.Dependency;
 import ark.data.annotation.nlp.DependencyParse.Node;
 import ark.util.Pair;
 
+/**
+ * NLPAnnotatorStanford supplements a text with NLP 
+ * annotations (parses, part-of-speech tags, etc) using 
+ * the Stanford CoreNLP pipeline
+ * (http://nlp.stanford.edu/software/corenlp.shtml)
+ * 
+ * The returned NLP annotations are in the ARKWater 
+ * (https://github.com/forkunited/ARKWater)
+ * library's format.
+ * 
+ * Once constructed for a specified language, the annotator 
+ * object can be used by calling
+ * the setText method to set the text to be annotated, and
+ * then calling the make[X] methods to retrieve the annotations
+ * for that text.
+ * 
+ * @author Bill McDowell
+ *
+ */
 public class NLPAnnotatorStanford extends NLPAnnotator {
 	private StanfordCoreNLP pipeline;
 	private Annotation annotatedText;
@@ -43,6 +62,11 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		setLanguage(Language.English);
 	}
 	
+	/**
+	 * @param language
+	 * @return true if the language of the annotator is successfully 
+	 * set.  Currently, the only supported language is English.
+	 */
 	public boolean setLanguage(Language language) {
 		if (language != Language.English)
 			return false;
@@ -54,6 +78,11 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return "Stanford";
 	}
 	
+	/**
+	 * @param text
+	 * @return true if the annotator has received the text 
+	 * and is ready to return annotations for it
+	 */
 	public boolean setText(String text) {
 		if (this.pipeline == null) {
 			Properties props = new Properties();
@@ -73,6 +102,10 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return true;
 	}
 	
+	/**
+	 * @return an array of tokens for each segmented 
+	 * sentence of the text.
+	 */
 	public String[][] makeTokens() {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		String[][] tokens = new String[sentences.size()][];
@@ -88,6 +121,10 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return tokens;
 	}
 	
+	/**
+	 * @return an array of pos-tags for each segmented 
+	 * sentence of the text.
+	 */
 	protected PoSTag[][] makePoSTagsInternal() {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		PoSTag[][] posTags = new PoSTag[sentences.size()][];
@@ -107,6 +144,9 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return posTags;
 	}
 	
+	/**
+	 * @return a dependency parse for each sentence of text
+	 */
 	protected DependencyParse[] makeDependencyParsesInternal(Document document, int sentenceIndexOffset) {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		DependencyParse[] parses = new DependencyParse[sentences.size()];
@@ -171,6 +211,9 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return parses;
 	}
 	
+	/**
+	 * @return a constituency parse for each sentence of text
+	 */
 	protected ConstituencyParse[] makeConstituencyParsesInternal(Document document, int sentenceIndexOffset) {
 		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
 		ConstituencyParse[] parses = new ConstituencyParse[sentences.size()];

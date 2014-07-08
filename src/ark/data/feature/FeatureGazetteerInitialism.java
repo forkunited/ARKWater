@@ -6,6 +6,21 @@ import ark.data.DataTools;
 import ark.data.annotation.Datum;
 import ark.util.StringUtil;
 
+/**
+ * For datum d, string extractor S, and gazetteer G, 
+ * FeatureGazetteerInitialism computes
+ * 
+ * max_{g\in G} 1(S(d) is an initialism for g)
+ * 
+ * An 'allowPrefix' parameter determines whether S(d) must
+ * be a full initialism, or just a partial (prefix) initialism.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ *
+ */
 public class FeatureGazetteerInitialism<D extends Datum<L>, L> extends FeatureGazetteer<D, L> {
 	private DataTools.StringPairMeasure initialismMeasure;
 	private boolean allowPrefix;
