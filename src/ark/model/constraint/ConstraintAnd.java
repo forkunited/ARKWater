@@ -3,6 +3,16 @@ package ark.model.constraint;
 import ark.data.annotation.Datum;
 import ark.data.feature.FeaturizedDataSet;
 
+/**
+ * ConstraintAnd represents a conjunction constraint.  Given
+ * constaints firstConstraint and secondConstraint, a ConstraintAnd constraint 
+ * is satisfied if both firstConstraint and secondConstraint are satisfied.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type 
+ */
 public class ConstraintAnd<D extends Datum<L>, L> extends Constraint<D, L> {
 	private Constraint<D, L> firstConstraint;
 	private Constraint<D, L> secondConstraint;

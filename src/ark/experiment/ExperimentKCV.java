@@ -15,6 +15,24 @@ import ark.model.evaluation.KFoldCrossValidation;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.SerializationUtil;
 
+/**
+ * ExperimentKCV represents a k-fold cross-validation training/evaluation
+ * experiment with an optional grid-search for each fold.  An experiment
+ * configuration file determines the model, features, number of folds and
+ * other settings for the experiment.  ExperimentKCV parses this configuration
+ * file with the help of the ark.model.SupervisedModel, ark.data.feature.Feature,
+ * ark.util.SerializationUtil and other classes, and then uses 
+ * ark.model.evaluation.KFoldCrossValidation to carry out the
+ * experiment.  See the experiments/KCVTLinkType directory in the 
+ * TemporalOrdering project at https://github.com/forkunited/TemporalOrdering
+ * for examples of experiment configuration files.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ *
+ */
 public class ExperimentKCV<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected SupervisedModel<D, L> model;
 	protected List<Feature<D, L>> features;

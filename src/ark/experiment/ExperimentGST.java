@@ -17,6 +17,26 @@ import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 import ark.util.SerializationUtil;
 
+/**
+ * ExperimentGST represents a grid-search-test experiment which trains
+ * a model on training data, searches for hyper-parameter values on dev
+ * data, and finally (optionally) evaluates the model trained on
+ * train+dev data with the best hyper-parameter values on test data.
+ * An experiment configuration file determines the model, features, and
+ * other settings for the experiment.  ExperimentGST parses this configuration
+ * file with the help of the ark.model.SupervisedModel, ark.data.feature.Feature,
+ * ark.util.SerializationUtil and other classes, and then uses 
+ * ark.model.evaluation.GridSearchTestValidation to carry out the
+ * experiment.  See the experiments/GSTTLinkType directory in the 
+ * TemporalOrdering project at https://github.com/forkunited/TemporalOrdering
+ * for examples of experiment configuration files.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ * 
+ */
 public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected SupervisedModel<D, L> model;
 	protected List<Feature<D, L>> features;
@@ -25,8 +45,8 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected List<SupervisedModelEvaluation<D, L>> evaluations;
 	protected DataSet<D, L> trainData;
 	protected DataSet<D, L> devData;
-	protected DataSet<D, L> testData;
-	protected boolean trainOnDev;
+	protected DataSet<D, L> testData; // can be null
+	protected boolean trainOnDev; // determines whether or not to retrain model on train+dev set
 	protected Map<D, L> classifiedData;
 	
 	public ExperimentGST(String name, String inputPath, DataSet<D, L> trainData, DataSet<D, L> devData, DataSet<D, L> testData) {

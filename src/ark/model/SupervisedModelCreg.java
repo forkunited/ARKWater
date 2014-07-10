@@ -25,9 +25,24 @@ import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.CommandRunner;
 import ark.util.OutputWriter;
 
+/**
+ * SupervisedModelCreg is a wrapper for the creg 
+ * (https://github.com/redpony/creg) logistic 
+ * regression implementation.  The train and posterior methods write the given
+ * data set to a file that creg can handle, call the creg command, and read
+ * in the files that creg outputs.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<D, L> {
-	private DataTools.Path cmdPath;
-	private DataTools.Path modelPath;
+	// Actual paths are stored in DataTools from a properties configuration file
+	// and these paths are referred to by their reference names in the experiment
+	// configuration files
+	private DataTools.Path cmdPath; // path to creg command
+	private DataTools.Path modelPath; // path to creg model output
 	private double l1;
 	private double l2;
 	private boolean warmRestart;

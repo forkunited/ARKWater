@@ -18,25 +18,139 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.SerializationUtil;
 
+/**
+ * SupervisedModel represents a supervised classification model
+ * that can be trained and evaluated using 
+ * ark.data.feature.FeaturizedDataSets.
+ * 
+ * Implementations of particular supervised models derive from the 
+ * SupervisedModel class,
+ * and the SupervisedModel class is primarily responsible for 
+ * providing the
+ * methods necessary for deserializing models from configuration files.
+ * Models are defined in the configuration files by strings of
+ * the form:
+ * 
+ * model_[modelReferenceName]=[genericModelName (e.g. SVM)]([hyper-parameter 1]=[hyper-parameter value 1],...)
+ * {
+ *    [extra info 1]=[extra info value 1]
+ *    [...]
+ * }
+ * 
+ * Where strings in square brackets are replaced by model specific info.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public abstract class SupervisedModel<D extends Datum<L>, L> {
+	// Name by which the this particular model instance is referenced
+	// This is currently just used by SupervisedModelPartition to
+	// assign features to particular models in the experiment configuration
+	// file
 	private String referenceName;
 	
-	protected Set<L> validLabels;
-	protected LabelMapping<L> labelMapping;
-	protected Map<D, L> fixedDatumLabels = new HashMap<D, L>();
+	protected Set<L> validLabels; // Labels that this model can assign
+	protected LabelMapping<L> labelMapping; // Mapping from actual labels into valid labels
 	
+	// Labels that the model should assign regardless of its training
+	protected Map<D, L> fixedDatumLabels = new HashMap<D, L>(); 
+	
+	/**
+	 * @return hyper-parameters of the model that can be set (for example) through the
+	 * experiment configuration file or through a grid-search
+	 */
 	protected abstract String[] getHyperParameterNames();
+	
+	/**
+	 * @return a generic instance of some model that can be used
+	 * when deserializing from an experiment configuration file
+	 */
 	protected abstract SupervisedModel<D, L> makeInstance();
+	
+	/**
+	 * 
+	 * @param name - Name for the object given on the current line
+	 * @param reader - Buffered reader pointed to directly after the name
+	 * @param datumTools
+	 * @return true if a single line of extra model info has been deserialized.
+	 * The extra info should be given below the first line of the model
+	 * in curly brackets in a form similar to the serialized
+	 * form of the experiments in ark.experiment (see documentation for the
+	 * classes there).  Each line of extra info should contain
+	 * a single assignment of some parameter to some value.  These parameter values
+	 * can contain nested descriptions of objects that must also be deserialized, whereas
+	 * the hyper-parameters in the first line of the model description
+	 * cannot contain objects that must also be deserialized.  For each line
+	 * of extra info, the deserialize method will make a separate call to 'deserializeExtraInfo',
+	 * and 'deserializeExtraInfo' should use ark.util.SerializationUtil with the 
+	 * given reader to deserialize the remainder of line after '[name]='.
+	 * 
+	 * @throws IOException
+	 */
 	protected abstract boolean deserializeExtraInfo(String name, BufferedReader reader, Datum.Tools<D, L> datumTools) throws IOException;
+	
+	/**
+	 * 
+	 * @param reader
+	 * @param datumTools
+	 * @return true if learned parameters of the model have been deserialized.  Deserialize will
+	 * make a single call to this method during deserialization, and it should deserialize
+	 * all of the parameters at once, assuming the reader's stream will end at the last line
+	 * of parameters.
+	 * 
+	 * @throws IOException
+	 */
 	protected abstract boolean deserializeParameters(BufferedReader reader, Datum.Tools<D, L> datumTools) throws IOException;	
+	
+	/**
+	 * 
+	 * @param writer
+	 * @return true if the learned parameters of the model have been serialized using
+	 * writer.  
+	 * @throws IOException
+	 */
 	protected abstract boolean serializeParameters(Writer writer) throws IOException;
+	
+	/**
+	 * 
+	 * @param writer
+	 * @return true if the model's extra info has been serialized using writer
+	 * @throws IOException
+	 */
 	protected abstract boolean serializeExtraInfo(Writer writer) throws IOException;
 	
+	/**
+	 * @return the generic name of the model in the configuration files.  For
+	 * model class SupervisedModel[X], the generic name should usually be X.
+	 */
 	public abstract String getGenericName();
+	
+	/**
+	 * @param parameter
+	 * @return the value of parameter hyper-parameter as string
+	 */
 	public abstract String getHyperParameterValue(String parameter);
+	
+	/**
+	 * 
+	 * @param parameter
+	 * @param parameterValue
+	 * @param datumTools
+	 * @return true if the hyper-parameter parameter has been set to 
+	 * parameterValue.  In some cases, parameterValue is used to refer
+	 * to an object within datumTools that the model can use.
+	 */
 	public abstract boolean setHyperParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
 
+	
 	public abstract boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations);
+	
+	/**
+	 * @param data
+	 * @return a map from datums to distributions over labels for the datums
+	 */
 	public abstract Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data);
 	
 	public boolean setLabelMapping(LabelMapping<L> labelMapping) {

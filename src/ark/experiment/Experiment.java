@@ -7,6 +7,48 @@ import ark.data.annotation.Datum;
 import ark.util.FileUtil;
 import ark.util.SerializationUtil;
 
+/**
+ * Experiment represents an experiment usually involving a model and
+ * a data set, specified through an experiment configuration file.  
+ * The syntax of the input configuration
+ * files is somewhat intuitive, so you can probably figure it out
+ * by reading through the example experiments (for example in the 
+ * experiments directory of the TemporalOrdering project
+ * at https://github.com/forkunited/TemporalOrdering).  Generally,
+ * each line of configuration is of the form:
+ * 
+ * [entityType]_[entityName]=[value]
+ * 
+ * Where the "_[entityName]" is optional.  For example, almost all experiments
+ * of any type should have lines:
+ * 
+ * maxThreads=[maximum number of threads]
+ * randomSeed=[random number generator seed]
+ * 
+ * Where the expressions right of the parentheses are replaced by numbers.  The
+ * values on the right side of the equals sign can more generally be much
+ * more complicated (for example if they represent features or models), and their
+ * descriptions are generally deserialized using the corresponding classes
+ * (for example ark.data.feature.Feature or ark.model.Model).  The deserialization
+ * methods in these classes and in the experiment classes generally rely on 
+ * the ark.util.SerializationUtil to parse each line.  This process is somewhat
+ * messy and complicated and should probably be refactored sometime in the future.
+ * 
+ * The operations of a particular experiment are defined by the classes 
+ * that extend Experiment (see other classes under ark.experiment)
+ *
+ * The output of the experiment is generally written to debug, 
+ * results, model, and data
+ * files in an output directory whose location is given by an 
+ * ark.util.OutputWriter object stored in an ark.data.DataTools object
+ * in an ark.data.annotation.Datum.Tools object.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ *
+ */
 public abstract class Experiment<D extends Datum<L>, L> {
 	protected String name;
 	protected String inputPath;
@@ -33,7 +75,7 @@ public abstract class Experiment<D extends Datum<L>, L> {
 	
 	protected boolean deserialize() throws IOException {
 		BufferedReader reader = FileUtil.getFileReader(this.inputPath);
-		String assignmentLeft = null;
+		String assignmentLeft = null; // The name on the left hand side of the equals sign
 
 		while ((assignmentLeft = SerializationUtil.deserializeAssignmentLeft(reader)) != null) {
 			if (assignmentLeft.equals("randomSeed"))

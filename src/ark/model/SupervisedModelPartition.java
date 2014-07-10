@@ -17,10 +17,34 @@ import ark.model.constraint.Constraint;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.SerializationUtil;
 
+/**
+ * SupervisedModelPartition partitions the training and evaluation
+ * according to a set of constraints so that all data in a single
+ * part of the partition satisfy the corresponding constraint.  The
+ * parts of the partition are given to separate models, and the predictions
+ * of these models are used to constrain the predictions of the 
+ * later models if the later models are structured.
+ * 
+ * The 'defaultLabel' hyper-parameter determines the default label
+ * that SupervisedModelPartition predicts for datums that do not
+ * satisfy any of the partition constraints (and so have no corresponding
+ * model).
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	private L defaultLabel;
 	private String[] hyperParameterNames = { "defaultLabel" };
+	
+	// List of partition model names in the order in which they should
+	// run.  If a model occurs prior to another in this list, then its
+	// predictions take precedence (especially when structured prediction is involved)
 	private List<String> orderedModels;
+	
+	/// Map model names to constraints, models, and feature sets
 	private Map<String, Constraint<D, L>> constraints;
 	private Map<String, SupervisedModel<D, L>> models;
 	private Map<String, List<Feature<D, L>>> features;
@@ -32,6 +56,15 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		this.features = new HashMap<String, List<Feature<D, L>>>();
 	}
 	
+	/**
+	 * @param data
+	 * @param testData
+	 * @param evaluations
+	 * @return true if the partitioned models have been trained on the data.  The
+	 * predictions of the earlier trained models are used to constrain the training
+	 * of the later partitioned models (using the 'fixDatumLabels' method) for
+	 * when the later models are structured and the structures overlap. 
+	 */
 	@Override
 	public boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations) {
 		Map<D, L> fixedLabels = new HashMap<D, L>();
@@ -55,10 +88,19 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		return true;
 	}
 
+	/**
+	 * @param data - data set for which to compute posteriors
+	 * @return a map from datums to their posterior distributions. The 
+	 * data is partitioned by the constraints, and each part of the partition
+	 * is given a posterior according to a model corresponding to that 
+	 * partition.  The maximum posterior labels of the parts that are
+	 * processed first are used to constrain the posteriors for later parts'
+	 * models.
+	 */
 	@Override
 	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posterior = new HashMap<D, Map<L, Double>>();
-		Map<D, L> fixedLabels = new HashMap<D, L>();
+		Map<D, L> fixedLabels = new HashMap<D, L>(); // Labels that are fixed by the first models for later models
 		for (int i = 0; i < this.orderedModels.size(); i++) {
 			String modelName = this.orderedModels.get(i);
 			FeaturizedDataSet<D, L> modelData = this.constraints.get(modelName).getSatisfyingSubset(data, this.labelMapping);
@@ -89,6 +131,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 				fixedLabels.put(pEntry.getKey(), bestLabel);
 			}
 			
+			// Fix labels for later models
 			for (int j = i + 1; j < this.orderedModels.size(); j++)
 				this.models.get(this.orderedModels.get(j)).fixDatumLabels(fixedLabels);
 		}
@@ -106,6 +149,17 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		return posterior;
 	}
 
+	/**
+	 * @param name - variable name on the current line of extra info
+	 * @param reader
+	 * @param datumTools
+	 * @return true if a partition constraint, model, or feature has been
+	 * deserialized from the current line using reader.  The models in
+	 * the extra info should be specified using the same syntax as models
+	 * specified in experiments.  See the classes under ark.experiment for
+	 * documentation.
+	 *  
+	 */
 	@Override
 	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
 			Tools<D, L> datumTools) throws IOException {

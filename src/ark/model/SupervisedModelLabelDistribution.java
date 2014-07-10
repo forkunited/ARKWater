@@ -12,6 +12,17 @@ import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 
+/**
+ * SupervisedModelLabelDistribution learns a single posterior
+ * for all datums according to the label distribution in the
+ * training data.  During classification, this leads the 
+ * model to pick the majority baseline label.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	private Map<L, Double> labelDistribution;
 	

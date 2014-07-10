@@ -8,6 +8,20 @@ import ark.data.annotation.Datum;
 import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 
+/**
+ * ConstraintFeatureMatch represents a regex constraint on the names of
+ * of the components of a given feature vector computed by a Feature 
+ * defined under ark.data.feature and reference-able in a FeaturizedDataSet
+ * by the name 'featureReference'.  A datum d satisfies this constraint if there
+ * is at least one component in the vector computed by the referenced feature whose
+ * name matches the the specified regex ('pattern'), and the value of this component
+ * for d is at least at the threshold 'minValue'.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class ConstraintFeatureMatch<D extends Datum<L>, L> extends Constraint<D, L> {
 		private String featureReference;
 		private double minValue;

@@ -9,6 +9,19 @@ import ark.data.annotation.Datum.Tools;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 
+/**
+ * For a datum d, FeatureConjunction computes a vector whose elements are given by
+ * a flattening of the tensor product of vectors computed for d by a set of referenced
+ * features.  
+ * 
+ * The referenced features are given by a list of feature 'referenceNames'
+ * used within a FeaturizedDataSet constructed from an experiment configuration file.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	private BidirectionalLookupTable<String, Integer> vocabulary;
 	private int minFeatureOccurrence;

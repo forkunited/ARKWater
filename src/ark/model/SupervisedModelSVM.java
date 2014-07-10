@@ -19,21 +19,34 @@ import ark.util.OutputWriter;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
+/**
+ * SupervisedModelSVM represents a multi-class SVM trained with
+ * SGD using AdaGrad to determine the learning rate.  The AdaGrad minimization
+ * uses sparse updates based on the loss gradients and 'occasional updates'
+ * for the regularizer.  It's unclear whether the occasional regularizer
+ * gradient updates are theoretically sound when used with AdaGrad (haven't
+ * taken the time to think about it), but it seems to work anyway.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D, L> {
 	protected BidirectionalLookupTable<L, Integer> labelIndices;
-	protected int trainingIterations;
-	protected boolean earlyStopIfNoLabelChange;
-	protected Map<Integer, String> featureNames;
-	protected int numFeatures;
+	protected int trainingIterations; // number of training iterations for which to run (set through 'extra info')
+	protected boolean earlyStopIfNoLabelChange; // whether to have early stopping when no prediction changes on dev set (set through 'extra info')
+	protected Map<Integer, String> featureNames; // map from feature indices to their names
+	protected int numFeatures; // total number of features
 	protected double[] bias_b;
-	protected Map<Integer, Double> feature_w; // Labels x Input features
+	protected Map<Integer, Double> feature_w; // Labels x (Input features (percepts)) sparse weights mapped from weight indices 
 	
 	// Adagrad stuff
 	protected int t;
 	protected Map<Integer, Double> feature_G;  // Just diagonal
 	protected double[] bias_G;
 	
-	protected double l2;
+	protected double l2; // l2 regularizer
 	protected double epsilon = 0;
 	protected String[] hyperParameterNames = { "l2", "epsilon" };
 	
@@ -155,6 +168,12 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		return true;
 	}
 	
+	/**
+	 * @param iteration
+	 * @param data
+	 * @return true if the model has been trained for a full pass over the
+	 * training data set
+	 */
 	protected boolean trainOneIteration(int iteration, FeaturizedDataSet<D, L> data) {
 		List<Integer> dataPermutation = data.constructRandomDataPermutation(this.random);
 		
@@ -172,6 +191,15 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		return true;
 	}
 	
+	/**
+	 * 
+	 * @param datum
+	 * @param datumLabel
+	 * @param bestLabel
+	 * @param iteration
+	 * @param data
+	 * @return true if the model has made SGD weight updates from a single datum.
+	 */
 	protected boolean trainOneDatum(D datum, L datumLabel, L bestLabel, int iteration, FeaturizedDataSet<D, L> data) {
 		int N = data.size();
 		double K = N/4.0;
@@ -188,11 +216,11 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			this.featureNames.putAll(data.getFeatureVocabularyNamesForIndices(missingNameKeys));
 		}
 		
-		if (datumLabelBest && !regularizerUpdate)
+		if (datumLabelBest && !regularizerUpdate) // No update necessary
 			return true;
 			
 		// Update feature weights
-		if (!regularizerUpdate) {
+		if (!regularizerUpdate) { // Update only for loss function gradients
 			for (Entry<Integer, Double> featureValue : datumFeatureValues.entrySet()) {
 				int i_datumLabelWeight = getWeightIndex(datumLabel, featureValue.getKey());
 				int i_bestLabelWeight = getWeightIndex(bestLabel, featureValue.getKey());
@@ -207,24 +235,29 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 					this.feature_G.put(i_bestLabelWeight, 0.0);
 				}
 				
+				// Gradients
 				double g_datumLabelWeight = -featureValue.getValue();
 				double g_bestLabelWeight = featureValue.getValue();
 				
+				// Adagrad G
 				double G_datumLabelWeight = this.feature_G.get(i_datumLabelWeight) + g_datumLabelWeight*g_datumLabelWeight;
 				double G_bestLabelWeight = this.feature_G.get(i_bestLabelWeight) + g_bestLabelWeight*g_bestLabelWeight;
 				
 				this.feature_G.put(i_datumLabelWeight, G_datumLabelWeight);
 				this.feature_G.put(i_bestLabelWeight, G_bestLabelWeight);
 				
+				// Learning rates
 				double eta_datumLabelWeight = 1.0/Math.sqrt(G_datumLabelWeight);
 				double eta_bestLabelWeight = 1.0/Math.sqrt(G_bestLabelWeight);
 				
+				// Weight update
 				this.feature_w.put(i_datumLabelWeight, this.feature_w.get(i_datumLabelWeight) - eta_datumLabelWeight*g_datumLabelWeight);
 				this.feature_w.put(i_bestLabelWeight, this.feature_w.get(i_bestLabelWeight) - eta_bestLabelWeight*g_bestLabelWeight);
 			}
 		} else { // Full weight update for regularizer
-			Map<Integer, Double> g = new HashMap<Integer, Double>();
+			Map<Integer, Double> g = new HashMap<Integer, Double>(); // gradients
 			
+			// Gradient update for hinge loss
 			for (Entry<Integer, Double> featureValue : datumFeatureValues.entrySet()) {
 				int i_datumLabelWeight = getWeightIndex(datumLabel, featureValue.getKey());
 				int i_bestLabelWeight = getWeightIndex(bestLabel, featureValue.getKey());
@@ -233,6 +266,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 				g.put(i_bestLabelWeight, featureValue.getValue());
 			}
 			
+			// Occasional gradient update for regularizer (this happens after every K training datum updates)
 			for (Entry<Integer, Double> wEntry : this.feature_w.entrySet()) {
 				if (!g.containsKey(wEntry.getKey()))
 					g.put(wEntry.getKey(), (K/N)*this.l2*wEntry.getValue());
@@ -240,6 +274,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 					g.put(wEntry.getKey(), g.get(wEntry.getKey()) + (K/N)*this.l2*wEntry.getValue());
 			}
 			
+			// Update weights based on gradients
 			for (Entry<Integer, Double> gEntry : g.entrySet()) {
 				if (gEntry.getValue() == 0)
 					continue;
@@ -249,6 +284,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 					this.feature_G.put(gEntry.getKey(), 0.0);
 				}
 				
+				// Adagrad G
 				double G = this.feature_G.get(gEntry.getKey()) + gEntry.getValue()*gEntry.getValue();
 				this.feature_G.put(gEntry.getKey(), G);
 				
@@ -259,6 +295,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			
 		// Update label biases
 		for (int i = 0; i < this.bias_b.length; i++) {
+			// Bias gradient based on hinge loss
 			double g = ((this.labelIndices.get(datumLabel) == i) ? -1.0 : 0.0) +
 							(this.labelIndices.get(bestLabel) == i ? 1.0 : 0.0);
 			
@@ -534,6 +571,12 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		return posteriors;
 	}
 
+	/**
+	 * 
+	 * @param data
+	 * @param datum
+	 * @return posterior based on softmax using scores for labels assigned to datum
+	 */
 	protected Map<L, Double> posteriorForDatum(FeaturizedDataSet<D, L> data, D datum) {
 		Map<L, Double> posterior = new HashMap<L, Double>(this.validLabels.size());
 		double[] scores = new double[this.validLabels.size()];

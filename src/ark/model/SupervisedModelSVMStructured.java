@@ -17,11 +17,32 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
+/**
+ * SupervisedModelSVMStructured represents a structured SVM trained with
+ * SGD using AdaGrad to determine the learning rate.  The AdaGrad minimization
+ * uses sparse updates based on the loss gradients and 'occasional updates'
+ * for the regularizer.  It's unclear whether the occasional regularizer
+ * gradient updates are theoretically sound when used with AdaGrad (haven't
+ * taken the time to think about it), but it seems to work anyway.
+ * 
+ * The structured SVM is described in some detail in the 
+ * papers/TemporalOrderingNotes.pdf document in the TemporalOrdering
+ * repository at https://github.com/forkunited/TemporalOrdering.
+ * 
+ * If 'includeStructuredTraining' is set to false, then the model is trained
+ * as a non-structured SVM, and the structure is only imposed at inference 
+ * time using the datum label scores to optimize the structure.
+ * 
+ * @author Bill McDowell
+ *
+ * @param <D> datum type
+ * @param <L> datum label type
+ */
 public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends SupervisedModelSVM<D, L> {
-	protected String datumStructureOptimizer;
-	protected String datumStructureCollection;
-	protected DatumStructureCollection<D, L> trainingDatumStructureCollection;
-	protected boolean includeStructuredTraining;
+	protected String datumStructureOptimizer; // Name of the optimizer stored in Datum.Tools to use for label inference
+	protected String datumStructureCollection; // Name of the datum structure collection in Datum.Tools to use to create DatumStructures
+	protected DatumStructureCollection<D, L> trainingDatumStructureCollection; // DatumStructureCollection instantiated for the training data
+	protected boolean includeStructuredTraining; // Indicates whether or not to include structure in training
 	
 	public SupervisedModelSVMStructured() {
 		super();
@@ -75,13 +96,24 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		if (!super.initializeTraining(data))
 			return false;
 	
+		// If structure in training, then partition the data set into
+		// datum structures (ark.data.structure.DatumStructure) using
+		// the reference datum structure collection 
+		// (ark.data.structure.DatumStructureCollection)
 		if (this.includeStructuredTraining)
 			this.trainingDatumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
 		return true;
 	}
 	
+	/**
+	 * @param iteration
+	 * @param data
+	 * @return true if the model has been trained using one pass over the full training
+	 * data set.
+	 */
 	@Override
 	protected boolean trainOneIteration(int iteration, FeaturizedDataSet<D, L> data) {
+		// If no structure in training, then train as unstructured SVM
 		if (!this.includeStructuredTraining)
 			return super.trainOneIteration(iteration, data);
 		
@@ -92,16 +124,17 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 			boolean regularizerUpdate = (this.t % K == 0); // for "occasionality trick"
 			
 			DatumStructure<D, L> datumStructure = this.trainingDatumStructureCollection.getDatumStructure(datumStructureIndex);
+			// Map datums to labels to their current scores
 			Map<D, Map<L, Double>> scoredDatumLabels = scoreDatumStructureLabels(data, datumStructure, true);
 			Map<D, L> datumLabels = datumStructure.getDatumLabels(this.labelMapping);
-			// Maybe just optimize here...?
+			
+			// Best datum labels according to model's inference based on current weights
 			Map<D, L> bestDatumLabels = getBestDatumLabels(data, datumStructure, scoredDatumLabels);
 
 			Map<Integer, Double> datumStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, datumLabels, iteration == 0);
 			Map<Integer, Double> bestStructureFeatureValues = computeDatumStructureFeatureValues(data, datumStructure, bestDatumLabels, false);
 			
-			// Update feature weights
-			
+			// Update feature weight gradients
 			Map<Integer, Double> gMap = new HashMap<Integer, Double>();
 			
 			for (Entry<Integer, Double> featureEntry : datumStructureFeatureValues.entrySet()) {
@@ -117,6 +150,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 					gMap.put(weightIndex, featureEntry.getValue());
 			}
 			
+			// Occasionally (every K datums) include regularizer term in computation of feature weight gradients
 			if (regularizerUpdate) {	
 				for (Entry<Integer, Double> wEntry : this.feature_w.entrySet()) {
 					if (!gMap.containsKey(wEntry.getKey()))
@@ -126,6 +160,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 				}
 			}
 				
+			// Update feature weights based on computed gradients
 			for (Entry<Integer, Double> gEntry : gMap.entrySet()) {
 				int weightIndex = gEntry.getKey();
 				double g = gEntry.getValue();
@@ -220,6 +255,12 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		return "SVMStructured";
 	}
 	
+	/**
+	 * @param data
+	 * @return a map from datums in data to their posteriors.  The posteriors are
+	 * computed differently depending on whether structure was imposed at training
+	 * or not.  See methods below for details.
+	 */
 	@Override
 	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posteriors = null;
@@ -233,6 +274,12 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		return posteriors;
 	}
 	
+	/**
+	 * @param data
+	 * @return a map from datums in data to their posteriors based on optimal label structures
+	 * learned through structured training. Labels in the optimal datum structures are given 
+	 * a posterior value of 1, and all other labels are given a posterior value 0.
+	 */
 	protected Map<D, Map<L, Double>> posteriorFromStructureScores(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> posteriors = new HashMap<D, Map<L, Double>>(data.size());
 		DatumStructureCollection<D, L> datumStructureCollection = data.getDatumTools().makeDatumStructureCollection(this.datumStructureCollection, data);
@@ -265,6 +312,13 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		return posteriors;
 	}
 	
+	/**
+	 * @param data
+	 * @return a map from datums in data to their posteriors based on label structures
+	 * optimized using the individual datum posteriors.
+	 * Labels in the optimal datum structures are given a posterior value of 1, and all other 
+	 * labels are given a posterior value 0
+	 */
 	protected Map<D, Map<L, Double>> posteriorFromDatumScores(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> datumPosteriors = new HashMap<D, Map<L, Double>>(data.size());
 
@@ -291,6 +345,12 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		return structurePosteriors;
 	}
 	
+	/**
+	 * @param data
+	 * @return a map from datums to predicted labels based on 
+	 * optimal label structures. This method works analogously to the 
+	 * posterior methods defined above.
+	 */
 	@Override
 	public Map<D, L> classify(FeaturizedDataSet<D, L> data) {
 		Map<D, L> classifiedData = null;
@@ -350,18 +410,22 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		return count;
 	}
 	
+	/**
+	 * @param data
+	 * @param datumStructure
+	 * @param includeCost
+	 * @return a map from datums in datumStructure to scores of their
+	 * label assignments.
+	 */
 	protected Map<D, Map<L, Double>> scoreDatumStructureLabels(FeaturizedDataSet<D, L> data, DatumStructure<D, L> datumStructure, boolean includeCost) {
 		Map<D, Map<L, Double>> datumLabelScores = new HashMap<D, Map<L, Double>>();
 		
 		for (D datum : datumStructure) {
 			Map<L, Double> scores = new HashMap<L, Double>();
-			
-			double max = Double.NEGATIVE_INFINITY;
+
 			for (L label : this.validLabels) {
 				double score = scoreLabel(data, datum, label, includeCost);
 				scores.put(label, score);
-				if (score > max)
-					max = score;
 			}
 			
 			datumLabelScores.put(datum, scores);
