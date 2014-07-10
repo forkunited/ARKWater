@@ -93,6 +93,8 @@ First, untar the required libraries in files/jars.tgz to the
 appropriate libraries directory, and then copy the build.xml to the root of the 
 project.  Replace the text surrounded by square brackets in build.xml with
 values that make sense for your setup.  Run  "ant build-jar" from the root of the project.
+If there are missing jars, then ask Bill McDowell and he will try to get them
+for you.
 
 Alternatively, you can use an IDE like Eclipse instead of ant.
 
@@ -112,6 +114,9 @@ This process is somewhat hacked together and should be made more intuitive.
 
 * Create an ARKWater executable for carrying out typical generic tasks
 like training various models or featurizing data sets.
+
+* It's possible some of the included jars in build.xml are unnecessary, so
+get rid of them.
 
 * This documentation and the documentation at the top of each class file
 is pretty limited, and the project is still probably difficult for someone

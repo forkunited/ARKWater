@@ -26,6 +26,8 @@
         <pathelement location="[lib directory]/commons-cli-1.2.jar"/>
         <pathelement location="[lib directory]/commons-beanutils-core-1.8.0.jar"/>
         <pathelement location="[lib directory]/commons-beanutils-1.7.0.jar"/>
+        <pathelement location="[lib directory]/jdom.jar"/>
+        <pathelement location="[lib directory]/json-lib-2.4-jdk15.jar"/>
     </path>
     <target name="init">
         <mkdir dir="bin"/>
