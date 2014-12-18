@@ -30,7 +30,7 @@ import ark.model.SupervisedModel;
 import ark.util.Pair;
 
 /**
- * SupervisedModelEvaluationAccuracy computes an F measure
+ * SupervisedModelEvaluationF computes an F measure
  * (http://en.wikipedia.org/wiki/F1_score)
  * for a supervised classification model on a data set.
  * 
@@ -51,9 +51,10 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 		MICRO
 	}
 	
-	private Mode mode;
+	private Mode mode = Mode.MACRO_WEIGHTED;
 	private double Beta = 1.0;
-	private String[] parameterNames = { "mode", "Beta" };
+	private L filterLabel;
+	private String[] parameterNames = { "mode", "Beta", "filterLabel" };
 	
 	@Override
 	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
@@ -109,7 +110,12 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 		}
 		
 		for (Entry<L, Double> entry : weights.entrySet()) {
-			if (this.mode == Mode.MACRO_WEIGHTED)
+			if (this.filterLabel != null) {
+				if (entry.getKey().equals(this.filterLabel))
+					entry.setValue(1.0);
+				else
+					entry.setValue(0.0);
+			} else if (this.mode == Mode.MACRO_WEIGHTED)
 				entry.setValue(entry.getValue()/actualAndPredicted.size());
 			else
 				entry.setValue(1.0/weights.size());
@@ -161,6 +167,8 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 			return this.mode.toString();
 		else if (parameter.equals("Beta"))
 			return String.valueOf(this.Beta);
+		else if (parameter.equals("filterLabel"))
+			return (this.filterLabel == null) ? "" : this.filterLabel.toString();
 		else
 			return null;
 	}
@@ -172,6 +180,8 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 			this.mode = Mode.valueOf(parameterValue);
 		else if (parameter.equals("Beta"))
 			this.Beta = Double.valueOf(parameterValue);
+		else if (parameter.equals("filterLabel"))
+			this.filterLabel = datumTools.labelFromString(parameterValue);
 		else
 			return false;
 		return true;

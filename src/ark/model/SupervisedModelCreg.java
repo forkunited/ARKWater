@@ -33,7 +33,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 
-import net.sf.json.JSONObject;
+import org.json.JSONObject;
 
 import ark.data.DataTools;
 import ark.data.annotation.Datum;
@@ -197,11 +197,11 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 					return null;
 				}
 				
-				JSONObject jsonPosterior = JSONObject.fromObject(lineParts[2]);
+				JSONObject jsonPosterior = new JSONObject(lineParts[2]);
 				Map<L, Double> posterior = new HashMap<L, Double>();
 				for (L validLabel : this.validLabels) {
 					String labelStr = validLabel.toString();
-					if (jsonPosterior.containsKey(labelStr))
+					if (jsonPosterior.has(labelStr))
 						posterior.put(validLabel, jsonPosterior.getDouble(labelStr));
 				}
 				

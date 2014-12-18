@@ -31,6 +31,7 @@ import ark.data.feature.FeatureGazetteerContains;
 import ark.data.feature.FeatureGazetteerEditDistance;
 import ark.data.feature.FeatureGazetteerInitialism;
 import ark.data.feature.FeatureGazetteerPrefixTokens;
+import ark.data.feature.FeatureGramContextPattern;
 import ark.data.feature.FeatureIdentity;
 import ark.data.feature.FeatureDependencyPath;
 import ark.data.feature.FeatureNGramContext;
@@ -167,6 +168,7 @@ public abstract class Datum<L> {
 			addGenericFeature(new FeatureDependencyPath<D, L>());
 			addGenericFeature(new FeatureConstituencyPath<D, L>());
 			addGenericFeature(new FeatureConjunction<D, L>());
+			addGenericFeature(new FeatureGramContextPattern<D, L>());
 			
 			addGenericModel(new SupervisedModelCreg<D, L>());
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());

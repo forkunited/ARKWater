@@ -68,10 +68,13 @@ public class SerializationUtil {
 		char c = (char)cInt;
 		StringBuilder item = new StringBuilder();
 		while (cInt != -1 && c != '\n') {
-			while (cInt != -1 && c != ',' && c != '\n'&& c != ')') {
+			boolean inQuotes = false;
+			while (cInt != -1 && (inQuotes || (c != ',' && c != '\n'&& c != ')'))) {
 				item = item.append(c);
 				cInt = reader.read();
 				c = (char)cInt;
+				if (c == '"')
+					inQuotes = !inQuotes;
 			}
 			
 			list.add(item.toString().trim());
@@ -98,16 +101,27 @@ public class SerializationUtil {
 		if (cInt == -1 || first.length() == 0)
 			return null;
 		
+		boolean inQuotes = false;
 		cInt = reader.read();
 		c = (char)cInt;
+		if (c == '"')
+			inQuotes = true;
+		
 		StringBuilder second = new StringBuilder();
-		while (cInt != -1 && c != ',' && c != '\n' && c != ')') {
+		
+		while (cInt != -1 && (inQuotes || (c != ',' && c != '\n' && c != ')'))) {
 			second = second.append(c);
 			cInt = reader.read();
 			c = (char)cInt;
+			if (c == '"')
+				inQuotes = !inQuotes;
 		}
 		
-		return new Pair<String, String>(first.toString().trim(),second.toString().trim());
+		String secondStr = second.toString();
+		if (secondStr.startsWith("\""))
+			secondStr = secondStr.substring(1, secondStr.length()-1);
+		
+		return new Pair<String, String>(first.toString().trim(),secondStr.trim());
 	}
 	
 	public static String deserializeGenericName(Reader reader) throws IOException {

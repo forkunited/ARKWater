@@ -25,5 +25,6 @@ package ark.data.annotation;
  */
 public enum Language {
 	English,
-	Spanish
+	Spanish,
+	Russian
 }

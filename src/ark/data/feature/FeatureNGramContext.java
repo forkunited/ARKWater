@@ -55,7 +55,7 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	}
 	
 	@Override
-	protected Map<String, Integer> getNGramsForDatum(D datum) {
+	protected Map<String, Integer> getGramsForDatum(D datum) {
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
 		Map<String, Integer> retNgrams = new HashMap<String, Integer>();
 		

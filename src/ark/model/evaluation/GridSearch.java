@@ -20,6 +20,7 @@ package ark.model.evaluation;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -288,9 +289,13 @@ public class GridSearch<D extends Datum<L>, L> {
 	
 	private class PositionThread implements Callable<EvaluatedGridPosition> {
 		private GridPosition position;
+		private Map<String, String> parameterEnvironment;
 		
 		public PositionThread(GridPosition position) {
 			this.position = position;
+			this.parameterEnvironment = new HashMap<String, String>();
+			this.parameterEnvironment.putAll(trainData.getDatumTools().getDataTools().getParameterEnvironment());
+			this.parameterEnvironment.putAll(this.position.getCoordinates());
 		}
 		
 		@Override
@@ -299,7 +304,7 @@ public class GridSearch<D extends Datum<L>, L> {
 			
 			output.debugWriteln("Grid search evaluating " + evaluation.toString() + " of model (" + name + " " + position.toString() + ")");
 			
-			SupervisedModel<D, L> positionModel = model.clone(trainData.getDatumTools());
+			SupervisedModel<D, L> positionModel = model.clone(trainData.getDatumTools(), this.parameterEnvironment);
 			Map<String, String> parameterValues = position.getCoordinates();
 			for (Entry<String, String> entry : parameterValues.entrySet()) {
 				positionModel.setHyperParameterValue(entry.getKey(), entry.getValue(), trainData.getDatumTools());	

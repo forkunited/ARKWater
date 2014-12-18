@@ -31,6 +31,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 import ark.util.MathUtil;
+import ark.util.Pair;
 
 /**
  * DataSet represents a collection of labeled and/or unlabeled 'datums'
@@ -305,5 +306,18 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 			permutation.add(dataKey);
 		
 		return MathUtil.randomPermutation(random, permutation);
+	}
+	
+	public Pair<L, Integer> computeMajorityLabel() {
+		L maxLabel = null;
+		int maxLabelCount = 0;
+		for (Entry<L, List<Integer>> entry : this.labeledData.entrySet()) {
+			if (entry.getValue().size() > maxLabelCount) {
+				maxLabel = entry.getKey();
+				maxLabelCount = entry.getValue().size();
+			}
+		}
+		
+		return new Pair<L, Integer>(maxLabel, maxLabelCount);
 	}
 }

@@ -61,6 +61,7 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 	protected Datum.Tools.TokenSpanExtractor<D, L> errorExampleExtractor;
 	protected Map<String, List<String>> gridSearchParameterValues;
 	protected List<SupervisedModelEvaluation<D, L>> evaluations;
+	protected List<Double> evaluationValues;
 	protected DataSet<D, L> trainData;
 	protected DataSet<D, L> devData;
 	protected DataSet<D, L> testData; // can be null
@@ -116,10 +117,11 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 		gridSearchValidation.setPossibleHyperParameterValues(this.gridSearchParameterValues);
 		if (gridSearchValidation.run(this.errorExampleExtractor, true, this.maxThreads).get(0) < 0){
 			this.classifiedData = gridSearchValidation.getClassifiedData();
+			this.evaluationValues = gridSearchValidation.getEvaluationValues();
 			return false;
 		}
 		this.classifiedData = gridSearchValidation.getClassifiedData();
-
+		this.evaluationValues = gridSearchValidation.getEvaluationValues();
 		return true;
 	}
 	@Override
@@ -175,5 +177,13 @@ public class ExperimentGST<D extends Datum<L>, L> extends Experiment<D, L> {
 			throw new IllegalStateException("Trying to return classified data, but the data hasn't been classified yet.");
 		else
 			return this.classifiedData;
+	}
+	
+	public List<Double> getEvaluationValues() {
+		return this.evaluationValues;
+	}
+	
+	public List<SupervisedModelEvaluation<D, L>> getEvaluations() {
+		return this.evaluations;
 	}
 }

@@ -23,10 +23,9 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
 
-import ark.wrapper.BrownClusterer;
-
 import ark.util.OutputWriter;
 import ark.util.StringUtil;
+import ark.cluster.Clusterer;
 import ark.data.Gazetteer;
 
 /**
@@ -115,7 +114,7 @@ public class DataTools {
 	protected Map<String, Gazetteer> gazetteers;
 	protected Map<String, DataTools.StringTransform> cleanFns;
 	protected Map<String, DataTools.StringCollectionTransform> collectionFns;
-	protected Map<String, BrownClusterer> brownClusterers;
+	protected Map<String, Clusterer<String>> stringClusterers;
 	protected Map<String, Path> paths;
 	protected Map<String, String> parameterEnvironment; // Environment variables that have been set 
 	
@@ -127,7 +126,7 @@ public class DataTools {
 		this.gazetteers = new HashMap<String, Gazetteer>();
 		this.cleanFns = new HashMap<String, DataTools.StringTransform>();
 		this.collectionFns = new HashMap<String, DataTools.StringCollectionTransform>();
-		this.brownClusterers = new HashMap<String, BrownClusterer>();
+		this.stringClusterers = new HashMap<String, Clusterer<String>>();
 		this.paths = new HashMap<String, Path>();
 		this.parameterEnvironment = new HashMap<String, String>();
 		
@@ -154,7 +153,7 @@ public class DataTools {
 		});
 		
 		this.collectionFns.put("None", null);
-		this.brownClusterers.put("None", null);
+		this.stringClusterers.put("None", null);
 		this.globalRandom = new Random();
 	}
 	
@@ -170,8 +169,8 @@ public class DataTools {
 		return this.collectionFns.get(name);
 	}
 	
-	public BrownClusterer getBrownClusterer(String name) {
-		return this.brownClusterers.get(name);
+	public Clusterer<String> getStringClusterer(String name) {
+		return this.stringClusterers.get(name);
 	}
 	
 	public Path getPath(String name) {
@@ -242,8 +241,8 @@ public class DataTools {
 		return true;
 	}
 	
-	public boolean addBrownClusterer(BrownClusterer brownClusterer) {
-		this.brownClusterers.put(brownClusterer.toString(), brownClusterer);
+	public boolean addStringClusterer(Clusterer<String> clusterer) {
+		this.stringClusterers.put(clusterer.toString(), clusterer);
 		return true;
 	}
 	

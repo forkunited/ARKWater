@@ -37,6 +37,9 @@ import ark.util.Pair;
  * The 'weighted' parameter indicates whether the measure for a particular
  * label should be weighted by the labels frequency within the data set.
  * 
+ * The 'filterLabel' parameter limits the precision calculation to a single 
+ * label
+ * 
  * @author Bill McDowell
  *
  * @param <D> datum type
@@ -44,7 +47,8 @@ import ark.util.Pair;
  */
 public class SupervisedModelEvaluationRecall<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
 	private boolean weighted;
-	private String[] parameterNames = { "weighted" };
+	private L filterLabel;
+	private String[] parameterNames = { "weighted", "filterLabel" };
 	
 	@Override
 	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
@@ -72,7 +76,12 @@ public class SupervisedModelEvaluationRecall<D extends Datum<L>, L> extends Supe
 		}
 		
 		for (Entry<L, Double> entry : weights.entrySet()) {
-			if (this.weighted)
+			if (this.filterLabel != null) {
+				if (entry.getKey().equals(this.filterLabel))
+					entry.setValue(1.0);
+				else
+					entry.setValue(0.0);
+			} else if (this.weighted)
 				entry.setValue(entry.getValue()/actualAndPredicted.size());
 			else
 				entry.setValue(1.0/weights.size());
@@ -119,6 +128,8 @@ public class SupervisedModelEvaluationRecall<D extends Datum<L>, L> extends Supe
 	protected String getParameterValue(String parameter) {
 		if (parameter.equals("weighted"))
 			return String.valueOf(this.weighted);
+		else if (parameter.equals("filterLabel"))
+			return (this.filterLabel == null) ? "" : this.filterLabel.toString();
 		else
 			return null;
 	}
@@ -128,6 +139,8 @@ public class SupervisedModelEvaluationRecall<D extends Datum<L>, L> extends Supe
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("weighted"))
 			this.weighted = Boolean.valueOf(parameterValue);
+		else if (parameter.equals("filterLabel"))
+			this.filterLabel = datumTools.labelFromString(parameterValue);
 		else
 			return false;
 		return true;

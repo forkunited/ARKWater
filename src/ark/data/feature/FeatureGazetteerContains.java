@@ -18,7 +18,10 @@
 
 package ark.data.feature;
 
+import java.util.List;
+
 import ark.data.annotation.Datum;
+import ark.util.Pair;
 
 /**
  * For datum d, string extractor S, and gazetteer G, 
@@ -37,11 +40,12 @@ public class FeatureGazetteerContains<D extends Datum<L>, L> extends FeatureGaze
 	}
 	
 	@Override
-	protected double computeExtremum(String str) {
-		if (this.gazetteer.contains(str))
-			return 1.0;
-		else 
-			return 0.0;
+	protected Pair<List<Pair<String,Double>>, Double> computeExtremum(String str) {
+		if (this.gazetteer.contains(str)) {
+			return new Pair<List<Pair<String,Double>>, Double>(this.gazetteer.getWeightedIds(str), 1.0);
+		} else { 
+			return new Pair<List<Pair<String,Double>>, Double>(this.gazetteer.getWeightedIds(str), 0.0);
+		}
 	}
 	
 	@Override

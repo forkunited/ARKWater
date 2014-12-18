@@ -20,7 +20,9 @@ package ark.util;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
+import java.io.InputStreamReader;
 
 /**
  * 
@@ -40,8 +42,20 @@ public class FileUtil {
 				return new BufferedReader(new FileReader(localFile));
 			else 
 				System.err.println("WARNING: FileUtil failed to read file at " + path); // Do something better later
-		} catch (Exception e) { }
+		} catch (Exception e) { System.err.println("WARNING: FileUtil failed to read file at " + path); e.printStackTrace(); }
 		return HadoopUtil.getFileReader(path);
+	}
+	
+	public static BufferedReader getFileReader(String path, String encoding) {
+		File localFile = new File(path);
+		try {
+			if (localFile.exists())
+				return new BufferedReader(new InputStreamReader(new FileInputStream(path), encoding));
+			else 
+				System.err.println("WARNING: FileUtil failed to read file at " + path); // Do something better later
+		} catch (Exception e) { }
+		
+		return null;
 	}
 	
 	public static BufferedReader getPropertiesReader(String[] possiblePaths) {

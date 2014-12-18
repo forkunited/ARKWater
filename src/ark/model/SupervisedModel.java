@@ -324,10 +324,13 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		String[] parameterNames = getHyperParameterNames();
 		for (int i = 0; i < parameterNames.length; i++) {
 			String parameterValue = getHyperParameterValue(parameterNames[i]);
-			if (environment != null && parameterValue != null) {
-				for (Entry<String, String> entry : environment.entrySet())
-					parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
+			if (parameterValue != null) {
+				if (environment != null)
+					for (Entry<String, String> entry : environment.entrySet())
+						parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
+				parameterValue = parameterValue.replace("${", "").replace("}", "");
 			}
+			
 			clone.setHyperParameterValue(parameterNames[i], parameterValue, datumTools);
 		}
 		

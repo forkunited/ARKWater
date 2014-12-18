@@ -75,7 +75,7 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	}
 	
 	@Override
-	protected Map<String, Integer> getNGramsForDatum(D datum) {
+	protected Map<String, Integer> getGramsForDatum(D datum) {
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
 		Map<String, Integer> retNgrams = new HashMap<String, Integer>();
 		
@@ -115,7 +115,7 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 					List<DependencyParse.Dependency> dependencies = dependencyParse.getGoverningDependencies(i);
 					for (DependencyParse.Dependency dependency : dependencies) {
 						int govIndex = dependency.getGoverningTokenIndex();
-						if (govIndex <= tokens.size() - this.n && (govIndex < startIndex || govIndex >= endIndex)) {
+						if (govIndex >= 0 && govIndex <= tokens.size() - this.n && (govIndex < startIndex || govIndex >= endIndex)) {
 							List<String> ngrams = getCleanNGrams(tokens, govIndex);
 							for (String ngram : ngrams) {
 								String retNgram = ngram + "_P";

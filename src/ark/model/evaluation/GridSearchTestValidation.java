@@ -54,6 +54,7 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 	private ConfusionMatrix<D, L> confusionMatrix;
 	private Map<String, List<String>> possibleParameterValues; 
 	private List<SupervisedModelEvaluation<D, L>> evaluations;
+	private List<Double> evaluationValues;
 	private DecimalFormat cleanDouble;
 	private List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation;
 	private GridSearch<D,L>.EvaluatedGridPosition bestGridPosition;
@@ -129,8 +130,10 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 				
 			output.debugWriteln("Grid search (" + this.name + ": \n" + gridSearch.toString());
 				
-			if (this.bestGridPosition != null)
+			if (this.bestGridPosition != null) {
 				this.model.setHyperParameterValues(this.bestGridPosition.getCoordinates(), this.trainData.getDatumTools());
+				this.model = this.model.clone(this.trainData.getDatumTools());
+			}
 		}
 		long totalGridSearchTime = System.currentTimeMillis() - startGridSearch;
 			
@@ -140,28 +143,28 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 		
 		evaluateConstraints(this.trainData, this.devData, this.testData);
 		
-		List<Double> evaluationValues = null;
+		this.evaluationValues = null;
 		if (this.testData != null) {
 			if (this.trainOnDev)
 				this.trainData.addAll(this.devData);
 	
 			TrainTestValidation<D, L> accuracy = new TrainTestValidation<D, L>(this.name, this.model, this.trainData, this.testData, this.evaluations);
-			evaluationValues = accuracy.run();
-			if (evaluationValues.get(0) < 0) {
+			this.evaluationValues = accuracy.run();
+			if (this.evaluationValues.get(0) < 0) {
 				output.debugWriteln("Error: Validation failed (" + this.name + ")");
 				return null;
 			} 
 			
 			this.classifiedData = accuracy.getClassifiedData();
 			this.confusionMatrix = accuracy.getConfusionMatrix();
-			output.debugWriteln("Test " + this.evaluations.get(0).toString() + " (" + this.name + ": " + cleanDouble.format(evaluationValues.get(0)));
+			output.debugWriteln("Test " + this.evaluations.get(0).toString() + " (" + this.name + ": " + cleanDouble.format(this.evaluationValues.get(0)));
 			
 			trainAndTestTime = accuracy.getTrainAndTestTime();
 		} else {
-			evaluationValues = this.bestGridPosition.getValidation().getResults();
+			this.evaluationValues = this.bestGridPosition.getValidation().getResults();
 			this.classifiedData = this.bestGridPosition.getValidation().getClassifiedData();
 			this.confusionMatrix = this.bestGridPosition.getValidation().getConfusionMatrix();
-			output.debugWriteln("Dev best " + this.evaluations.get(0).toString() + " (" + this.name + ": " + cleanDouble.format(evaluationValues.get(0)));
+			output.debugWriteln("Dev best " + this.evaluations.get(0).toString() + " (" + this.name + ": " + cleanDouble.format(this.evaluationValues.get(0)));
 			this.model = this.bestGridPosition.getValidation().getModel();
 			trainAndTestTime = this.bestGridPosition.getValidation().getTrainAndTestTime();
 		}
@@ -230,6 +233,10 @@ public class GridSearchTestValidation<D extends Datum<L>, L> {
 			throw new IllegalStateException("Trying to return classified data, but the data hasn't been classified yet.");
 		else
 			return this.classifiedData;
+	}
+	
+	public List<Double> getEvaluationValues() {
+		return this.evaluationValues;
 	}
 	
 	// Outputting the timing info to the debug file.

@@ -47,7 +47,7 @@ import ark.data.annotation.nlp.TokenSpan;
 public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 
 	@Override
-	protected Map<String, Integer> getNGramsForDatum(D datum) {
+	protected Map<String, Integer> getGramsForDatum(D datum) {
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
 		Map<String, Integer> retNgrams = new HashMap<String, Integer>();
 		
@@ -58,6 +58,7 @@ public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D,
 			List<String> tokens = tokenSpan.getDocument().getSentenceTokens(tokenSpan.getSentenceIndex());
 			if (tokens == null)
 				continue;
+			
 			for (int i = 0; i < tokens.size()-this.n+1; i++) {
 				List<String> ngrams = getCleanNGrams(tokens, i);
 				if (ngrams != null) {

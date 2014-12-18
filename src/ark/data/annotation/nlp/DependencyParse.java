@@ -45,7 +45,7 @@ import ark.util.Pair;
  *
  */
 public class DependencyParse {
-	private static Pattern dependencyPattern = Pattern.compile("(.*)\\((.*)\\-([0-9']*),(.*)\\-([0-9']*)\\)");
+	private static Pattern dependencyPattern = Pattern.compile("(.+)\\((.+)\\-([0-9']+), (.+)\\-([0-9']+)\\)");
 	
 	public class Node {
 		private int tokenIndex;
@@ -356,6 +356,9 @@ public class DependencyParse {
 		int maxIndex = -1;
 		for (int i = 0; i < strParts.length; i++) {
 			Dependency dependency = (parse.new Dependency()).fromString(strParts[i]);
+			if (dependency == null)
+				return new DependencyParse(document, sentenceIndex);
+			
 			int govIndex = dependency.getGoverningTokenIndex();
 			int depIndex = dependency.getDependentTokenIndex();
 			
@@ -375,6 +378,10 @@ public class DependencyParse {
 			if (nodesToDeps.containsKey(i))
 				tokenNodes[i] = parse.new Node(i, nodesToDeps.get(i).getFirst().toArray(new Dependency[0]), nodesToDeps.get(i).getSecond().toArray(new Dependency[0]));
 
+		if (!nodesToDeps.containsKey(-1)) {
+			throw new IllegalArgumentException("Failed to get root for " + document.getName() + " " + sentenceIndex);
+		}
+			
 		parse.root =  parse.new Node(-1, new Dependency[0], nodesToDeps.get(-1).getSecond().toArray(new Dependency[0]));
 		parse.tokenNodes = tokenNodes;
 				

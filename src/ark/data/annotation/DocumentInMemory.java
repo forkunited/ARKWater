@@ -18,8 +18,9 @@
 
 package ark.data.annotation;
 
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import ark.data.annotation.nlp.ConstituencyParse;
 import ark.data.annotation.nlp.DependencyParse;
@@ -189,76 +190,86 @@ public class DocumentInMemory extends Document {
 		JSONObject json = new JSONObject();
 		JSONArray sentencesJson = new JSONArray();
 		
-		json.put("name", this.name);
-		json.put("language", this.language.toString());
-		json.put("nlpAnnotator", this.nlpAnnotator);
-		
-		int sentenceCount = getSentenceCount();
-		for (int i = 0; i < sentenceCount; i++) {
-			int tokenCount = getSentenceTokenCount(i);
-			JSONObject sentenceJson = new JSONObject();
-			sentenceJson.put("sentence", getSentence(i));
+		try {
+			json.put("name", this.name);
+
+			json.put("language", this.language.toString());
+			json.put("nlpAnnotator", this.nlpAnnotator);
 			
-			JSONArray tokensJson = new JSONArray();
-			JSONArray posTagsJson = new JSONArray();
-			
-			for (int j = 0; j < tokenCount; j++) {
-				tokensJson.add(getToken(i, j));
-				if (this.posTags.length > 0) {
-					PoSTag posTag = getPoSTag(i, j);
-					if (posTag != null)
-						posTagsJson.add(posTag.toString());	
+			int sentenceCount = getSentenceCount();
+			for (int i = 0; i < sentenceCount; i++) {
+				int tokenCount = getSentenceTokenCount(i);
+				JSONObject sentenceJson = new JSONObject();
+				sentenceJson.put("sentence", getSentence(i));
+				
+				JSONArray tokensJson = new JSONArray();
+				JSONArray posTagsJson = new JSONArray();
+				
+				for (int j = 0; j < tokenCount; j++) {
+					tokensJson.put(getToken(i, j));
+					if (this.posTags.length > 0) {
+						PoSTag posTag = getPoSTag(i, j);
+						if (posTag != null)
+							posTagsJson.put(posTag.toString());	
+					}
 				}
+				
+				sentenceJson.put("tokens", tokensJson);
+				if (this.posTags.length > 0)
+					sentenceJson.put("posTags", posTagsJson);
+				if (this.dependencyParses.length > 0)
+					sentenceJson.put("dependencyParse", getDependencyParse(i).toString());
+				if (this.constituencyParses.length > 0 && getConstituencyParse(i) != null)
+					sentenceJson.put("constituencyParse", getConstituencyParse(i).toString());
+				
+				sentencesJson.put(sentenceJson);
 			}
-			
-			sentenceJson.put("tokens", tokensJson);
-			if (this.posTags.length > 0)
-				sentenceJson.put("posTags", posTagsJson);
-			if (this.dependencyParses.length > 0)
-				sentenceJson.put("dependencyParse", getDependencyParse(i).toString());
-			if (this.constituencyParses.length > 0)
-				sentenceJson.put("constituencyParse", getConstituencyParse(i).toString());
-			
-			sentencesJson.add(sentenceJson);
+			json.put("sentences", sentencesJson);
+
+		} catch (JSONException e) {
+			e.printStackTrace();
 		}
-		json.put("sentences", sentencesJson);
-		
 		return json;
 	}
 	
 	@Override
 	protected boolean fromJSON(JSONObject json) {
-		this.name = json.getString("name");
-		this.language = Language.valueOf(json.getString("language"));
+		try {
+			this.name = json.getString("name");
+			this.language = Language.valueOf(json.getString("language"));
 		
-		if (json.has("nlpAnnotator"))
-			this.nlpAnnotator = json.getString("nlpAnnotator");
-		
-		JSONArray sentences = json.getJSONArray("sentences");
-		this.tokens = new String[sentences.size()][];
-		this.posTags = new PoSTag[sentences.size()][];
-		this.dependencyParses = new DependencyParse[sentences.size()];
-		this.constituencyParses = new ConstituencyParse[sentences.size()];
-		
-		for (int i = 0; i < sentences.size(); i++) {
-			JSONObject sentenceJson = sentences.getJSONObject(i);
-			JSONArray tokensJson = sentenceJson.getJSONArray("tokens");
-			JSONArray posTagsJson = (sentenceJson.has("posTags")) ? sentenceJson.getJSONArray("posTags") : null;
+			if (json.has("nlpAnnotator"))
+				this.nlpAnnotator = json.getString("nlpAnnotator");
 			
-			this.tokens[i] = new String[tokensJson.size()];
-			for (int j = 0; j < tokensJson.size(); j++)
-				this.tokens[i][j] = tokensJson.getString(j);
+			JSONArray sentences = json.getJSONArray("sentences");
+			this.tokens = new String[sentences.length()][];
+			this.posTags = new PoSTag[sentences.length()][];
+			this.dependencyParses = new DependencyParse[sentences.length()];
+			this.constituencyParses = new ConstituencyParse[sentences.length()];
 			
-			if (posTagsJson != null) {
-				this.posTags[i] = new PoSTag[posTagsJson.size()];
-				for (int j = 0; j < posTagsJson.size(); j++)
-					this.posTags[i][j] = PoSTag.valueOf(posTagsJson.getString(j));
+			for (int i = 0; i < sentences.length(); i++) {
+				JSONObject sentenceJson = sentences.getJSONObject(i);
+				JSONArray tokensJson = sentenceJson.getJSONArray("tokens");
+				JSONArray posTagsJson = (sentenceJson.has("posTags")) ? sentenceJson.getJSONArray("posTags") : null;
+				
+				this.tokens[i] = new String[tokensJson.length()];
+				for (int j = 0; j < tokensJson.length(); j++)
+					this.tokens[i][j] = tokensJson.getString(j);
+				
+				if (posTagsJson != null) {
+					this.posTags[i] = new PoSTag[posTagsJson.length()];
+					for (int j = 0; j < posTagsJson.length(); j++)
+						this.posTags[i][j] = PoSTag.valueOf(posTagsJson.getString(j));
+				}
+				
+				if (sentenceJson.has("dependencyParse"))
+					this.dependencyParses[i] = DependencyParse.fromString(sentenceJson.getString("dependencyParse"), this, i);
+				if (sentenceJson.has("constituencyParse"))
+					this.constituencyParses[i] = ConstituencyParse.fromString(sentenceJson.getString("constituencyParse"), this, i);
 			}
-			
-			if (sentenceJson.has("dependencyParse"))
-				this.dependencyParses[i] = DependencyParse.fromString(sentenceJson.getString("dependencyParse"), this, i);
-			if (sentenceJson.has("constituencyParse"))
-				this.constituencyParses[i] = ConstituencyParse.fromString(sentenceJson.getString("constituencyParse"), this, i);
+		
+		} catch (JSONException e) {
+			e.printStackTrace();
 		}
 		
 		return true;

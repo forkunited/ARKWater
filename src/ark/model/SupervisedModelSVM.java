@@ -22,6 +22,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -425,6 +427,14 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		return labelIndex*this.numFeatures + featureIndex;
 	}
 	
+	protected int getFeatureIndex(int weightIndex) {
+		return weightIndex % this.numFeatures;
+	}
+	
+	protected int getLabelIndex(int weightIndex) {
+		return weightIndex / this.numFeatures;
+	}
+	
 	@Override
 	protected String[] getHyperParameterNames() {
 		return this.hyperParameterNames;
@@ -522,7 +532,10 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		Pair<String, String> numFeatureWeightsAssignment = new Pair<String, String>("numWeights", String.valueOf(this.labelIndices.size()*this.numFeatures));
 		if (!SerializationUtil.serializeAssignment(numFeatureWeightsAssignment, writer))
 			return false;
-		writer.write("\n");
+		writer.write("\n"); 
+		
+		if (this.labelIndices.size() == 2)
+			return serializeParametersBinary(writer);
 		
 		for (int i = 0; i < this.labelIndices.size(); i++) {
 			String label = this.labelIndices.reverseGet(i).toString();
@@ -538,29 +551,115 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			writer.write("\n");
 		}
 		
-		for (int i = 0; i < this.labelIndices.size(); i++) {
-			String label = this.labelIndices.reverseGet(i).toString();
-			for (Entry<Integer, String> featureName : this.featureNames.entrySet()) {
-				int weightIndex = getWeightIndex(i, featureName.getKey());
-				double w = (this.feature_w.containsKey(weightIndex)) ? this.feature_w.get(weightIndex) : 0;
-				double G = (this.feature_G.containsKey(weightIndex)) ? this.feature_G.get(weightIndex) : 0;
-				
-				if (w == 0) // Might need to get rid of this line if want to pause training and resume
-					continue;
-				
-				String featureValue = label + "-" + 
-									  featureName.getValue() + 
-									  "(w=" + w +
-									  ", G=" + G +
-									  ", labelIndex=" + i +
-									  ", featureIndex=" + featureName.getKey() + 
-									  ")";
-				
-				Pair<String, String> featureAssignment = new Pair<String, String>("labelFeature", featureValue);
-				if (!SerializationUtil.serializeAssignment(featureAssignment, writer))
-					return false;
-				writer.write("\n");
-			}
+		List<Entry<Integer, Double>> wList = new ArrayList<Entry<Integer, Double>>(this.feature_w.entrySet());
+		Collections.sort(wList, new Comparator<Entry<Integer, Double>>() {
+
+			@Override
+			public int compare(Entry<Integer, Double> e1,
+					Entry<Integer, Double> e2) {
+				if (Math.abs(e1.getValue()) > Math.abs(e2.getValue()))
+					return -1;
+				else if (Math.abs(e1.getValue()) < Math.abs(e2.getKey()))
+					return 1;
+				else
+					return 0;
+			} });
+		
+		for (Entry<Integer, Double> weightEntry : wList) {
+			int weightIndex = weightEntry.getKey();
+			int labelIndex = getLabelIndex(weightIndex);
+			int featureIndex = getFeatureIndex(weightIndex);
+			String label = this.labelIndices.reverseGet(labelIndex).toString();
+			String featureName = this.featureNames.get(featureIndex);
+			double w = weightEntry.getValue();
+			double G = (this.feature_G.containsKey(weightIndex)) ? this.feature_G.get(weightIndex) : 0;
+			
+			if (w == 0)
+				continue;
+			
+			String featureValue = label + "-" + 
+					  featureName + 
+					  "(w=" + w +
+					  ", G=" + G +
+					  ", labelIndex=" + labelIndex +
+					  ", featureIndex=" + featureIndex + 
+					  ")";
+
+			Pair<String, String> featureAssignment = new Pair<String, String>("labelFeature", featureValue);
+			if (!SerializationUtil.serializeAssignment(featureAssignment, writer))
+				return false;
+			writer.write("\n");
+		}
+
+		writer.write("\n");
+		
+		return true;
+	}
+	
+	protected boolean serializeParametersBinary(Writer writer) throws IOException {
+		int onIndex = 0;
+		int offIndex = 1;
+		
+		if (this.labelIndices.reverseGet(0).toString().equals("true")) {
+			onIndex = 0;
+			offIndex = 1;
+		} else {
+			onIndex = 1;
+			offIndex = 0;
+		}
+		
+		double b = this.bias_b[onIndex] - this.bias_b[offIndex];
+		String biasValue = "true_false(b=" + b + ")";
+	
+		Pair<String, String> biasAssignment = new Pair<String, String>("labelBias", biasValue);
+		if (!SerializationUtil.serializeAssignment(biasAssignment, writer))
+			return false;
+		writer.write("\n");
+		
+		Map<Integer, Double> mergedWeights = new HashMap<Integer, Double>();
+		for (Entry<Integer, Double> weightEntry : this.feature_w.entrySet()) {
+			int labelIndex = getLabelIndex(weightEntry.getKey());
+			int featureIndex = getFeatureIndex(weightEntry.getKey());
+			double delta = weightEntry.getValue();
+			if (labelIndex != onIndex)
+				delta = -delta;
+			if (!mergedWeights.containsKey(featureIndex))
+				mergedWeights.put(featureIndex, 0.0);
+			mergedWeights.put(featureIndex, mergedWeights.get(featureIndex) + delta);
+		}
+		
+		List<Entry<Integer, Double>> wList = new ArrayList<Entry<Integer, Double>>(mergedWeights.entrySet());
+		Collections.sort(wList, new Comparator<Entry<Integer, Double>>() {
+			@Override
+			public int compare(Entry<Integer, Double> e1,
+					Entry<Integer, Double> e2) {
+				if (e1.getValue() > e2.getValue())
+					return -1;
+				else if (e1.getValue() < e2.getKey())
+					return 1;
+				else
+					return 0;
+			} });
+		
+		for (Entry<Integer, Double> weightEntry : wList) {
+			int featureIndex = weightEntry.getKey();
+			String label = "true_false";
+			String featureName = this.featureNames.get(featureIndex);
+			double w = weightEntry.getValue();
+			
+			if (w == 0)
+				continue;
+			
+			String featureValue = label + "-" + 
+					  featureName + 
+					  "(w=" + w +
+					  ", featureIndex=" + featureIndex + 
+					  ")";
+
+			Pair<String, String> featureAssignment = new Pair<String, String>("labelFeature", featureValue);
+			if (!SerializationUtil.serializeAssignment(featureAssignment, writer))
+				return false;
+			writer.write("\n");
 		}
 
 		writer.write("\n");

@@ -25,7 +25,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.json.JSONObject;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import ark.data.annotation.nlp.ConstituencyParse;
 import ark.data.annotation.nlp.DependencyParse;
@@ -71,7 +72,11 @@ public abstract class Document {
 			e.printStackTrace();
 		}
 		
-		fromJSON(JSONObject.fromObject(lines.toString()));
+		try {
+			fromJSON(new JSONObject(lines.toString()));
+		} catch (JSONException e) {
+			
+		}
 	}
 	
 	public String getName() {

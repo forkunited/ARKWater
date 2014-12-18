@@ -152,7 +152,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 			for (int j = 0; j < sentenceTokens.size(); j++) {
 				String pos = sentenceTokens.get(j).get(PartOfSpeechAnnotation.class);  
 				
-				if (pos.length() > 0 && !Character.isAlphabetic(pos.toCharArray()[0]))
+				if (pos.length() > 0 && !Character.isLetter(pos.toCharArray()[0]))
 					posTags[i][j] = PoSTag.SYM;
 				else
 					posTags[i][j] = PoSTag.valueOf(pos);

@@ -25,6 +25,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 /**
  * CounterTable represents a histogram.  It allows incrementing 
  * and decrementing counts for each item, and transforming the histogram
@@ -90,5 +94,41 @@ public class CounterTable<T>{
 	
 	public int getSize() {
 		return this.counts.size();
+	}
+	
+	public JSONObject toJSON() {
+		JSONObject json = new JSONObject();
+		
+		TreeMap<Integer, List<T>> sortedCounts = getSortedCounts();
+		
+		try {
+			for (Entry<Integer, List<T>> entry : sortedCounts.entrySet()) {
+				for (T item : entry.getValue()) {
+					json.put(item.toString(), entry.getKey());
+				}
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		
+		return json;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public boolean fromJSON(JSONObject json) {
+		this.counts = new HashMap<T, Integer>(); 
+		
+		JSONArray keys = json.names();
+		try {
+			for (int i = 0; i < keys.length(); i++) {
+				this.counts.put((T)(keys.getString(i)), json.getInt(keys.getString(i)));
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+			return false;
+		}
+		
+		return true;
+		
 	}
 }

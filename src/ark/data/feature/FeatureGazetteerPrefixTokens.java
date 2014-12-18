@@ -19,9 +19,11 @@
 package ark.data.feature;
 
 import java.util.Arrays;
+import java.util.List;
 
 import ark.data.DataTools;
 import ark.data.annotation.Datum;
+import ark.util.Pair;
 import ark.util.StringUtil;
 
 /**
@@ -58,13 +60,13 @@ public class FeatureGazetteerPrefixTokens<D extends Datum<L>, L> extends Feature
 	}
 	
 	@Override
-	protected double computeExtremum(String str) {
-		double tokenPrefixCount = this.gazetteer.max(str, this.prefixTokensMeasure);
+	protected Pair<List<Pair<String,Double>>, Double> computeExtremum(String str) {
+		Pair<List<Pair<String,Double>>, Double> idsAndTokenPrefixCount = this.gazetteer.max(str, this.prefixTokensMeasure);
 		
-		if (tokenPrefixCount >= this.minTokens)
-			return 1.0;
+		if (idsAndTokenPrefixCount.getSecond() >= this.minTokens)
+			return new Pair<List<Pair<String,Double>>, Double>(idsAndTokenPrefixCount.getFirst(), 1.0);
 		else
-			return 0.0;
+			return new Pair<List<Pair<String,Double>>, Double>(idsAndTokenPrefixCount.getFirst(), 0.0);
 	}
 
 	@Override

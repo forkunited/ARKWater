@@ -18,7 +18,8 @@
 
 package ark.data.annotation.nlp;
 
-import net.sf.json.JSONObject;
+import org.json.JSONException;
+import org.json.JSONObject;
 import ark.data.annotation.Document;
 
 /**
@@ -65,27 +66,47 @@ public class TokenSpan {
 		StringBuilder str = new StringBuilder();
 		
 		for (int i = this.startTokenIndex; i < this.endTokenIndex; i++)
-			str.append(this.document.getToken(this.sentenceIndex, i)).append(" ");
+			str.append(getDocument().getToken(this.sentenceIndex, i)).append(" ");
 		
 		return str.toString().trim();
 	}
 	
 	public JSONObject toJSON() {
+		return toJSON(false);
+	}
+		
+	public JSONObject toJSON(boolean includeSentence) {
 		JSONObject json = new JSONObject();
 		
-		json.put("startTokenIndex", this.startTokenIndex);
-		json.put("endTokenIndex", this.endTokenIndex);
+		try {
+			if (includeSentence)
+				json.put("sentenceIndex", this.sentenceIndex);
+			json.put("startTokenIndex", this.startTokenIndex);
+			json.put("endTokenIndex", this.endTokenIndex);
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 		
 		return json;
 	}
 	
 	public static TokenSpan fromJSON(JSONObject json, Document document, int sentenceIndex) {
-		return new TokenSpan(
-			document,
-			sentenceIndex,
-			json.getInt("startTokenIndex"),
-			json.getInt("endTokenIndex")
-		);
+		try {
+			return new TokenSpan(
+				document,
+				(sentenceIndex < 0) ? json.getInt("sentenceIndex") : sentenceIndex,
+				json.getInt("startTokenIndex"),
+				json.getInt("endTokenIndex")
+			);
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+		
+		return null;
+	}
+	
+	public static TokenSpan fromJSON(JSONObject json, Document document) {
+		return fromJSON(json, document, -1);
 	}
 }
 

@@ -19,9 +19,11 @@
 package ark.data.feature;
 
 import java.util.Arrays;
+import java.util.List;
 
 import ark.data.DataTools;
 import ark.data.annotation.Datum;
+import ark.util.Pair;
 import ark.util.StringUtil;
 
 /**
@@ -62,7 +64,7 @@ public class FeatureGazetteerInitialism<D extends Datum<L>, L> extends FeatureGa
 	}
 	
 	@Override
-	protected double computeExtremum(String str) {
+	protected Pair<List<Pair<String,Double>>, Double> computeExtremum(String str) {
 		return this.gazetteer.max(str, this.initialismMeasure);
 	}
 

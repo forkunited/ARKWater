@@ -22,32 +22,46 @@ import java.io.BufferedReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 import ark.util.FileUtil;
+import ark.util.Pair;
 
 /**
  * Gazetteer represents a deserialized dictionary of strings
  * mapped to IDs.  The file in which the gazetteer is stored
  * should contain lines of the form:
  * 
- * [ID]	[string_1]	[string_2]	...	[string_n]
+ * [ID]	[string_1]:[weight_1]	[string_2]:[weight_2]	...	[string_n]:[weight_n]
  * 
  * Each ID should only occur on a single line, but a string
  * can occur across multiple lines, to be mapped to multiple 
  * IDs.  The strings are cleaned by a specified clean function
  * as they are loaded into memory.  
  * 
+ * The weights typically should indicate some kind of confidence
+ * that each string should be assigned to the given ID, but
+ * these are optional.
+ * 
  * @authors Lingpeng Kong, Bill McDowell
  *
  */
 public class Gazetteer {
-	private HashMap<String, List<String>> gazetteer;
+	private HashMap<String, List<Pair<String, Double>>> gazetteer;
 	private String name;
 	private DataTools.StringTransform cleanFn;
 	
+	public Gazetteer(String name, String sourceFilePath) {
+		this(name, sourceFilePath, null);
+	}
+	
 	public Gazetteer(String name, String sourceFilePath, DataTools.StringTransform cleanFn) {
+		this(name, sourceFilePath, cleanFn, false);
+	}
+	
+	public Gazetteer(String name, String sourceFilePath, DataTools.StringTransform cleanFn, boolean hasWeights) {
 		this.cleanFn = cleanFn;
-		this.gazetteer = new HashMap<String, List<String>>();
+		this.gazetteer = new HashMap<String, List<Pair<String, Double>>>();
 		this.name = name;
 		
 		try {
@@ -61,13 +75,36 @@ public class Gazetteer {
 				
 				String id = lineValues[0];
 				for (int i = 1; i < lineValues.length; i++) {
-					String cleanValue = cleanString(lineValues[i]);
+					String value = lineValues[i];
+					double weight = 1.0;
+					
+					if (hasWeights) {
+						String[] valueParts = lineValues[i].split(":");
+						StringBuilder valueStr = new StringBuilder();
+						for (int j = 0; j < valueParts.length - 1; j++)
+							valueStr.append(valueParts[j]).append(":");
+						if (valueStr.length() > 0)
+							valueStr.delete(valueStr.length() - 1, valueStr.length());
+						value = valueStr.toString();
+						weight = Double.valueOf(valueParts[valueParts.length - 1]);
+					}
+					
+					String cleanValue = cleanString(value);
 					if (cleanValue.length() == 0)
 						continue;
 					if (!this.gazetteer.containsKey(cleanValue))
-						this.gazetteer.put(cleanValue, new ArrayList<String>(2));
-					if (!this.gazetteer.get(cleanValue).contains(id))
-						this.gazetteer.get(cleanValue).add(id);
+						this.gazetteer.put(cleanValue, new ArrayList<Pair<String, Double>>(2));
+					List<Pair<String, Double>> ids = this.gazetteer.get(cleanValue);
+					boolean idExists = false;
+					for (Pair<String, Double> existingId : ids) {
+						if (existingId.getFirst().equals(id)) {
+							idExists = true;
+							break;
+						}
+					}
+					
+					if (!idExists)
+						this.gazetteer.get(cleanValue).add(new Pair<String, Double>(id, weight));
 				}
 			}
 			
@@ -81,8 +118,11 @@ public class Gazetteer {
 		return this.name;
 	}
 	
-	private String cleanString(String str) {		
-		return this.cleanFn.transform(str);
+	private String cleanString(String str) {	
+		if (this.cleanFn == null)
+			return str;
+		else
+			return this.cleanFn.transform(str);
 	}
 	
 	public boolean contains(String str) {
@@ -91,30 +131,52 @@ public class Gazetteer {
 	
 	public List<String> getIds(String str) {
 		String cleanStr = cleanString(str);
-		if (this.gazetteer.containsKey(cleanStr))
-			return this.gazetteer.get(cleanStr);
-		else
+		if (this.gazetteer.containsKey(cleanStr)) {
+			List<Pair<String, Double>> weightedIds = this.gazetteer.get(cleanStr);
+			List<String> ids = new ArrayList<String>(weightedIds.size());
+			
+			for (Pair<String, Double> weightedId : weightedIds)
+				ids.add(weightedId.getFirst());
+			
+			return ids;
+		} else
 			return null;
 	}
 	
-	public double min(String str, DataTools.StringPairMeasure fn) {
-		double min = Double.POSITIVE_INFINITY;
+	public List<Pair<String, Double>> getWeightedIds(String str) {
 		String cleanStr = cleanString(str);
-		for (String gStr : this.gazetteer.keySet()) {
-			double curMin = fn.compute(cleanStr, gStr);
-			min = (curMin < min) ? curMin : min;
-		}
-		return min;
+		if (this.gazetteer.containsKey(cleanStr)) {
+			return this.gazetteer.get(cleanStr);
+		} else
+			return null;
 	}
 	
-	public double max(String str, DataTools.StringPairMeasure fn) {
-		double max = Double.NEGATIVE_INFINITY;
+	public Pair<List<Pair<String,Double>>, Double> min(String str, DataTools.StringPairMeasure fn) {
+		double min = Double.POSITIVE_INFINITY;
+		List<Pair<String, Double>> minIds = null;
 		String cleanStr = cleanString(str);
-		for (String gStr : this.gazetteer.keySet()) {
-			double curMax = fn.compute(cleanStr, gStr);
-			max = (curMax > max) ? curMax : max;
+		for (Entry<String, List<Pair<String, Double>>> entry : this.gazetteer.entrySet()) {
+			double curMin = fn.compute(cleanStr, entry.getKey());
+			if (curMin < min) {
+				min = curMin;
+				minIds = entry.getValue();
+			}
 		}
-		return max;
+		return new Pair<List<Pair<String,Double>>, Double>(minIds, min);
+	}
+	
+	public Pair<List<Pair<String,Double>>, Double> max(String str, DataTools.StringPairMeasure fn) {
+		double max = Double.NEGATIVE_INFINITY;
+		List<Pair<String, Double>> maxIds = null;
+		String cleanStr = cleanString(str);
+		for (Entry<String, List<Pair<String, Double>>> entry : this.gazetteer.entrySet()) {
+			double curMax = fn.compute(cleanStr, entry.getKey());
+			if (curMax > max) {
+				max = curMax;
+				maxIds = entry.getValue();
+			}
+		}
+		return new Pair<List<Pair<String,Double>>, Double>(maxIds, max);
 	}
 	
 	/**
