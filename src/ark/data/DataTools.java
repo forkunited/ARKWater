@@ -242,7 +242,7 @@ public class DataTools {
 	}
 	
 	public boolean addStringClusterer(Clusterer<String> clusterer) {
-		this.stringClusterers.put(clusterer.toString(), clusterer);
+		this.stringClusterers.put(clusterer.getName(), clusterer);
 		return true;
 	}
 	

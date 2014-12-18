@@ -16,12 +16,14 @@
  * under the License.
  */
 
-package ark.wrapper;
+package ark.cluster;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import ark.util.CommandRunner;
@@ -29,7 +31,7 @@ import ark.util.OutputWriter;
 
 /**
  * 
- * BrownClusterer is a wrapper for the Brown clustering implementation from
+ * ClustererBrown is a wrapper for the Brown clustering implementation from
  * https://github.com/percyliang/brown-cluster.
  * 
  * FIXME: This currently takes a pre-cleaned document with special characters
@@ -39,7 +41,7 @@ import ark.util.OutputWriter;
  * @author Bill McDowell 
  * 
  */
-public class BrownClusterer {
+public class ClustererBrown extends Clusterer<String> {
 	private String name;
 	private File sourceDocument;
 	private int numClusters;
@@ -51,7 +53,7 @@ public class BrownClusterer {
 	
 	private Map<String, String> wordsToClusters;
 	
-	public BrownClusterer(String name, String cmdPath, File sourceDocument, int numClusters, OutputWriter output) {
+	public ClustererBrown(String name, String cmdPath, File sourceDocument, int numClusters, OutputWriter output) {
 		this.name = name;
 		this.sourceDocument = sourceDocument;
 		this.numClusters = numClusters;
@@ -71,7 +73,7 @@ public class BrownClusterer {
 		return this.name;
 	}
 	
-	public synchronized String getCluster(String word) {
+	public synchronized List<String> getClusters(String word) {
 		if (this.wordsToClusters == null)
 			if (!loadWordsToClusters())
 				return null;	
@@ -81,7 +83,9 @@ public class BrownClusterer {
 		
 		if (!this.wordsToClusters.containsKey(word))
 			return null;
-		return this.wordsToClusters.get(word);
+		List<String> clusters = new ArrayList<String>();
+		clusters.add(this.wordsToClusters.get(word));
+		return clusters;
 	}
 	
 	public synchronized Map<String, String> getClusterMap() {

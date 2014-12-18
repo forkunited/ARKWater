@@ -22,8 +22,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import ark.cluster.Clusterer;
 import ark.data.annotation.Datum;
-import ark.wrapper.BrownClusterer;
 
 /**
  * 
@@ -51,9 +51,8 @@ import ark.wrapper.BrownClusterer;
  * The cleanFn parameter is a string cleaning function that is applied to
  * each gram in each n-gram before the vectors are computed.
  * 
- * Optionally, if a clusterer (Brown) parameter is provided, then grams of
- * the n-grams are first mapped to their clusters or sets of 
- * prefixes of their clusters.
+ * Optionally, if a clusterer parameter is provided, then grams of
+ * the n-grams are first mapped to their clusters
  * 
  * @author Bill McDowell
  * 
@@ -63,7 +62,7 @@ import ark.wrapper.BrownClusterer;
  */
 public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D, L> {	
 	protected int n;
-	protected BrownClusterer clusterer;
+	protected Clusterer<String> clusterer;
 	
 	public FeatureNGram() {
 		super();
@@ -80,17 +79,6 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 		for (int i = startIndex; i < startIndex + this.n; i++)
 			ngram.add(tokens.get(i));
 		
-		List<String> retNgrams = new ArrayList<String>();
-		if (this.n == 1 && this.clusterer != null) {
-			String cluster = this.clusterer.getCluster(this.cleanFn.transform(ngram.get(0)));
-			if (cluster == null)
-				return null;
-			for (int i = 2; i < cluster.length(); i *= 2) {
-				retNgrams.add(cluster.substring(0, i));
-			}
-			return retNgrams;
-		}
-		
 		StringBuilder ngramGlue = new StringBuilder();
 		for (String gram : ngram) {
 			String cleanGram = this.cleanFn.transform(gram);
@@ -98,15 +86,21 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 				continue;
 			
 			if (this.clusterer != null) {
-				String cluster = this.clusterer.getCluster(cleanGram);
-				if (cluster != null) {
-					ngramGlue = ngramGlue.append(cluster).append("_");
-				} 
+				List<String> clusters = this.clusterer.getClusters(cleanGram);
+				if (clusters == null || clusters.size() == 0)
+					continue;
+				if (this.n > 1) {
+					ngramGlue = ngramGlue.append(clusters.get(0)).append("_");
+				} else {
+					return clusters;
+				}
 			} else { 
 				ngramGlue = ngramGlue.append(cleanGram).append("_");
 			}
 		}
 		
+
+		List<String> retNgrams = new ArrayList<String>();
 		if (ngramGlue.length() == 0)
 			return retNgrams;
 		
@@ -133,7 +127,7 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
 		else if (parameter.equals("clusterer"))
-			this.clusterer = datumTools.getDataTools().getBrownClusterer(parameterValue);
+			this.clusterer = datumTools.getDataTools().getStringClusterer(parameterValue);
 		else if (parameter.equals("n"))
 			this.n = Integer.valueOf(parameterValue);
 		else
