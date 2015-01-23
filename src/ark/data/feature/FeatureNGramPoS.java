@@ -18,6 +18,8 @@
 
 package ark.data.feature;
 
+import java.io.BufferedReader;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -140,12 +142,12 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	protected String[] getParameterNames() {
+	public String[] getParameterNames() {
 		return this.parameterNames;
 	}
 
 	@Override
-	protected String getParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		if (parameter.equals("minFeatureOccurrence")) 
 			return String.valueOf(this.minFeatureOccurrence);
 		else if (parameter.equals("tokenExtractor"))
@@ -157,7 +159,7 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	
 	// note these will be called by TLinkDatum.Tools, and in that class TargetTokenSpan exists, for example.
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
 		if (parameter.equals("minFeatureOccurrence")) 
 			this.minFeatureOccurrence = Integer.valueOf(parameterValue);
 		else if (parameter.equals("tokenExtractor"))
@@ -170,9 +172,27 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	protected Feature<D, L> makeInstance() {
+	public Feature<D, L> makeInstance() {
 		return new FeatureNGramPoS<D, L>();
 	}
 
-
+	@Override
+	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
+		if (!newObjects) {
+			FeatureNGramPoS<D1,L1> cloneFeature = (FeatureNGramPoS<D1, L1>)clone;
+			cloneFeature.vocabulary = this.vocabulary;
+		}
+		
+		return true;
+	}
+	
+	@Override
+	protected boolean serializeHelper(Writer writer) {
+		return true;
+	}
+	
+	@Override
+	protected boolean deserializeHelper(BufferedReader writer) {
+		return true;
+	}
 }

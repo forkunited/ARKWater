@@ -288,9 +288,9 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			output.debugWriteln("Initializing CV data sets for " + name);
 			Datum.Tools<D, L> datumTools = folds.get(this.foldIndex).getDatumTools();
 			Datum.Tools.LabelMapping<L> labelMapping = folds.get(this.foldIndex).getLabelMapping();
-			FeaturizedDataSet<D, L> testData = new FeaturizedDataSet<D, L>(namePrefix + " Test", features, this.maxThreads, datumTools, labelMapping);
-			FeaturizedDataSet<D, L> trainData = new FeaturizedDataSet<D, L>(namePrefix + " Training", features, this.maxThreads, datumTools, labelMapping);
-			FeaturizedDataSet<D, L> devData = new FeaturizedDataSet<D, L>(namePrefix + " Dev", features, this.maxThreads, datumTools, labelMapping);
+			FeaturizedDataSet<D, L> testData = new FeaturizedDataSet<D, L>(namePrefix + " Test", this.maxThreads, datumTools, labelMapping);
+			FeaturizedDataSet<D, L> trainData = new FeaturizedDataSet<D, L>(namePrefix + " Training", this.maxThreads, datumTools, labelMapping);
+			FeaturizedDataSet<D, L> devData = new FeaturizedDataSet<D, L>(namePrefix + " Dev", this.maxThreads, datumTools, labelMapping);
 			for (int j = 0; j < folds.size(); j++) {
 				if (j == this.foldIndex) {
 					testData.addAll(folds.get(j));
@@ -314,7 +314,7 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 				testData.addFeature(foldFeature);
 			}
 			
-			SupervisedModel<D, L> foldModel = model.clone(datumTools, this.parameterEnvironment);
+			SupervisedModel<D, L> foldModel = model.clone(datumTools, this.parameterEnvironment, true);
 			
 			output.dataWriteln("--------------- Fold: " + this.foldIndex + " ---------------");
 			output.modelWriteln("--------------- Fold: " + this.foldIndex + " ---------------");
@@ -325,9 +325,9 @@ public class KFoldCrossValidation<D extends Datum<L>, L> {
 			ValidationResult result = null;
 			List<Double> evaluationValues = null;
 			if (possibleParameterValues.size() > 0) {
-				GridSearchTestValidation<D, L> gridSearchValidation = new GridSearchTestValidation<D, L>(namePrefix, foldModel, trainData, devData, testData, evaluations, true);
+				GridSearchTestValidation<D, L> gridSearchValidation = new GridSearchTestValidation<D, L>(namePrefix, foldModel, 1, trainData, devData, testData, evaluations, true);
 				gridSearchValidation.setPossibleHyperParameterValues(possibleParameterValues);
-				evaluationValues = gridSearchValidation.run(this.errorExampleExtractor, false);
+				evaluationValues = gridSearchValidation.run(this.errorExampleExtractor.toString(), false);
 				result = new ValidationResult(foldIndex, evaluationValues, gridSearchValidation.getConfusionMatrix(), gridSearchValidation.getGridEvaluation(), gridSearchValidation.getBestGridPosition());
 			} else {
 				TrainTestValidation<D, L> accuracyValidation = new TrainTestValidation<D, L>(namePrefix, foldModel, trainData, testData, evaluations);

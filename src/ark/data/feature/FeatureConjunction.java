@@ -18,6 +18,8 @@
 
 package ark.data.feature;
 
+import java.io.BufferedReader;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -26,6 +28,7 @@ import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
+import ark.util.ThreadMapper;
 
 /**
  * For a datum d, FeatureConjunction computes a vector whose elements are given by
@@ -56,12 +59,16 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	public boolean init(FeaturizedDataSet<D, L> dataSet) {
 		this.dataSet = dataSet;
 
-		CounterTable<String> counter = new CounterTable<String>();
-		for (D datum : this.dataSet) {
-			Map<String, Double> conjunction = conjunctionForDatum(datum);
-			for (String key : conjunction.keySet())
-				counter.incrementCount(key);
-		}
+		final CounterTable<String> counter = new CounterTable<String>();
+		dataSet.map(new ThreadMapper.Fn<D, Boolean>() {
+			@Override
+			public Boolean apply(D datum) {
+				Map<String, Double> conjunction = conjunctionForDatum(datum);
+				for (String key : conjunction.keySet())
+					counter.incrementCount(key);
+				return true;
+			}
+		});
 		
 		counter.removeCountsLessThan(this.minFeatureOccurrence);
 		this.vocabulary = new BidirectionalLookupTable<String, Integer>(counter.buildIndex());
@@ -124,12 +131,12 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	protected String[] getParameterNames() {
+	public String[] getParameterNames() {
 		return this.parameterNames;
 	}
 
 	@Override
-	protected String getParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		if (parameter.equals("minFeatureOccurrence"))
 			return String.valueOf(this.minFeatureOccurrence);
 		else if (parameter.equals("featureReferences")) {
@@ -147,7 +154,7 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter,
+	public boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("minFeatureOccurrence")) {
 		 	this.minFeatureOccurrence = Integer.valueOf(parameterValue);
@@ -160,8 +167,26 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	protected Feature<D, L> makeInstance() {
+	public Feature<D, L> makeInstance() {
 		return new FeatureConjunction<D, L>();
 	}
 	
+	@Override
+	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
+		if (!newObjects) {
+			FeatureConjunction<D1,L1> cloneFeature = (FeatureConjunction<D1, L1>)clone;
+			cloneFeature.vocabulary = this.vocabulary;
+		}
+		return true;
+	}
+	
+	@Override
+	protected boolean serializeHelper(Writer writer) {
+		return true;
+	}
+	
+	@Override
+	protected boolean deserializeHelper(BufferedReader writer) {
+		return true;
+	}
 }

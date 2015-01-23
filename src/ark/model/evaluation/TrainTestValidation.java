@@ -69,22 +69,29 @@ public class TrainTestValidation<D extends Datum<L>, L> {
 		this.results = new ArrayList<Double>(this.evaluations.size());
 	}
 	
+	public List<Double> run() {
+		return run(false);
+	}
+	
 	/**
+	 * @param skipTraining indicates whether to skip model training
 	 * @return trains and evaluates the model, returning a list of values as results
 	 * of the evaluations
 	 */
-	public List<Double> run() {
+	public List<Double> run(boolean skipTraining) {
 		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
 		
 		for (int i = 0; i < this.evaluations.size(); i++)
 			this.results.add(-1.0);
 		
-		output.debugWriteln("Training model (" + this.name + ")");
-		Long startTrain = System.currentTimeMillis();
-		if (!this.model.train(this.trainData, this.testData, this.evaluations))
-			return this.results;
-		Long totalTrainTime = System.currentTimeMillis() - startTrain;
-		
+		Long totalTrainTime = (long)0;
+		if (!skipTraining) {
+			output.debugWriteln("Training model (" + this.name + ")");
+			Long startTrain = System.currentTimeMillis();
+			if (!this.model.train(this.trainData, this.testData, this.evaluations))
+				return this.results;
+			totalTrainTime = System.currentTimeMillis() - startTrain;
+		}
 		output.debugWriteln("Classifying data (" + this.name + ")");
 		
 		Long startTest = System.currentTimeMillis();

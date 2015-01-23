@@ -96,7 +96,7 @@ public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends Sup
 	}
 	
 	@Override
-	protected String[] getHyperParameterNames() {
+	public String[] getParameterNames() {
 		return new String[0];
 	}
 
@@ -122,12 +122,12 @@ public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends Sup
 	}
 
 	@Override
-	public String getHyperParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		return null;
 	}
 
 	@Override
-	public boolean setHyperParameterValue(String parameter,
+	public boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
 		return true;
 	}

@@ -40,6 +40,24 @@ public class TokenSpan {
 		this.endTokenIndex = endTokenIndex;
 	}
 	
+	@Override
+	public boolean equals(Object o) {
+		TokenSpan t = (TokenSpan)o;
+		
+		return this.getDocument().getName().equals(t.getDocument().getName()) 
+				&& this.sentenceIndex == t.sentenceIndex
+				&& this.startTokenIndex == t.startTokenIndex
+				&& this.endTokenIndex == t.endTokenIndex;
+	}
+	
+	@Override
+	public int hashCode() {
+		return this.getDocument().getName().hashCode() 
+				^ this.sentenceIndex
+				^ this.startTokenIndex
+				^ this.endTokenIndex;
+	}
+	
 	public boolean containsToken(int sentenceIndex, int tokenIndex) {
 		return this.sentenceIndex == sentenceIndex
 				&& this.startTokenIndex <= tokenIndex
@@ -60,6 +78,14 @@ public class TokenSpan {
 	
 	public int getEndTokenIndex() {
 		return this.endTokenIndex;
+	}
+	
+	public int getLength() {
+		return this.endTokenIndex - this.startTokenIndex;
+	}
+	
+	public TokenSpan getSubspan(int startIndex, int endIndex) {
+		return new TokenSpan(this.document, this.sentenceIndex, this.startTokenIndex + startIndex, this.startTokenIndex + endIndex);
 	}
 	
 	public String toString() {

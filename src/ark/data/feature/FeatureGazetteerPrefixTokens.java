@@ -75,12 +75,12 @@ public class FeatureGazetteerPrefixTokens<D extends Datum<L>, L> extends Feature
 	}
 
 	@Override
-	protected Feature<D, L> makeInstance() {
+	public Feature<D, L> makeInstance() {
 		return new FeatureGazetteerPrefixTokens<D, L>();
 	}
 
 	@Override
-	protected String getParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		String parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
@@ -90,7 +90,7 @@ public class FeatureGazetteerPrefixTokens<D extends Datum<L>, L> extends Feature
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
 		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
 		else if (parameter.equals("minTokens"))

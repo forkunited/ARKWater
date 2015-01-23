@@ -67,7 +67,7 @@ public class SerializationUtil {
 		int cInt = reader.read();
 		char c = (char)cInt;
 		StringBuilder item = new StringBuilder();
-		while (cInt != -1 && c != '\n') {
+		while (cInt != -1 && c != '\n' && c != '\t') {
 			boolean inQuotes = false;
 			while (cInt != -1 && (inQuotes || (c != ',' && c != '\n'&& c != ')'))) {
 				item = item.append(c);

@@ -18,8 +18,12 @@
 
 package ark.data.annotation;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import org.json.JSONObject;
 
 import ark.data.DataTools;
 import ark.data.annotation.nlp.TokenSpan;
@@ -39,6 +43,7 @@ import ark.data.feature.FeatureNGramDep;
 import ark.data.feature.FeatureNGramSentence;
 import ark.data.feature.FeatureNGramPoS;
 import ark.model.SupervisedModel;
+import ark.model.SupervisedModelAreg;
 import ark.model.SupervisedModelCreg;
 import ark.model.SupervisedModelLabelDistribution;
 import ark.model.SupervisedModelPartition;
@@ -49,6 +54,7 @@ import ark.model.evaluation.metric.SupervisedModelEvaluationAccuracy;
 import ark.model.evaluation.metric.SupervisedModelEvaluationF;
 import ark.model.evaluation.metric.SupervisedModelEvaluationPrecision;
 import ark.model.evaluation.metric.SupervisedModelEvaluationRecall;
+import ark.util.Pair;
 
 /**
  * Datum represents a (possibly) labeled datum (training/evaluation
@@ -61,6 +67,7 @@ import ark.model.evaluation.metric.SupervisedModelEvaluationRecall;
 public abstract class Datum<L> {	
 	protected int id;
 	protected L label;
+	protected List<Pair<L, Double>> labelDistribution;
 	
 	public int getId() {
 		return this.id;
@@ -68,6 +75,41 @@ public abstract class Datum<L> {
 	
 	public L getLabel() {
 		return this.label;
+	}
+	
+	public boolean setLabelWeight(L label, double weight) {
+		if (this.labelDistribution == null)
+			this.labelDistribution = new ArrayList<Pair<L, Double>>(2);
+		
+		Pair<L, Double> pair = getLabelWeightPair(label);
+		if (pair == null)
+			this.labelDistribution.add(new Pair<L, Double>(label, weight));
+		else
+			pair.setSecond(weight);
+		
+		return true;
+	}
+	
+	public double getLabelWeight(L label) {
+		if (this.labelDistribution == null) {
+			if (this.label.equals(label))
+				return 1.0;
+			else
+				return 0.0;
+		}
+		
+		Pair<L, Double> pair = getLabelWeightPair(label);
+		if (pair == null)
+			return 0.0;
+		else
+			return pair.getSecond();
+	}
+	
+	private Pair<L, Double> getLabelWeightPair(L label) {
+		for (Pair<L, Double> pair : this.labelDistribution)
+			if (pair.getFirst().equals(label))
+				return pair;
+		return null;
 	}
 	
 	@Override
@@ -118,12 +160,24 @@ public abstract class Datum<L> {
 			L map(L label);
 		}
 		
+		public static interface LabelIndicator<L> {
+			String toString();
+			boolean indicator(L label);
+			double weight(L label);
+		}
+		
+		public static interface Clusterer<D extends Datum<L>, L, C> {
+			String toString();
+			C getCluster(D datum);
+		}
+		
 		protected DataTools dataTools;
 		
 		private Map<String, TokenSpanExtractor<D, L>> tokenSpanExtractors;
 		private Map<String, StringExtractor<D, L>> stringExtractors;
 		private Map<String, DoubleExtractor<D, L>> doubleExtractors;
 		private Map<String, LabelMapping<L>> labelMappings;
+		private Map<String, LabelIndicator<L>> labelIndicators;
 		
 		private Map<String, Feature<D, L>> genericFeatures;
 		private Map<String, SupervisedModel<D, L>> genericModels;
@@ -138,6 +192,7 @@ public abstract class Datum<L> {
 			this.stringExtractors = new HashMap<String, StringExtractor<D, L>>();
 			this.doubleExtractors = new HashMap<String, DoubleExtractor<D, L>>();
 			this.labelMappings = new HashMap<String, LabelMapping<L>>();
+			this.labelIndicators = new HashMap<String, LabelIndicator<L>>();
 			this.genericFeatures = new HashMap<String, Feature<D, L>>();
 			this.genericModels = new HashMap<String, SupervisedModel<D, L>>();
 			this.genericEvaluations = new HashMap<String, SupervisedModelEvaluation<D, L>>();
@@ -175,6 +230,7 @@ public abstract class Datum<L> {
 			addGenericModel(new SupervisedModelSVM<D, L>());
 			addGenericModel(new SupervisedModelSVMStructured<D, L>());
 			addGenericModel(new SupervisedModelPartition<D, L>());
+			addGenericModel(new SupervisedModelAreg<D, L>());
 			
 			addGenericEvaluation(new SupervisedModelEvaluationAccuracy<D, L>());
 			addGenericEvaluation(new SupervisedModelEvaluationPrecision<D, L>());
@@ -202,16 +258,41 @@ public abstract class Datum<L> {
 			return this.labelMappings.get(name);
 		}
 		
+		public LabelIndicator<L> getLabelIndicator(String name) {
+			return this.labelIndicators.get(name);
+		}
+		
 		public Feature<D, L> makeFeatureInstance(String genericFeatureName) {
-			return this.genericFeatures.get(genericFeatureName).clone(this, this.dataTools.getParameterEnvironment());
+			return makeFeatureInstance(genericFeatureName, false);
 		}
 		
 		public SupervisedModel<D, L> makeModelInstance(String genericModelName) {
-			return this.genericModels.get(genericModelName).clone(this, this.dataTools.getParameterEnvironment());
+			return makeModelInstance(genericModelName, false);
 		}
 		
 		public SupervisedModelEvaluation<D, L> makeEvaluationInstance(String genericEvaluationName) {
-			return this.genericEvaluations.get(genericEvaluationName).clone(this, this.dataTools.getParameterEnvironment());
+			return makeEvaluationInstance(genericEvaluationName, false);
+		}
+		
+		public Feature<D, L> makeFeatureInstance(String genericFeatureName, boolean noParameters) {
+			if (noParameters)
+				return this.genericFeatures.get(genericFeatureName).makeInstance();
+			else
+				return this.genericFeatures.get(genericFeatureName).clone(this, this.dataTools.getParameterEnvironment());
+		}
+		
+		public SupervisedModel<D, L> makeModelInstance(String genericModelName, boolean noParameters) {
+			if (noParameters)
+				return this.genericModels.get(genericModelName).makeInstance(null, null);
+			else
+				return this.genericModels.get(genericModelName).clone(this, this.dataTools.getParameterEnvironment(), true);
+		}
+		
+		public SupervisedModelEvaluation<D, L> makeEvaluationInstance(String genericEvaluationName, boolean noParameters) {
+			if (noParameters)
+				return this.genericEvaluations.get(genericEvaluationName).makeInstance();
+			else
+				return this.genericEvaluations.get(genericEvaluationName).clone(this, this.dataTools.getParameterEnvironment(), true);
 		}
 		
 		public DatumStructureCollection<D, L> makeDatumStructureCollection(String genericCollectionName, DataSet<D, L> data) {
@@ -258,6 +339,23 @@ public abstract class Datum<L> {
 			return true;
 		}
 		
+		public boolean addLabelIndicator(LabelIndicator<L> labelIndicator) {
+			this.labelIndicators.put(labelIndicator.toString(), labelIndicator);
+			return true;
+		}
+		
+		public List<LabelIndicator<L>> getLabelIndicators() {
+			return new ArrayList<LabelIndicator<L>>(this.labelIndicators.values());
+		}
+		
+		public <T extends Datum<Boolean>> T makeBinaryDatum(D datum, String labelIndicator) {
+			return makeBinaryDatum(datum, this.getLabelIndicator(labelIndicator));
+		}
+		
 		public abstract L labelFromString(String str);
+		public abstract JSONObject datumToJSON(D datum);
+		public abstract D datumFromJSON(JSONObject json);
+		public abstract <T extends Datum<Boolean>> T makeBinaryDatum(D datum, LabelIndicator<L> labelIndicator);
+		public abstract <T extends Datum<Boolean>> Datum.Tools<T, Boolean> makeBinaryDatumTools(LabelIndicator<L> labelIndicator);
 	}
 }

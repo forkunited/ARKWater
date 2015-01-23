@@ -33,6 +33,11 @@ import java.io.FileWriter;
  *
  */
 public class OutputWriter {
+	private File debugFile;
+	private File resultsFile;
+	private File dataFile;
+	private File modelFile;
+	
 	private BufferedWriter debugWriter;
 	private BufferedWriter resultsWriter;
 	private BufferedWriter dataWriter;
@@ -47,6 +52,11 @@ public class OutputWriter {
 	
 	public OutputWriter(File debugFile, File resultsFile, File dataFile, File modelFile) {
 		try {
+			this.debugFile = debugFile;
+			this.resultsFile = resultsFile;
+			this.dataFile = dataFile;
+			this.modelFile = modelFile;
+			
 			this.debugWriter = new BufferedWriter(new FileWriter(debugFile.getAbsolutePath()));
 			this.resultsWriter = new BufferedWriter(new FileWriter(resultsFile.getAbsolutePath()));
 			this.dataWriter = new BufferedWriter(new FileWriter(dataFile.getAbsolutePath()));
@@ -56,7 +66,23 @@ public class OutputWriter {
 			throw new RuntimeException();
 		}
 	}
-
+	
+	public String getDebugFilePath() {
+		return this.debugFile.getAbsolutePath();
+	}
+	
+	public String getResultsFilePath() {
+		return this.resultsFile.getAbsolutePath();
+	}
+	
+	public String getDataFilePath() {
+		return this.dataFile.getAbsolutePath();
+	}
+	
+	public String getModelFilePath() {
+		return this.modelFile.getAbsolutePath();
+	}
+	
 	public void debugWriteln(String str) {
 		debugWrite(str + "\n");
 	}

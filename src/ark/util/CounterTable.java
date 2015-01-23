@@ -44,10 +44,10 @@ public class CounterTable<T>{
 		this.counts= new HashMap<T,Integer>();
 	}
 	
-	public void incrementCount(T w){
+	public synchronized void incrementCount(T w){
 		if(this.counts.containsKey(w)){
 			this.counts.put(w, this.counts.get(w) + 1);
-		}else{
+		} else {
 			this.counts.put(w, 1);
 		}
 	}

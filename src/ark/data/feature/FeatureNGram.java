@@ -111,7 +111,7 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 	}
 
 	@Override
-	protected String getParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		String parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
@@ -123,7 +123,7 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
 		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
 		else if (parameter.equals("clusterer"))

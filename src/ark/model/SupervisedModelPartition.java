@@ -253,7 +253,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 			// Write features (that have been initialized)
 			writer.write("BEGIN FEATURES " +  entry.getKey() + "\n\n");
 			for (int j = 0; j < this.features.get(entry.getKey()).size(); j++) {
-				this.features.get(entry.getKey()).get(j).serialize(writer);
+				this.features.get(entry.getKey()).get(j).serialize(writer, true);
 				writer.write("\n\n");
 			}
 			writer.write("END FEATURES " + entry.getKey() + "\n\n");
@@ -268,21 +268,21 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	}
 
 	@Override
-	public String getHyperParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		int firstUnderscoreIndex = parameter.indexOf("_");
 		if (parameter.equals("defaultLabel"))
 			return (this.defaultLabel == null) ? null : this.defaultLabel.toString();
 		else if (firstUnderscoreIndex >= 0) {
 			String modelReference = parameter.substring(0, firstUnderscoreIndex);
 			String modelParameter = parameter.substring(firstUnderscoreIndex + 1);
-			this.models.get(modelReference).getHyperParameterValue(modelParameter);
+			this.models.get(modelReference).getParameterValue(modelParameter);
 		}
 		
 		return null;
 	}
 
 	@Override
-	public boolean setHyperParameterValue(String parameter,
+	public boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
 		int firstUnderscoreIndex = parameter.indexOf("_");
 		if (parameter.equals("defaultLabel")) {
@@ -291,13 +291,13 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		} else if (firstUnderscoreIndex >= 0) {
 			String modelReference = parameter.substring(0, firstUnderscoreIndex);
 			String modelParameter = parameter.substring(firstUnderscoreIndex + 1);
-			this.models.get(modelReference).setHyperParameterValue(modelParameter, parameterValue, datumTools);
+			this.models.get(modelReference).setParameterValue(modelParameter, parameterValue, datumTools);
 		}
 		return false;
 	}
 
 	@Override
-	protected String[] getHyperParameterNames() {
+	public String[] getParameterNames() {
 		List<String> hyperParameterNames = new ArrayList<String>();
 		for (String parameterName : this.hyperParameterNames) {
 			hyperParameterNames.add(parameterName);
@@ -305,7 +305,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		
 		if (this.models != null) {
 			for (SupervisedModel<D, L> model : this.models.values()) {
-				String[] modelParameterNames = model.getHyperParameterNames();
+				String[] modelParameterNames = model.getParameterNames();
 				for (String parameterName : modelParameterNames) {
 					hyperParameterNames.add(model.getReferenceName() + "_" + parameterName);
 				}
@@ -320,19 +320,26 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		return new SupervisedModelPartition<D, L>();
 	}
 	
-	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModelPartition<D, L> clone = (SupervisedModelPartition<D, L>)super.clone(datumTools, environment);
+	@SuppressWarnings("unchecked")
+	public <D1 extends Datum<L1>, L1> SupervisedModel<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelObjects) {
+		SupervisedModelPartition<D1, L1> clone = (SupervisedModelPartition<D1, L1>)super.clone(datumTools, environment, copyLabelObjects);
 		
-		// TODO If constraint code is improved, then cloning constraints will be necessary
-		clone.constraints = this.constraints; 
-		clone.features = new HashMap<String, List<Feature<D, L>>>();
-		clone.models = new HashMap<String, SupervisedModel<D, L>>();
+		// FIXME
+		// Need to clone constraints, but this works for now as long as D == D1
+		if (copyLabelObjects) {
+			clone.constraints = new HashMap<String, Constraint<D1, L1>>();
+			for (Entry<String, Constraint<D, L>> entry : this.constraints.entrySet())
+				clone.constraints.put(entry.getKey(), (Constraint<D1, L1>)entry.getValue());
+		}
+			
+		clone.features = new HashMap<String, List<Feature<D1, L1>>>();
+		clone.models = new HashMap<String, SupervisedModel<D1, L1>>();
 		clone.orderedModels = new ArrayList<String>();
 
 		for (String model : this.orderedModels) {
 			clone.orderedModels.add(model);
-			clone.models.put(model, this.models.get(model).clone(datumTools, environment));
-			clone.features.put(model, new ArrayList<Feature<D, L>>());
+			clone.models.put(model, this.models.get(model).clone(datumTools, environment, copyLabelObjects));
+			clone.features.put(model, new ArrayList<Feature<D1, L1>>());
 			for (int j = 0; j < this.features.get(model).size(); j++) {
 				clone.features.get(model).add(this.features.get(model).get(j).clone(datumTools, environment));
 			}

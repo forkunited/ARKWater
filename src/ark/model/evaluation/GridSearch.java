@@ -36,7 +36,6 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
-import ark.util.Pair;
 
 /**
  * GridSearch performs a grid-search for hyper-parameter values
@@ -126,6 +125,31 @@ public class GridSearch<D extends Datum<L>, L> {
 			
 			return str.toString();
 		}
+		
+		@SuppressWarnings("unchecked")
+		@Override
+		public boolean equals(Object o) {
+			GridPosition g = (GridPosition)o;
+			
+			if (g.coordinates.size() != this.coordinates.size())
+				return false;
+			
+			for (Entry<String, String> entry : this.coordinates.entrySet())
+				if (!g.coordinates.containsKey(entry.getKey()) || !g.coordinates.get(entry.getKey()).equals(entry.getValue()))
+					return false;
+			
+			return true;
+		}
+		
+		@Override
+		public int hashCode() {
+			int hashCode = 0;
+			
+			for (Entry<String, String> entry : this.coordinates.entrySet())
+				hashCode ^= entry.getKey().hashCode() ^ entry.getValue().hashCode();
+			
+			return hashCode;
+		}
 	}
 	
 	/**
@@ -137,14 +161,12 @@ public class GridSearch<D extends Datum<L>, L> {
 	 */
 	public class EvaluatedGridPosition extends GridPosition {
 		private double positionValue;
-		private TrainTestValidation<D, L> validation; // determines the evaluation
-		private Pair<Long, Long> trainAndTestTime;
+		private ValidationTrainTest<D, L> validation;
 		
-		public EvaluatedGridPosition(GridPosition position, double positionValue, TrainTestValidation<D, L> validation, Pair<Long, Long> trainAndTestTime) {
+		public EvaluatedGridPosition(GridPosition position, double positionValue, ValidationTrainTest<D, L> validation) {
 			this.coordinates = position.coordinates;
 			this.positionValue = positionValue;
 			this.validation = validation;
-			this.trainAndTestTime = trainAndTestTime;
 		}
 
 		
@@ -152,12 +174,8 @@ public class GridSearch<D extends Datum<L>, L> {
 			return this.positionValue;
 		}
 		
-		public TrainTestValidation<D, L> getValidation() {
+		public ValidationTrainTest<D, L> getValidation() {
 			return this.validation;
-		}
-		
-		public Pair<Long, Long> getTrainAndTestTime(){
-			return this.trainAndTestTime;
 		}
 	}
 	
@@ -195,7 +213,7 @@ public class GridSearch<D extends Datum<L>, L> {
 		this.possibleParameterValues = possibleParameterValues;
 		this.gridEvaluation = null;
 		this.evaluation = evaluation;
-		this.cleanDouble = new DecimalFormat("0.00");
+		this.cleanDouble = new DecimalFormat("0.00000");
 	}
 	
 	public String toString() {
@@ -304,10 +322,10 @@ public class GridSearch<D extends Datum<L>, L> {
 			
 			output.debugWriteln("Grid search evaluating " + evaluation.toString() + " of model (" + name + " " + position.toString() + ")");
 			
-			SupervisedModel<D, L> positionModel = model.clone(trainData.getDatumTools(), this.parameterEnvironment);
+			SupervisedModel<D, L> positionModel = model.clone(trainData.getDatumTools(), this.parameterEnvironment, true);
 			Map<String, String> parameterValues = position.getCoordinates();
 			for (Entry<String, String> entry : parameterValues.entrySet()) {
-				positionModel.setHyperParameterValue(entry.getKey(), entry.getValue(), trainData.getDatumTools());	
+				positionModel.setParameterValue(entry.getKey(), entry.getValue(), trainData.getDatumTools());	
 			}
 			
 			//positionModel.setHyperParameterValue("warmRestart", "true", this.trainData.getDatumTools());
@@ -315,16 +333,16 @@ public class GridSearch<D extends Datum<L>, L> {
 			List<SupervisedModelEvaluation<D, L>> evaluations = new ArrayList<SupervisedModelEvaluation<D, L>>(1);
 			evaluations.add(evaluation);
 			
-			TrainTestValidation<D, L> validation = new TrainTestValidation<D, L>(name + " " + position.toString(), positionModel, trainData, testData, evaluations);
+			ValidationTrainTest<D, L> validation = new ValidationTrainTest<D, L>(name + " " + position.toString(), 1, positionModel, trainData, testData, evaluations, null);
 			double computedEvaluation = validation.run().get(0);
 			if (computedEvaluation  < 0) {
 				output.debugWriteln("Error: Grid search evaluation failed at position " + position.toString());
 				return null;
 			}
-
+			
 			output.debugWriteln("Finished grid search evaluating model with hyper parameters (" + name + " " + position.toString() + ")");
 			
-			return new EvaluatedGridPosition(this.position, computedEvaluation, validation, validation.getTrainAndTestTime());
+			return new EvaluatedGridPosition(this.position, computedEvaluation, validation);
 		}
 		
 	}

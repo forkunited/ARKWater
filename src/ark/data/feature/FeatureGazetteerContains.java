@@ -54,7 +54,7 @@ public class FeatureGazetteerContains<D extends Datum<L>, L> extends FeatureGaze
 	}
 	
 	@Override
-	protected Feature<D, L> makeInstance() {
+	public Feature<D, L> makeInstance() {
 		return new FeatureGazetteerContains<D, L>();
 	}
 }

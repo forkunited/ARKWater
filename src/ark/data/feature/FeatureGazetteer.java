@@ -17,6 +17,8 @@ package ark.data.feature;
  * under the License.
  */
 
+import java.io.BufferedReader;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import ark.data.annotation.Datum;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 import ark.util.Pair;
+import ark.util.ThreadMapper;
 
 /**
  * FeatureGazetteer computes gazetteer features.  For a datum d, 
@@ -71,14 +74,18 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 		if (!this.includeIds)
 			return true;
 		
-		CounterTable<String> counter = new CounterTable<String>();
-		for (D datum : dataSet) {
-			Pair<List<Pair<String,Double>>, Double> extremum = computeExtremum(datum);
-			if (extremum.getFirst() == null)
-				continue;
-			for (Pair<String, Double> id : extremum.getFirst())
-				counter.incrementCount(id.getFirst());
-		}
+		final CounterTable<String> counter = new CounterTable<String>();
+		dataSet.map(new ThreadMapper.Fn<D, Boolean>() {
+			@Override
+			public Boolean apply(D datum) {
+				Pair<List<Pair<String,Double>>, Double> extremum = computeExtremum(datum);
+				if (extremum.getFirst() == null)
+					return true;
+				for (Pair<String, Double> id : extremum.getFirst())
+					counter.incrementCount(id.getFirst());
+				return true;
+			}
+		});
 		
 		this.vocabulary = new BidirectionalLookupTable<String, Integer>(counter.buildIndex());
 		
@@ -131,12 +138,12 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	}
 	
 	@Override
-	protected String[] getParameterNames() {
+	public String[] getParameterNames() {
 		return this.parameterNames;
 	}
 
 	@Override
-	protected String getParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		if (parameter.equals("gazetteer"))
 			return (this.gazetteer == null) ? "" : this.gazetteer.getName();
 		else if (parameter.equals("stringExtractor"))
@@ -151,7 +158,7 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
 		if (parameter.equals("gazetteer"))
 			this.gazetteer = datumTools.getDataTools().getGazetteer(parameterValue);
 		else if (parameter.equals("stringExtractor"))
@@ -188,4 +195,24 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 			return 1;
 		return this.vocabulary.size();
 	}
+	
+	@Override
+	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
+		if (!newObjects) {
+			FeatureGazetteer<D1,L1> cloneFeature = (FeatureGazetteer<D1, L1>)clone;
+			cloneFeature.vocabulary = this.vocabulary;
+		}
+		
+		return true;
+	}
+	
+	@Override
+	protected boolean serializeHelper(Writer writer) {
+		return true;
+	}
+	
+	@Override
+	protected boolean deserializeHelper(BufferedReader writer) {
+		return true;
+	}	
 }

@@ -25,6 +25,7 @@ import java.util.Random;
 
 import ark.util.OutputWriter;
 import ark.util.StringUtil;
+import ark.util.Timer;
 import ark.cluster.Clusterer;
 import ark.data.Gazetteer;
 
@@ -121,6 +122,7 @@ public class DataTools {
 	protected long randomSeed;
 	protected Random globalRandom;
 	protected OutputWriter outputWriter;
+	protected Timer timer;
 	
 	public DataTools(OutputWriter outputWriter) {
 		this.gazetteers = new HashMap<String, Gazetteer>();
@@ -155,6 +157,7 @@ public class DataTools {
 		this.collectionFns.put("None", null);
 		this.stringClusterers.put("None", null);
 		this.globalRandom = new Random();
+		this.timer = new Timer();
 	}
 	
 	public Gazetteer getGazetteer(String name) {
@@ -204,6 +207,10 @@ public class DataTools {
 	 */
 	public Random makeLocalRandom() {
 		return new Random(this.randomSeed); 
+	}
+	
+	public Timer getTimer() {
+		return this.timer;
 	}
 	
 	public boolean addGazetteer(Gazetteer gazetteer) {

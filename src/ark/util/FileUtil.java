@@ -22,7 +22,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * 
@@ -35,6 +39,38 @@ import java.io.InputStreamReader;
  *
  */
 public class FileUtil {
+	public static String readFile(File file) {
+		return readFile(file.getAbsolutePath());
+	}
+	
+	public static String readFile(String path) {
+		BufferedReader reader = FileUtil.getFileReader(path);
+		StringBuilder str = new StringBuilder();
+		try {
+			String line = null;
+			while ((line = reader.readLine()) != null) {
+				str = str.append(line).append("\n");
+			}
+		} catch (IOException e) {
+			return null;
+		}
+	
+		return str.toString();
+	}
+	
+	public static JSONObject readJSONFile(String path) {
+		String str = readFile(path);
+		try {
+			return new JSONObject(str);
+		} catch (JSONException e) {
+			return null;
+		}
+	}
+	
+	public static JSONObject readJSONFile(File file) {
+		return readJSONFile(file.getAbsolutePath());
+	}
+	
 	public static BufferedReader getFileReader(String path) {
 		File localFile = new File(path);
 		try {

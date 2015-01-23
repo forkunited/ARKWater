@@ -88,12 +88,12 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	}
 
 	@Override
-	protected Feature<D, L> makeInstance() {
+	public Feature<D, L> makeInstance() {
 		return new FeatureNGramContext<D, L>();
 	}
 	
 	@Override
-	protected String getParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		String parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
@@ -103,7 +103,7 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
 		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
 		else if (parameter.equals("contextWindowSize"))

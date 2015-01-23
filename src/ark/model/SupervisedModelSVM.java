@@ -27,11 +27,13 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.Random;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
+import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.BidirectionalLookupTable;
@@ -77,16 +79,31 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	}
 	
 	@Override
+	public boolean setLabels(Set<L> validLabels, LabelMapping<L> labelMapping) {
+		if (!super.setLabels(validLabels, labelMapping))
+			return false;
+		
+		setLabelIndices();
+		
+		return true;
+	}
+	
+	protected boolean setLabelIndices() {
+		this.labelIndices = new BidirectionalLookupTable<L, Integer>();
+		int i = 0;
+		for (L label : this.validLabels) {
+			this.labelIndices.put(label, i);
+			i++;
+		}
+		return true;
+	}
+	
+	@Override
 	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
 			Tools<D, L> datumTools) throws IOException {
 		if (this.validLabels != null && this.labelIndices == null) {
 			// Might be better to do this somewhere else...?
-			this.labelIndices = new BidirectionalLookupTable<L, Integer>();
-			int i = 0;
-			for (L label : this.validLabels) {
-				this.labelIndices.put(label, i);
-				i++;
-			}
+			setLabelIndices();
 		}
 		
 		if (name.equals("trainingIterations")) {
@@ -226,7 +243,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		boolean datumLabelBest = datumLabel.equals(bestLabel);
 		boolean regularizerUpdate = (this.t % K == 0); // for "occasionality trick"
 		
-		Map<Integer, Double> datumFeatureValues = data.getFeatureVocabularyValues(datum);
+		Map<Integer, Double> datumFeatureValues = data.getFeatureVocabularyValuesAsMap(datum);
 		
 		if (iteration == 0) {
 			List<Integer> missingNameKeys = new ArrayList<Integer>();
@@ -401,7 +418,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	protected double scoreLabel(FeaturizedDataSet<D, L> data, D datum, L label, boolean includeCost) {
 		double score = 0;		
 		
-		Map<Integer, Double> featureValues = data.getFeatureVocabularyValues(datum);
+		Map<Integer, Double> featureValues = data.getFeatureVocabularyValuesAsMap(datum);
 		int labelIndex = this.labelIndices.get(label);
 		for (Entry<Integer, Double> entry : featureValues.entrySet()) {
 			int wIndex = this.getWeightIndex(label, entry.getKey());
@@ -436,12 +453,12 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	}
 	
 	@Override
-	protected String[] getHyperParameterNames() {
+	public String[] getParameterNames() {
 		return this.hyperParameterNames;
 	}
 
 	@Override
-	public String getHyperParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		if (parameter.equals("l2"))
 			return String.valueOf(this.l2);
 		else if (parameter.equals("epsilon"))
@@ -450,7 +467,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	}
 
 	@Override
-	public boolean setHyperParameterValue(String parameter,
+	public boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("l2"))
 			this.l2 = Double.valueOf(parameterValue);
@@ -461,10 +478,14 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		return true;
 	}
 	
-	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModelSVM<D, L> clone = (SupervisedModelSVM<D, L>)super.clone(datumTools, environment);
+	@SuppressWarnings("unchecked")
+	@Override
+	public <D1 extends Datum<L1>, L1> SupervisedModel<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelObjects) {
+		SupervisedModelSVM<D1, L1> clone = (SupervisedModelSVM<D1, L1>)super.clone(datumTools, environment, copyLabelObjects);
 		
-		clone.labelIndices = this.labelIndices;
+		if (copyLabelObjects)
+			clone.labelIndices = (BidirectionalLookupTable<L1, Integer>)this.labelIndices;
+		
 		clone.trainingIterations = this.trainingIterations;
 		clone.earlyStopIfNoLabelChange = this.earlyStopIfNoLabelChange;
 		
@@ -553,13 +574,12 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		
 		List<Entry<Integer, Double>> wList = new ArrayList<Entry<Integer, Double>>(this.feature_w.entrySet());
 		Collections.sort(wList, new Comparator<Entry<Integer, Double>>() {
-
 			@Override
 			public int compare(Entry<Integer, Double> e1,
 					Entry<Integer, Double> e2) {
 				if (Math.abs(e1.getValue()) > Math.abs(e2.getValue()))
 					return -1;
-				else if (Math.abs(e1.getValue()) < Math.abs(e2.getKey()))
+				else if (Math.abs(e1.getValue()) < Math.abs(e2.getValue()))
 					return 1;
 				else
 					return 0;

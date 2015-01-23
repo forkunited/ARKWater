@@ -118,7 +118,7 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
     			if (requireLabels && label == null)
     				continue;
     			
-    			Map<Integer, Double> featureValues = data.getFeatureVocabularyValues(datum);
+    			Map<Integer, Double> featureValues = data.getFeatureVocabularyValuesAsMap(datum);
     			Map<Integer, String> featureNames = data.getFeatureVocabularyNamesForIndices(featureValues.keySet());
     			
     			StringBuilder datumStr = new StringBuilder();
@@ -203,6 +203,8 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 					String labelStr = validLabel.toString();
 					if (jsonPosterior.has(labelStr))
 						posterior.put(validLabel, jsonPosterior.getDouble(labelStr));
+					else 
+						posterior.put(validLabel, 0.0);
 				}
 				
 				pData.put(datum, posterior);
@@ -298,7 +300,7 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	}
 	
 	@Override
-	public String getHyperParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		if (parameter.equals("cmdPath"))
 			return (this.cmdPath == null) ? null : this.cmdPath.getName();
 		else if (parameter.equals("modelPath"))
@@ -313,7 +315,7 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	}
 
 	@Override
-	public boolean setHyperParameterValue(String parameter,
+	public boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("cmdPath"))
 			this.cmdPath = datumTools.getDataTools().getPath(parameterValue);
@@ -331,7 +333,7 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	}
 	
 	@Override
-	protected String[] getHyperParameterNames() {
+	public String[] getParameterNames() {
 		return this.hyperParameterNames;
 	}
 

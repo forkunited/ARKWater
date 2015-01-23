@@ -32,6 +32,7 @@ import ark.data.annotation.Datum.Tools;
 import ark.data.annotation.structure.DatumStructure;
 import ark.data.annotation.structure.DatumStructureCollection;
 import ark.data.feature.FeaturizedDataSet;
+import ark.util.BidirectionalLookupTable;
 import ark.util.Pair;
 import ark.util.SerializationUtil;
 
@@ -251,10 +252,14 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		return value;
 	}
 	
-	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModelSVMStructured<D, L> clone = (SupervisedModelSVMStructured<D, L>)super.clone(datumTools, environment);
+	@SuppressWarnings("unchecked")
+	public <D1 extends Datum<L1>, L1> SupervisedModel<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelObjects) {
+		SupervisedModelSVMStructured<D1, L1> clone = (SupervisedModelSVMStructured<D1, L1>)super.clone(datumTools, environment, copyLabelObjects);
 		
-		clone.labelIndices = this.labelIndices;
+		if (copyLabelObjects)
+			clone.labelIndices = (BidirectionalLookupTable<L1, Integer>)this.labelIndices;
+		
+		
 		clone.trainingIterations = this.trainingIterations;
 		clone.datumStructureCollection = this.datumStructureCollection;
 		clone.datumStructureOptimizer = this.datumStructureOptimizer;
@@ -481,7 +486,7 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		Map<Integer, Double> featureValues = new HashMap<Integer, Double>();
 		int numDatumFeatures = data.getFeatureVocabularySize();
 		for (D datum : datumStructure) {
-			Map<Integer, Double> datumFeatureValues = data.getFeatureVocabularyValues(datum);
+			Map<Integer, Double> datumFeatureValues = data.getFeatureVocabularyValuesAsMap(datum);
 			int labelIndex = this.labelIndices.get(structureLabels.get(datum));
 			int featureLabelOffset = numDatumFeatures*labelIndex;
 			

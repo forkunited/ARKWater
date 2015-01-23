@@ -18,6 +18,8 @@
 
 package ark.data.feature;
 
+import java.io.BufferedReader;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,7 +37,7 @@ import ark.util.CounterTable;
  * @param <D>
  * @param <L>
  */
-public class FeatureSurfaceDistance <D extends Datum<L>, L> extends Feature<D, L>{
+public class FeatureSurfaceDistance<D extends Datum<L>, L> extends Feature<D, L>{
 	
 	protected BidirectionalLookupTable<String, Integer> vocabulary;
 
@@ -93,12 +95,12 @@ public class FeatureSurfaceDistance <D extends Datum<L>, L> extends Feature<D, L
 	}
 
 	@Override
-	protected String[] getParameterNames() {
+	public String[] getParameterNames() {
 		return this.parameterNames;
 	}
 
 	@Override
-	protected String getParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		if (parameter.equals("sourceTokenExtractor")) 
 			return (this.sourceTokenExtractor == null) ? null : this.sourceTokenExtractor.toString();
 		else if (parameter.equals("targetTokenExtractor"))
@@ -106,7 +108,7 @@ public class FeatureSurfaceDistance <D extends Datum<L>, L> extends Feature<D, L
 		return null;	}
 
 	@Override
-	protected boolean setParameterValue(String parameter,
+	public boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("sourceTokenExtractor")) 
 			this.sourceTokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
@@ -119,8 +121,27 @@ public class FeatureSurfaceDistance <D extends Datum<L>, L> extends Feature<D, L
 	}
 
 	@Override
-	protected Feature<D, L> makeInstance() {
+	public Feature<D, L> makeInstance() {
 		return new FeatureSurfaceDistance<D,L>();
 	}
-
+	
+	@Override
+	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
+		if (!newObjects) {
+			FeatureSurfaceDistance<D1,L1> cloneFeature = (FeatureSurfaceDistance<D1, L1>)clone;
+			cloneFeature.vocabulary = this.vocabulary;
+		}
+		
+		return true;
+	}
+	
+	@Override
+	protected boolean serializeHelper(Writer writer) {
+		return true;
+	}
+	
+	@Override
+	protected boolean deserializeHelper(BufferedReader writer) {
+		return true;
+	}
 }

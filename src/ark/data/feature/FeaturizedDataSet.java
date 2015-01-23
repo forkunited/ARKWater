@@ -26,8 +26,16 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.TreeMap;
 
+import org.platanios.learn.data.DataSetInMemory;
+import org.platanios.learn.data.PredictedDataInstance;
+import org.platanios.learn.math.matrix.SparseVector;
+import org.platanios.learn.math.matrix.Vector;
+
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
+import ark.util.ThreadMapper;
+import ark.util.ThreadMapper.Fn;
 
 /**
  * DataSet represents a collection of labeled and/or unlabeled 'datums'
@@ -49,12 +57,16 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	private String name;
 	private int maxThreads;
 	
+	private List<Feature<D, L>> featureList; // Just to keep all of the features referenced in one place for when cloning the dataset
 	private Map<String, Feature<D, L>> referencedFeatures; // Maps from reference names to features
 	private TreeMap<Integer, Feature<D, L>> features; // Maps from the feature's starting vocabulary index to the feature
 	private Map<Integer, String> featureVocabularyNames; // Sparse map from indices to names
-	private Map<D, Map<Integer, Double>> featureVocabularyValues; // Map from data to indices to values
+	private Map<Integer, Vector> featureVocabularyValues; // Map from datum ids to indices to values
 	private int featureVocabularySize;
+	private boolean precomputedFeatures;
 	
+	private DataSetInMemory<PredictedDataInstance<Vector, Integer>> plataniosDataSet;
+
 	public FeaturizedDataSet(String name, Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
 		this(name, 1, datumTools, labelMapping);
 	}
@@ -70,12 +82,14 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		this.features = new TreeMap<Integer, Feature<D, L>>();
 		this.maxThreads = maxThreads;
 		 
+		this.featureList = new ArrayList<Feature<D, L>>();
 		this.featureVocabularySize = 0;
 		for (Feature<D, L> feature : features)
 			addFeature(feature);
 		
 		this.featureVocabularyNames = new ConcurrentHashMap<Integer, String>();
-		this.featureVocabularyValues = new ConcurrentHashMap<D, Map<Integer, Double>>();
+		this.featureVocabularyValues = new ConcurrentHashMap<Integer, Vector>();
+		this.precomputedFeatures = false;
 	}
 	
 	public String getName() {
@@ -86,8 +100,18 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		return this.maxThreads;
 	}
 	
+	public boolean setMaxThreads(int maxThreads) {
+		this.maxThreads = maxThreads;
+		return true;
+	}
+	
+	public <T> List<T> map(final ThreadMapper.Fn<D, T> fn) {
+		return map(fn, this.maxThreads);
+	}
+	
 	/**
 	 * @param feature
+	 * @param initFeature
 	 * @return true if the feature has been added.  This does *not* call
 	 * the feature's initialization method, so it must be called outside
 	 * the FeaturizedDataSet before the feature is added to the set (this
@@ -107,13 +131,52 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	 * set to be 'ignored'.
 	 * 
 	 */
+	public boolean addFeature(Feature<D, L> feature, boolean initFeature) {
+		if (initFeature)
+			if (!feature.init(this))
+				return false;
+		return addFeatureHelper(feature);
+	}
+	
 	public boolean addFeature(Feature<D, L> feature) {
+		return addFeature(feature, false);
+	}
+	
+	public boolean addFeatures(List<Feature<D, L>> features, boolean initFeatures) {
+		if (initFeatures) {
+			final FeaturizedDataSet<D, L> data = this;
+			ThreadMapper<Feature<D, L>, Boolean> threads = new ThreadMapper<Feature<D, L>, Boolean>(new Fn<Feature<D, L>, Boolean>() {
+				public Boolean apply(Feature<D, L> feature) {
+					return feature.init(data);
+				}
+			});
+			
+			List<Boolean> threadResults = threads.run(features, this.maxThreads);
+			for (boolean threadResult : threadResults)
+				if (!threadResult)
+					return false;
+		}
+		
+		for (Feature<D, L> feature : features)
+			if (!addFeatureHelper(feature))
+				return false;
+		
+		return true;
+	}
+	
+	public boolean addFeatures(List<Feature<D, L>> features) {
+		return addFeatures(features, false);
+	}
+	
+	
+	private boolean addFeatureHelper(Feature<D, L> feature) {
 		if (!feature.isIgnored()) {
 			this.features.put(this.featureVocabularySize, feature);
 			this.featureVocabularySize += feature.getVocabularySize();
 		}
 		if (feature.getReferenceName() != null)
 			this.referencedFeatures.put(feature.getReferenceName(), feature);
+		this.featureList.add(feature);
 		
 		return true;
 	}
@@ -164,13 +227,24 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		List<String> featureVocabularyNames = new ArrayList<String>(this.featureVocabularySize);
 		
 		for (Feature<D, L> feature : this.features.values()) {
-			featureVocabularyNames.addAll(feature.getSpecificShortNames()); // FIXME Maybe this should cache...
+			featureVocabularyNames.addAll(feature.getSpecificShortNames()); 
 		}
 		
 		return featureVocabularyNames;
 	}
 	
-	public Map<Integer, Double> getFeatureVocabularyValues(D datum) {
+	public Map<Integer, Double> getFeatureVocabularyValuesAsMap(D datum) {
+		// FIXME Make this faster.
+		Map<Integer, Double> map = new HashMap<Integer, Double>();
+		Vector vector = getFeatureVocabularyValues(datum);
+		double[] denseArray = vector.getDenseArray();
+		for (int i = 0; i < denseArray.length; i++)
+			if (denseArray[i] > 0)
+				map.put(i, denseArray[i]);
+		return map;
+	}
+	
+	public Vector getFeatureVocabularyValues(D datum) {
 		if (!this.data.containsKey(datum.getId()))
 			return null;
 		if (this.featureVocabularyValues.containsKey(datum.getId()))
@@ -179,18 +253,84 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		Map<Integer, Double> values = new HashMap<Integer, Double>();
 		for (Entry<Integer, Feature<D, L>> featureEntry : this.features.entrySet()) {
 			Map<Integer, Double> featureValues = featureEntry.getValue().computeVector(datum);
+			
 			for (Entry<Integer, Double> featureValueEntry : featureValues.entrySet()) {
 				values.put(featureValueEntry.getKey() + featureEntry.getKey(), featureValueEntry.getValue());
 			}
 		}
 		
-		this.featureVocabularyValues.put(datum, values);
+		Vector vector = new SparseVector(getFeatureVocabularySize(), values);
 		
-		return values;
+		this.featureVocabularyValues.put(datum.getId(), vector);
+		
+		return vector;
 	}
 	
 	public boolean precomputeFeatures() {
-		/* FIXME: Implement threaded. Also maybe implement serialization methods */
+		if (this.precomputedFeatures)
+			return true;
+		
+		List<Boolean> threadResults = map(new ThreadMapper.Fn<D, Boolean>() {
+			@Override
+			public Boolean apply(D datum) {
+				Vector featureVector = getFeatureVocabularyValues(datum);
+					if (featureVector == null)
+						return false;
+				
+				return true;
+			}
+		}, this.maxThreads);
+		
+
+		for (boolean result : threadResults)
+			if (!result)
+				return false;
+		
+		this.precomputedFeatures = true;
 		return true;
+	}
+	
+	@Override
+	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinaryDataSet(String labelIndicator, Datum.Tools<T, Boolean> datumTools) {
+		List<Feature<T, Boolean>> features = new ArrayList<Feature<T, Boolean>>();
+		for (Feature<D, L> feature : this.featureList) {
+			features.add(feature.clone(datumTools, datumTools.getDataTools().getParameterEnvironment(), false));
+		}
+		
+		FeaturizedDataSet<T, Boolean> dataSet = new FeaturizedDataSet<T, Boolean>(this.name + "/" + labelIndicator, features, 1, datumTools, null);
+		LabelIndicator<L> indicator = getDatumTools().getLabelIndicator(labelIndicator);
+		
+		for (D datum : this) {
+			dataSet.add(getDatumTools().<T>makeBinaryDatum(datum, indicator));
+		}
+		
+		dataSet.featureVocabularySize = this.featureVocabularySize;
+		dataSet.featureVocabularyNames = this.featureVocabularyNames;
+		dataSet.featureVocabularyValues = this.featureVocabularyValues;
+		
+		return dataSet;
+	}
+	
+	public synchronized DataSetInMemory<PredictedDataInstance<Vector, Integer>> makePlataniosDataSet() {
+		if (this.plataniosDataSet != null)
+			return this.plataniosDataSet;
+		
+		ThreadMapper<D, PredictedDataInstance<Vector, Integer>> threadMapper 
+			= new ThreadMapper<D, PredictedDataInstance<Vector, Integer>>(new ThreadMapper.Fn<D, PredictedDataInstance<Vector, Integer>>() {
+				@Override
+				public PredictedDataInstance<Vector, Integer> apply(D datum) {
+					Vector vector = getFeatureVocabularyValues(datum);
+					Integer label = null;
+					if (datum.getLabel() != null)
+						label = (Boolean)datum.getLabel() ? 1 : 0;
+				
+					return new PredictedDataInstance<Vector, Integer>(String.valueOf(datum.getId()), vector, label, null, 1);
+				}
+			});
+		
+		List<PredictedDataInstance<Vector, Integer>> dataInstances = threadMapper.run(new ArrayList<D>(this.data.values()), this.maxThreads);
+		this.plataniosDataSet = new DataSetInMemory<PredictedDataInstance<Vector, Integer>>(dataInstances);
+		
+		return this.plataniosDataSet;
 	}
 }

@@ -65,7 +65,7 @@ public class FeatureGazetteerEditDistance<D extends Datum<L>, L> extends Feature
 	}
 
 	@Override
-	protected Feature<D, L> makeInstance() {
+	public Feature<D, L> makeInstance() {
 		return new FeatureGazetteerEditDistance<D, L>();
 	}
 }

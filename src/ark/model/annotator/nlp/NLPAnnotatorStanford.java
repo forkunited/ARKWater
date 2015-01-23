@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
 
+import edu.stanford.nlp.ling.CoreAnnotations.NamedEntityTagAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
@@ -75,9 +76,26 @@ import ark.util.Pair;
 public class NLPAnnotatorStanford extends NLPAnnotator {
 	private StanfordCoreNLP pipeline;
 	private Annotation annotatedText;
+	private boolean disabledNer;
 	
 	public NLPAnnotatorStanford() {
 		setLanguage(Language.English);
+		this.disabledNer = true;
+	}
+	
+	public NLPAnnotatorStanford(NLPAnnotatorStanford annotator) {
+		this.language = annotator.language;
+		this.pipeline = annotator.pipeline;
+		this.disabledNer = annotator.disabledNer;
+		this.disabledConstituencyParses = annotator.disabledConstituencyParses;
+		this.disabledDependencyParses = annotator.disabledDependencyParses;
+		this.disabledPoSTags = annotator.disabledPoSTags;
+		this.text = annotator.text;
+		this.annotatedText = annotator.annotatedText;
+	}
+	
+	public void enableNer() {
+		this.disabledNer = false;
 	}
 	
 	/**
@@ -96,6 +114,25 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		return "Stanford";
 	}
 	
+	public boolean initializePipeline() {
+		Properties props = new Properties();
+		String propsStr = "tokenize, ssplit";
+		if (!this.disabledPoSTags)
+			propsStr = propsStr + ", pos";
+		if (!this.disabledConstituencyParses || !this.disabledDependencyParses)
+			propsStr = propsStr + ", lemma, parse";
+	    if (!this.disabledNer)
+	    	propsStr = propsStr + ", ner";
+		
+		props.put("annotators", propsStr); // ner before parse?
+	    this.pipeline = new StanfordCoreNLP(props);
+	    return true;
+	}
+	
+	public StanfordCoreNLP getPipeline() {
+		return this.pipeline;
+	}
+	
 	/**
 	 * @param text
 	 * @return true if the annotator has received the text 
@@ -103,14 +140,8 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	 */
 	public boolean setText(String text) {
 		if (this.pipeline == null) {
-			Properties props = new Properties();
-			String propsStr = "tokenize, ssplit";
-			if (!this.disabledPoSTags)
-				propsStr = propsStr + ", pos";
-			if (!this.disabledConstituencyParses || !this.disabledDependencyParses)
-				propsStr = propsStr + ", lemma, parse";
-		    props.put("annotators", propsStr); // ner before parse?
-		    this.pipeline = new StanfordCoreNLP(props);
+			if (!initializePipeline())
+				return false;
 		}
 		
 		this.text = text;
@@ -137,6 +168,24 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		}
 		
 		return tokens;
+	}
+	
+	/**
+	 * @return an array of ner tags for each segmented 
+	 * sentence of the text.
+	 */
+	public String[][] makeNerTags() {
+		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
+		String[][] ner = new String[sentences.size()][];
+		for(int i = 0; i < sentences.size(); i++) {
+			List<CoreLabel> sentenceTokens = sentences.get(i).get(TokensAnnotation.class);
+			ner[i] = new String[sentenceTokens.size()];
+			for (int j = 0; j < sentenceTokens.size(); j++) {
+				ner[i][j] = sentenceTokens.get(j).get(NamedEntityTagAnnotation.class); 
+			}
+		}
+		
+		return ner;
 	}
 	
 	/**

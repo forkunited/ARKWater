@@ -31,6 +31,7 @@ import java.util.Map.Entry;
 
 import ark.data.annotation.Datum;
 import ark.util.Pair;
+import ark.util.Parameterizable;
 import ark.util.SerializationUtil;
 
 /**
@@ -57,7 +58,7 @@ import ark.util.SerializationUtil;
  * @param <D> datum type
  * @param <L> datum label type
  */
-public abstract class Feature<D extends Datum<L>, L> {
+public abstract class Feature<D extends Datum<L>, L> implements Parameterizable<D, L> {
 	// particular name by which the feature is referenced in configuration files
 	private String referenceName; 
 	// indicator of whether to ignore the feature in data sets so that it
@@ -110,32 +111,35 @@ public abstract class Feature<D extends Datum<L>, L> {
 	protected abstract boolean setVocabularyTerm(int index, String term);
 
 	/**
-	 * @return parameters of the feature that can be set through the experiment 
-	 * configuration file
-	 */
-	protected abstract String[] getParameterNames();
-	
-	/**
-	 * @param parameter
-	 * @return the value of the given parameter
-	 */
-	protected abstract String getParameterValue(String parameter);
-	
-	/**
-	 * 
-	 * @param parameter
-	 * @param parameterValue
-	 * @param datumTools
-	 * @return true if the parameter has been set to parameterValue.  Some parameters are set to
-	 * objects retrieved through datumTools that are named by parameterValue.
-	 */
-	protected abstract boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
-	
-	/**
 	 * @return a generic instance of the feature.  This is used when deserializing
 	 * the parameters for the feature from a configuration file
 	 */
-	protected abstract Feature<D, L> makeInstance();
+	public abstract Feature<D, L> makeInstance();
+	
+	
+	/**
+	 * @param clone
+	 * @param newObjects indicates whether new objects should be constructed or use
+	 * same objects in clone.  If not new objects, then cloneHelper is responsible
+	 * for copying the vocabulary object references into the clone 
+	 * @return true if clone has been given remaining non-parameter
+	 * /non-vocabulary properties of feature 
+	 */
+	protected abstract <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects);
+	
+	/**
+	 * @param serializeHelper
+	 * @return true if remaining non-parameter/non-vocabulary
+	 * properties of feature have been serialized
+	 */
+	protected abstract boolean serializeHelper(Writer writer) throws IOException;
+	
+	/**
+	 * @param deserializeHelper
+	 * @return true if remaining non-parameter/non-vocabulary
+	 * properties of feature have been deserialized
+	 */
+	protected abstract boolean deserializeHelper(BufferedReader writer) throws IOException;
 	
 	/**
 	 * @return a name by which this particular feature is referenced by other
@@ -186,24 +190,38 @@ public abstract class Feature<D extends Datum<L>, L> {
 		return specificShortNames;
 	}
 	
-	public Feature<D, L> clone(Datum.Tools<D, L> datumTools) {
-		return clone(datumTools, null);
+	public <D1 extends Datum<L1>, L1> Feature<D1, L1> clone(Datum.Tools<D1, L1> datumTools) {
+		return clone(datumTools, null, true);
 	}
 	
-	public Feature<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		Feature<D, L> clone = makeInstance();
+	public <D1 extends Datum<L1>, L1> Feature<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment) {
+		return clone(datumTools, environment, true);
+	}
+	
+	public <D1 extends Datum<L1>, L1> Feature<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean newObjects) {
+		Feature<D1, L1> clone = datumTools.makeFeatureInstance(getGenericName(), true);
 		String[] parameterNames = getParameterNames();
 		for (int i = 0; i < parameterNames.length; i++) {
 			String parameterValue = getParameterValue(parameterNames[i]);
 			if (environment != null && parameterValue != null) {
 				for (Entry<String, String> entry : environment.entrySet())
-					parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
+					parameterValue = parameterValue.replace("--" + entry.getKey() + "--", entry.getValue());
 			}
 			clone.setParameterValue(parameterNames[i], parameterValue, datumTools);
 		}
 		
 		clone.referenceName = this.referenceName;
 		clone.ignored = this.ignored;
+		
+		if (newObjects) { 
+			int vocabularySize = getVocabularySize();
+			for (int i = 0; i < vocabularySize; i++) {
+				clone.setVocabularyTerm(i, getVocabularyTerm(i));
+			}
+		}
+		
+		if (!cloneHelper(clone, newObjects))
+			return null;
 		
 		return clone;
 	}
@@ -219,12 +237,21 @@ public abstract class Feature<D extends Datum<L>, L> {
 		
 		if (readVocabulary) {
 			Map<String, String> vocabulary = SerializationUtil.deserializeArguments(reader);
-			if (vocabulary == null)
-				return true;
+			if (vocabulary == null) {
+				datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Feature failed to deserialize vocabulary.");
+				return false;
+			}
 			
 			for (Entry<String, String> entry : vocabulary.entrySet()) {
-				if (!setVocabularyTerm(Integer.valueOf(entry.getValue()), entry.getKey()))
+				if (!setVocabularyTerm(Integer.valueOf(entry.getValue()), entry.getKey())) {
+					datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Feature failed to set vocabulary terms.");
 					return false;
+				}
+			}
+			
+			if (!deserializeHelper(reader)) {
+				datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Feature failed to deserialize non-vocabulary initialization data.");
+				return false;
 			}
 		}
 
@@ -234,7 +261,14 @@ public abstract class Feature<D extends Datum<L>, L> {
 		return true;
 	}
 	
-	public boolean serialize(Writer writer) throws IOException {
+	public boolean serialize(Writer writer, boolean includeReferenceName) throws IOException {
+		if (includeReferenceName) {
+			writer.write("feature" + 
+					(this.referenceName == null ? "" : "_" + this.referenceName) + 
+					((!this.ignored) ? "" : "_ignored")
+					+ "=");
+		}
+		
 		int vocabularySize = getVocabularySize();
 		writer.write(toString(false));
 		writer.write("\t");
@@ -250,6 +284,11 @@ public abstract class Feature<D extends Datum<L>, L> {
 				writer.write(",");
 		}
 		
+		writer.write(")\t");
+		
+		if (!serializeHelper(writer))
+			return false;
+		
 		return true;
 	}
 	
@@ -257,7 +296,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 		if (withVocabulary) {
 			StringWriter stringWriter = new StringWriter();
 			try {
-				if (serialize(stringWriter))
+				if (serialize(stringWriter, withVocabulary))
 					return stringWriter.toString();
 				else
 					return null;
@@ -269,7 +308,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 			Map<String, String> parameters = new HashMap<String, String>();
 			String[] parameterNames = getParameterNames();
 			for (int i = 0; i < parameterNames.length; i++)
-				parameters.put(parameterNames[i], getParameterValue(parameterNames[i]));
+				parameters.put(parameterNames[i], "\"" + getParameterValue(parameterNames[i]) + "\"");
 			StringWriter parametersWriter = new StringWriter();
 			
 			try {
@@ -290,7 +329,7 @@ public abstract class Feature<D extends Datum<L>, L> {
 	
 	public boolean fromString(String str, Datum.Tools<D, L> datumTools) {
 		try {
-			return deserialize(new BufferedReader(new StringReader(str)), true, true, datumTools, null, false);
+			return deserialize(new BufferedReader(new StringReader(str)), true, false, datumTools, null, false);
 		} catch (IOException e) {
 			
 		}
@@ -334,5 +373,26 @@ public abstract class Feature<D extends Datum<L>, L> {
 		}
 		
 		return shortenedName.toString();
+	}
+	
+	public static <D extends Datum<L>, L> Feature<D, L> deserialize(BufferedReader reader, boolean readParameters, Datum.Tools<D, L> datumTools) throws IOException {		
+		String assignmentLeft = SerializationUtil.deserializeAssignmentLeft(reader);
+		if (assignmentLeft == null)
+			return null;
+	
+		String[] nameParts = assignmentLeft.split("_");
+		String referenceName = null;
+		boolean ignore = false;
+		if (nameParts.length > 1)
+			referenceName = nameParts[1];
+		if (nameParts.length > 2)
+			ignore = true;
+		
+		String featureName = SerializationUtil.deserializeGenericName(reader);
+		Feature<D, L> feature = datumTools.makeFeatureInstance(featureName);
+		if (!feature.deserialize(reader, false, readParameters, datumTools, referenceName, ignore))
+			return null;
+
+		return feature;
 	}
 }

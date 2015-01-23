@@ -24,16 +24,17 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
+import ark.util.Parameterizable;
 import ark.util.SerializationUtil;
 
 /**
@@ -62,7 +63,7 @@ import ark.util.SerializationUtil;
  * @param <D> datum type
  * @param <L> datum label type
  */
-public abstract class SupervisedModel<D extends Datum<L>, L> {
+public abstract class SupervisedModel<D extends Datum<L>, L> implements Parameterizable<D, L> {
 	// Name by which the this particular model instance is referenced
 	// This is currently just used by SupervisedModelPartition to
 	// assign features to particular models in the experiment configuration
@@ -74,12 +75,6 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 	// Labels that the model should assign regardless of its training
 	protected Map<D, L> fixedDatumLabels = new HashMap<D, L>(); 
-	
-	/**
-	 * @return hyper-parameters of the model that can be set (for example) through the
-	 * experiment configuration file or through a grid-search
-	 */
-	protected abstract String[] getHyperParameterNames();
 	
 	/**
 	 * @return a generic instance of some model that can be used
@@ -145,24 +140,6 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	 */
 	public abstract String getGenericName();
 	
-	/**
-	 * @param parameter
-	 * @return the value of parameter hyper-parameter as string
-	 */
-	public abstract String getHyperParameterValue(String parameter);
-	
-	/**
-	 * 
-	 * @param parameter
-	 * @param parameterValue
-	 * @param datumTools
-	 * @return true if the hyper-parameter parameter has been set to 
-	 * parameterValue.  In some cases, parameterValue is used to refer
-	 * to an object within datumTools that the model can use.
-	 */
-	public abstract boolean setHyperParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
-
-	
 	public abstract boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations);
 	
 	/**
@@ -224,7 +201,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 				for (Entry<String, String> envEntry : datumTools.getDataTools().getParameterEnvironment().entrySet())
 					parameterValue = parameterValue.replace("${" + envEntry.getKey() + "}", envEntry.getValue());
 				
-				if (!this.setHyperParameterValue(entry.getKey(), parameterValue, datumTools))
+				if (!this.setParameterValue(entry.getKey(), parameterValue, datumTools))
 					return false;
 			}
 		
@@ -235,7 +212,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 			if (assignmentLeft.equals("labelMapping"))
 				this.labelMapping = datumTools.getLabelMapping(SerializationUtil.deserializeAssignmentRight(reader));
 			else if (assignmentLeft.equals("validLabels")) {
-				this.validLabels = new TreeSet<L>();
+				this.validLabels = new HashSet<L>();
 				List<String> validLabelStrs = SerializationUtil.deserializeList(reader);
 				for (String validLabelStr : validLabelStrs)
 					this.validLabels.add(datumTools.labelFromString(validLabelStr));
@@ -251,7 +228,11 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		return true;
 	}
 	
-	public boolean serialize(Writer writer) throws IOException {
+	public boolean serialize(Writer writer, boolean includeReferenceName) throws IOException {
+		if (includeReferenceName) {
+			writer.write("model" + (this.referenceName == null ? "" : "_" + this.referenceName) + "=");
+		}
+		
 		writer.write(toString(false));
 		writer.write("\n{\n");
 		if (this.labelMapping != null)
@@ -276,7 +257,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		if (withParameters) {
 			StringWriter stringWriter = new StringWriter();
 			try {
-				if (serialize(stringWriter))
+				if (serialize(stringWriter, withParameters))
 					return stringWriter.toString();
 				else
 					return null;
@@ -286,9 +267,9 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		} else {
 			String genericName = getGenericName();
 			Map<String, String> parameters = new HashMap<String, String>();
-			String[] parameterNames = getHyperParameterNames();
+			String[] parameterNames = getParameterNames();
 			for (int i = 0; i < parameterNames.length; i++)
-				parameters.put(parameterNames[i], getHyperParameterValue(parameterNames[i]));
+				parameters.put(parameterNames[i], getParameterValue(parameterNames[i]));
 			StringWriter parametersWriter = new StringWriter();
 			
 			try {
@@ -315,27 +296,33 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 		return true;
 	}
 	
-	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools) {
-		return clone(datumTools, null);
+	public  <D1 extends Datum<L1>, L1> SupervisedModel<D1, L1> clone(Datum.Tools<D1, L1> datumTools) {
+		return clone(datumTools, null, true);
 	}
 	
-	public SupervisedModel<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModel<D, L> clone = makeInstance(this.validLabels, this.labelMapping);
-		String[] parameterNames = getHyperParameterNames();
+	@SuppressWarnings("unchecked")
+	public <D1 extends Datum<L1>, L1> SupervisedModel<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelObjects) {
+		SupervisedModel<D1, L1> clone = datumTools.makeModelInstance(getGenericName(), true);
+		
+		if (copyLabelObjects) {
+			clone.validLabels = (Set<L1>)this.validLabels;
+			clone.labelMapping = (Datum.Tools.LabelMapping<L1>)this.labelMapping;
+			clone.fixedDatumLabels = (Map<D1, L1>)this.fixedDatumLabels;
+		}
+		
+		String[] parameterNames = getParameterNames();
 		for (int i = 0; i < parameterNames.length; i++) {
-			String parameterValue = getHyperParameterValue(parameterNames[i]);
+			String parameterValue = getParameterValue(parameterNames[i]);
 			if (parameterValue != null) {
 				if (environment != null)
 					for (Entry<String, String> entry : environment.entrySet())
-						parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
-				parameterValue = parameterValue.replace("${", "").replace("}", "");
+						parameterValue = parameterValue.replace("--" + entry.getKey() + "--", entry.getValue());
 			}
 			
-			clone.setHyperParameterValue(parameterNames[i], parameterValue, datumTools);
+			clone.setParameterValue(parameterNames[i], parameterValue, datumTools);
 		}
 		
 		clone.referenceName = this.referenceName;
-		clone.fixedDatumLabels = this.fixedDatumLabels;
 		
 		return clone;
 	}
@@ -367,10 +354,32 @@ public abstract class SupervisedModel<D extends Datum<L>, L> {
 	
 	public boolean setHyperParameterValues(Map<String, String> values, Datum.Tools<D, L> datumTools) {
 		for (Entry<String, String> entry : values.entrySet()) {
-			if (!setHyperParameterValue(entry.getKey(), entry.getValue(), datumTools))
+			if (!setParameterValue(entry.getKey(), entry.getValue(), datumTools))
 				return false;
 		}
 		
 		return true;
+	}
+	
+	public boolean setLabels(Set<L> validLabels, LabelMapping<L> labelMapping) {
+		this.validLabels = validLabels;
+		this.labelMapping = labelMapping;
+		return true;
+	}
+	
+	public static <D extends Datum<L>, L> SupervisedModel<D, L> deserialize(BufferedReader reader, boolean readParameters, Datum.Tools<D, L> datumTools) throws IOException {		
+		String assignmentLeft = SerializationUtil.deserializeAssignmentLeft(reader);
+		
+		String[] nameParts = assignmentLeft.split("_");
+		String referenceName = null;
+		if (nameParts.length > 1)
+			referenceName = nameParts[1];
+			
+		String modelName = SerializationUtil.deserializeGenericName(reader);
+		SupervisedModel<D, L> model = datumTools.makeModelInstance(modelName);
+		if (!model.deserialize(reader, false, readParameters, datumTools, referenceName))
+			return null;
+
+		return model;
 	}
 }

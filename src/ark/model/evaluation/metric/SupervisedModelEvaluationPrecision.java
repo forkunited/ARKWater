@@ -58,21 +58,16 @@ public class SupervisedModelEvaluationPrecision<D extends Datum<L>, L> extends S
 		Map<L, Double> tps = new HashMap<L, Double>();
 		Map<L, Double> fps = new HashMap<L, Double>();
 		
+		for (L label : model.getValidLabels()) {
+			if (!weights.containsKey(label)) {
+				weights.put(label, 0.0); 
+				tps.put(label, 0.0);
+				fps.put(label, 0.0);
+			}
+		}
+		
 		for (Pair<L, L> pair : actualAndPredicted) {
 			L actual = pair.getFirst();
-			L predicted = pair.getSecond();
-			if (!weights.containsKey(actual)) {
-				weights.put(actual, 0.0); 
-				tps.put(actual, 0.0);
-				fps.put(actual, 0.0);
-			}
-			
-			if (!weights.containsKey(predicted)) {
-				weights.put(predicted, 0.0);
-				tps.put(predicted, 0.0);
-				fps.put(predicted, 0.0);
-			}
-			
 			weights.put(actual, weights.get(actual) + 1.0);
 		}
 		
@@ -121,12 +116,12 @@ public class SupervisedModelEvaluationPrecision<D extends Datum<L>, L> extends S
 	}
 
 	@Override
-	protected String[] getParameterNames() {
+	public String[] getParameterNames() {
 		return this.parameterNames;
 	}
 
 	@Override
-	protected String getParameterValue(String parameter) {
+	public String getParameterValue(String parameter) {
 		if (parameter.equals("weighted"))
 			return String.valueOf(this.weighted);
 		else if (parameter.equals("filterLabel"))
@@ -136,7 +131,7 @@ public class SupervisedModelEvaluationPrecision<D extends Datum<L>, L> extends S
 	}
 
 	@Override
-	protected boolean setParameterValue(String parameter,
+	public boolean setParameterValue(String parameter,
 			String parameterValue, Tools<D, L> datumTools) {
 		if (parameter.equals("weighted"))
 			this.weighted = Boolean.valueOf(parameterValue);
@@ -148,7 +143,7 @@ public class SupervisedModelEvaluationPrecision<D extends Datum<L>, L> extends S
 	}
 
 	@Override
-	protected SupervisedModelEvaluation<D, L> makeInstance() {
+	public SupervisedModelEvaluation<D, L> makeInstance() {
 		return new SupervisedModelEvaluationPrecision<D, L>();
 	}
 }

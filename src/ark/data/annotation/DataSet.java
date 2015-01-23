@@ -18,10 +18,14 @@
 
 package ark.data.annotation;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.Writer;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +34,13 @@ import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeMap;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.util.MathUtil;
 import ark.util.Pair;
+import ark.util.ThreadMapper;
 
 /**
  * DataSet represents a collection of labeled and/or unlabeled 'datums'
@@ -117,16 +126,7 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	};
 	
 	public DataSet(Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
-		// Used treemap to ensure same ordering when iterating over data across
-		// multiple runs.  HashMap might not give consistent ordering if L.hashCode()
-		// is based on the Object reference (for example if L is an enum)
-		// (This isn't an issue right now since the labeledData map is no longer used
-		// to iterate through the data)
-		this.labeledData = new TreeMap<L, List<Integer>>(this.labelComparator);
-		this.unlabeledData = new ArrayList<Integer>();
-		
-		// For iterating in order by ID
-		this.data = new TreeMap<Integer, D>();
+		clear();
 		
 		this.labelMapping = labelMapping;
 		this.datumTools = datumTools;
@@ -156,6 +156,15 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	
 	public D getDatumById(int id) {
 		return this.data.get(id);
+	}
+	
+	public int getDataSizeForLabel(L label) {
+		if (this.labelMapping != null)
+			label = this.labelMapping.map(label);
+		if (!this.labeledData.containsKey(label))
+			return 0;
+		else
+			return this.labeledData.get(label).size();
 	}
 	
 	public List<D> getDataForLabel(L label) {
@@ -206,7 +215,44 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		}
 		
 		return partition;
-	} 
+	}
+
+	public <C> List<DataSet<D, L>> makePartition(double[] distribution, Datum.Tools.Clusterer<D, L, C> clusterer, Random random) {
+		Map<C, List<D>> clusters = cluster(clusterer);
+		List<C> clusterList = MathUtil.randomPermutation(random, new ArrayList<C>(clusters.keySet()));
+		List<DataSet<D, L>> partition = new ArrayList<DataSet<D, L>>(distribution.length);
+		
+		int offset = 0;
+		for (int i = 0; i < distribution.length; i++) {
+			int partSize = (int)Math.floor(clusterList.size()*distribution[i]);
+			if (i == distribution.length - 1 && offset + partSize < clusterList.size())
+				partSize = clusterList.size() - offset;
+			
+			DataSet<D, L> part = new DataSet<D, L>(this.datumTools, this.labelMapping);
+			for (int j = offset; j < offset + partSize; j++) {
+				part.addAll(clusters.get(clusterList.get(j)));
+			}
+			
+			offset += partSize;
+			partition.add(part);
+		}
+		
+		return partition;
+	}
+	
+	public <C> Map<C, List<D>> cluster(Datum.Tools.Clusterer<D, L, C> clusterer) {
+		Map<C, List<D>> clusters = new HashMap<C, List<D>>();
+		
+		for (D datum : this) {
+			C cluster = clusterer.getCluster(datum);
+			if (!clusters.containsKey(cluster))
+				clusters.put(cluster, new ArrayList<D>());
+			
+			clusters.get(cluster).add(datum);
+		}
+		
+		return clusters;
+	}
 	
 	public Datum.Tools<D, L> getDatumTools() {
 		return this.datumTools;
@@ -282,7 +328,16 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	
 	@Override
 	public void clear() {
-		throw new UnsupportedOperationException();
+		// Used treemap to ensure same ordering when iterating over data across
+		// multiple runs.  HashMap might not give consistent ordering if L.hashCode()
+		// is based on the Object reference (for example if L is an enum)
+		// (This isn't an issue right now since the labeledData map is no longer used
+		// to iterate through the data)
+		this.labeledData = new TreeMap<L, List<Integer>>(this.labelComparator);
+		this.unlabeledData = new ArrayList<Integer>();
+		
+		// For iterating in order by ID
+		this.data = new TreeMap<Integer, D>();
 	}
 	
 	@Override
@@ -319,5 +374,69 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		}
 		
 		return new Pair<L, Integer>(maxLabel, maxLabelCount);
+	}
+	
+	public <T> List<T> map(final ThreadMapper.Fn<D, T> fn, int maxThreads) {
+		List<DataSet<D, L>> threadDataPartition  = this.makePartition(maxThreads, this.datumTools.getDataTools().getGlobalRandom());
+		
+		ThreadMapper<DataSet<D, L>, List<T>> threadMapper 
+		= new ThreadMapper<DataSet<D, L>, List<T>>(new ThreadMapper.Fn<DataSet<D, L>, List<T>>() {
+			@Override
+			public List<T> apply(DataSet<D, L> dataSet) {
+				List<T> results = new ArrayList<T>(dataSet.size());
+				for (D datum : dataSet) {
+					T result = fn.apply(datum);
+					results.add(result);
+				}
+				
+				return results;
+			}
+		});
+	
+		List<List<T>> threadResults = threadMapper.run(threadDataPartition, maxThreads);
+		List<T> results = new ArrayList<T>(size());
+		for (List<T> threadResult : threadResults)
+			results.addAll(threadResult);
+		
+		return results;
+	}
+	
+	public boolean deserialize(BufferedReader reader) throws IOException {		
+		try {
+			String line = null;
+			while ((line = reader.readLine()) != null) {
+				JSONObject json = new JSONObject(line);
+				D datum = this.datumTools.datumFromJSON(json);
+				if (!add(datum))
+					return false;
+			}
+			reader.close();
+			return true;
+		} catch (JSONException e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	public boolean serialize(Writer writer) throws IOException {
+		for (D datum : this) {
+			JSONObject json = this.datumTools.datumToJSON(datum);
+			writer.write(json.toString());
+			writer.write("\n");
+		}
+		writer.close();
+		
+		return true;
+	}
+	
+	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinaryDataSet(String labelIndicator, Datum.Tools<T, Boolean> datumTools) {
+		DataSet<T, Boolean> dataSet = new DataSet<T, Boolean>(datumTools, null);
+		LabelIndicator<L> indicator = this.datumTools.getLabelIndicator(labelIndicator);
+		
+		for (D datum : this) {
+			dataSet.add(this.datumTools.<T>makeBinaryDatum(datum, indicator));
+		}
+		
+		return dataSet;
 	}
 }

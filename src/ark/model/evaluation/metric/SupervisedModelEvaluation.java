@@ -34,6 +34,7 @@ import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.util.Pair;
+import ark.util.Parameterizable;
 import ark.util.SerializationUtil;
 
 /**
@@ -51,7 +52,7 @@ import ark.util.SerializationUtil;
  * @param <D> datum type
  * @param <L> datum label type
  */
-public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> {
+public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> implements Parameterizable<D, L> {
 	protected LabelMapping<L> labelMapping;
 	
 	/**
@@ -73,32 +74,10 @@ public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> {
 	protected abstract double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions);
 	
 	/**
-	 * @return parameters of the evaluation measure that can be set through the experiment 
-	 * configuration file
-	 */
-	protected abstract String[] getParameterNames();
-	
-	/**
-	 * @param parameter
-	 * @return the value of the given parameter
-	 */
-	protected abstract String getParameterValue(String parameter);
-	
-	/**
-	 * 
-	 * @param parameter
-	 * @param parameterValue
-	 * @param datumTools
-	 * @return true if the parameter has been set to parameterValue.  Some parameters are set to
-	 * objects retrieved through datumTools that are named by parameterValue.
-	 */
-	protected abstract boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
-	
-	/**
 	 * @return a generic instance of the evaluation measure.  This is used when deserializing
 	 * the parameters for the measure from a configuration file
 	 */
-	protected abstract SupervisedModelEvaluation<D, L> makeInstance();
+	public abstract SupervisedModelEvaluation<D, L> makeInstance();
 	
 	/**
 	 * @param predictions
@@ -142,21 +121,26 @@ public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> {
 		return evaluation;
 	}
 	
-	public SupervisedModelEvaluation<D, L> clone(Datum.Tools<D, L> datumTools) {
-		return clone(datumTools, null);
+	public <D1 extends Datum<L1>, L1> SupervisedModelEvaluation<D1, L1> clone(Datum.Tools<D1, L1> datumTools) {
+		return clone(datumTools, null, true);
 	}
 	
-	public SupervisedModelEvaluation<D, L> clone(Datum.Tools<D, L> datumTools, Map<String, String> environment) {
-		SupervisedModelEvaluation<D, L> clone = makeInstance();
+	@SuppressWarnings("unchecked")
+	public <D1 extends Datum<L1>, L1> SupervisedModelEvaluation<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelMapping) {
+		SupervisedModelEvaluation<D1, L1> clone = datumTools.makeEvaluationInstance(getGenericName(), true);
 		String[] parameterNames = getParameterNames();
 		for (int i = 0; i < parameterNames.length; i++) {
 			String parameterValue = getParameterValue(parameterNames[i]);
 			if (environment != null && parameterValue != null) {
 				for (Entry<String, String> entry : environment.entrySet())
-					parameterValue = parameterValue.replace("${" + entry.getKey() + "}", entry.getValue());
+					parameterValue = parameterValue.replace("--" + entry.getKey() + "--", entry.getValue());
 			}
 			clone.setParameterValue(parameterNames[i], parameterValue, datumTools);
 		}
+		
+		if (copyLabelMapping)
+			clone.labelMapping = (LabelMapping<L1>)this.labelMapping;
+		
 		return clone;
 	}
 	

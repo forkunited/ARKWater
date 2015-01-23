@@ -210,6 +210,8 @@ public class ConfusionMatrix<D extends Datum<L>, L> {
 		
 		for (Entry<L, Map<L, List<D>>> entryActual : this.actualToPredicted.entrySet()) {
 			for (Entry<L, List<D>> entryPredicted : entryActual.getValue().entrySet()) {
+				if (entryActual.getKey().equals(entryPredicted.getKey()))
+					continue;
 				for (D datum: entryPredicted.getValue()) {
 					
 					TokenSpan[] tokenSpans = null; 
