@@ -166,6 +166,11 @@ public abstract class Datum<L> {
 			double weight(L label);
 		}
 		
+		public static interface InverseLabelIndicator<L> {
+			String toString();
+			L label(Map<String, Double> indicatorWeights);
+		}
+		
 		public static interface Clusterer<D extends Datum<L>, L, C> {
 			String toString();
 			C getCluster(D datum);
@@ -178,6 +183,7 @@ public abstract class Datum<L> {
 		private Map<String, DoubleExtractor<D, L>> doubleExtractors;
 		private Map<String, LabelMapping<L>> labelMappings;
 		private Map<String, LabelIndicator<L>> labelIndicators;
+		private Map<String, InverseLabelIndicator<L>> inverseLabelIndicators;
 		
 		private Map<String, Feature<D, L>> genericFeatures;
 		private Map<String, SupervisedModel<D, L>> genericModels;
@@ -193,6 +199,7 @@ public abstract class Datum<L> {
 			this.doubleExtractors = new HashMap<String, DoubleExtractor<D, L>>();
 			this.labelMappings = new HashMap<String, LabelMapping<L>>();
 			this.labelIndicators = new HashMap<String, LabelIndicator<L>>();
+			this.inverseLabelIndicators = new HashMap<String, InverseLabelIndicator<L>>();
 			this.genericFeatures = new HashMap<String, Feature<D, L>>();
 			this.genericModels = new HashMap<String, SupervisedModel<D, L>>();
 			this.genericEvaluations = new HashMap<String, SupervisedModelEvaluation<D, L>>();
@@ -260,6 +267,10 @@ public abstract class Datum<L> {
 		
 		public LabelIndicator<L> getLabelIndicator(String name) {
 			return this.labelIndicators.get(name);
+		}
+		
+		public InverseLabelIndicator<L> getInverseLabelIndicator(String name) {
+			return this.inverseLabelIndicators.get(name);
 		}
 		
 		public Feature<D, L> makeFeatureInstance(String genericFeatureName) {
@@ -341,6 +352,11 @@ public abstract class Datum<L> {
 		
 		public boolean addLabelIndicator(LabelIndicator<L> labelIndicator) {
 			this.labelIndicators.put(labelIndicator.toString(), labelIndicator);
+			return true;
+		}
+		
+		public boolean addInverseLabelIndicator(InverseLabelIndicator<L> inverseLabelIndicator) {
+			this.inverseLabelIndicators.put(inverseLabelIndicator.toString(), inverseLabelIndicator);
 			return true;
 		}
 		

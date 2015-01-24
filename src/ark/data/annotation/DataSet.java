@@ -429,9 +429,13 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		return true;
 	}
 	
+	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinaryDataSet(Datum.Tools<T, Boolean> datumTools) {
+		return makeBinaryDataSet(null, datumTools);
+	}
+	
 	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinaryDataSet(String labelIndicator, Datum.Tools<T, Boolean> datumTools) {
 		DataSet<T, Boolean> dataSet = new DataSet<T, Boolean>(datumTools, null);
-		LabelIndicator<L> indicator = this.datumTools.getLabelIndicator(labelIndicator);
+		LabelIndicator<L> indicator = (labelIndicator == null) ? null : this.datumTools.getLabelIndicator(labelIndicator);
 		
 		for (D datum : this) {
 			dataSet.add(this.datumTools.<T>makeBinaryDatum(datum, indicator));

@@ -297,8 +297,8 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 			features.add(feature.clone(datumTools, datumTools.getDataTools().getParameterEnvironment(), false));
 		}
 		
-		FeaturizedDataSet<T, Boolean> dataSet = new FeaturizedDataSet<T, Boolean>(this.name + "/" + labelIndicator, features, 1, datumTools, null);
-		LabelIndicator<L> indicator = getDatumTools().getLabelIndicator(labelIndicator);
+		FeaturizedDataSet<T, Boolean> dataSet = new FeaturizedDataSet<T, Boolean>(this.name + ((labelIndicator == null) ? "" : "/" + labelIndicator), features, 1, datumTools, null);
+		LabelIndicator<L> indicator = (labelIndicator == null) ? null : getDatumTools().getLabelIndicator(labelIndicator);
 		
 		for (D datum : this) {
 			dataSet.add(getDatumTools().<T>makeBinaryDatum(datum, indicator));
