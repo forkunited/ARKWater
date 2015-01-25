@@ -20,6 +20,7 @@ package ark.data.feature;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -94,6 +95,10 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	
 	public String getName() {
 		return this.name;
+	}
+	
+	public boolean getPrecomputedFeatures() {
+		return this.precomputedFeatures;
 	}
 	
 	public int getMaxThreads() {
@@ -288,6 +293,26 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		
 		this.precomputedFeatures = true;
 		return true;
+	}
+	
+	@Override
+	public DataSet<D, L> getSubset(DataFilter dataFilter) {
+		FeaturizedDataSet<D, L> subset = new FeaturizedDataSet<D, L>(this.name + " " + dataFilter, this.maxThreads, getDatumTools(), getLabelMapping());
+		Iterator<D> iterator = iterator(dataFilter);
+		
+		if (!subset.addFeatures(this.featureList, false))
+			return null;
+		
+		subset.featureVocabularyNames = this.featureVocabularyNames;
+		subset.precomputedFeatures = this.precomputedFeatures;
+		
+		while (iterator.hasNext()) {
+			D datum = iterator.next();
+			subset.add(datum);
+			subset.featureVocabularyValues.put(datum.getId(), this.featureVocabularyValues.get(datum.getId()));
+		}
+		
+		return subset;
 	}
 	
 	@Override

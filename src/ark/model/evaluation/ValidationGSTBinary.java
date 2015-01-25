@@ -23,6 +23,7 @@ import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
 import ark.util.ThreadMapper;
 import ark.util.ThreadMapper.Fn;
+import ark.util.Timer;
 
 /**
  * ValidationGSTBinary performs ValidationGST validations on several
@@ -145,18 +146,24 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 	
 	@Override
 	public List<Double> run() { 
+		Timer timer = this.trainData.getDatumTools().getDataTools().getTimer();
 		final OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
 		final Set<Boolean> binaryLabels = new HashSet<Boolean>();
 		binaryLabels.add(true);
 		binaryLabels.add(false);
 		
-		output.debugWriteln("Computing features...");
-		if (!this.trainData.precomputeFeatures()
-				|| !this.devData.precomputeFeatures()
-				|| (this.testData != null && !this.testData.precomputeFeatures()))
-			return null;
-		output.debugWriteln("Finished computing features.");
-		
+		if (!this.trainData.getPrecomputedFeatures() 
+				|| !this.devData.getPrecomputedFeatures() 
+				|| (this.testData != null && this.testData.getPrecomputedFeatures())) {
+			timer.startClock(this.name + " Feature Computation");
+			output.debugWriteln("Computing features...");
+			if (!this.trainData.precomputeFeatures()
+					|| !this.devData.precomputeFeatures()
+					|| (this.testData != null && !this.testData.precomputeFeatures()))
+				return null;
+			output.debugWriteln("Finished computing features.");
+			timer.stopClock(this.name + " Feature Computation");
+		}
 		output.resultsWriteln("Training data examples: " + this.trainData.size());
 		output.resultsWriteln("Dev data examples: " + this.devData.size());
 		output.resultsWriteln("Test data examples: " + this.testData.size());
@@ -301,6 +308,8 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		output.resultsWriteln("\nBest grid search position counts:");
 		for (Entry<GridSearch<T, Boolean>.GridPosition, Integer> entry : this.bestPositionCounts.entrySet())
 			output.resultsWriteln(entry.getKey().toString() + "\t" + entry.getValue());	
+		
+		output.resultsWriteln("\nTime:\n" + this.datumTools.getDataTools().getTimer().toString());
 	
 		return true;
 	}

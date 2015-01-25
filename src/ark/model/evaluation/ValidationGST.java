@@ -280,7 +280,7 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 		timer.stopClock(featureStr + " Initialization");
 		output.debugWriteln(this.name + " finished initializing feature (" + featureStr + ").");
 	
-		if (!this.devData.addFeature(feature, false) || (this.testData != null && !this.testData.addFeature(feature)))
+		if (!this.devData.addFeature(feature, false) || (this.testData != null && !this.testData.addFeature(feature, false)))
 			return false;
 		
 		output.debugWriteln(this.name + " serializing feature (" + featureStr + ")...");

@@ -77,6 +77,11 @@ public abstract class Datum<L> {
 		return this.label;
 	}
 	
+	public boolean setLabel(L label) {
+		this.label = label;
+		return true;
+	}
+	
 	public boolean setLabelWeight(L label, double weight) {
 		if (this.labelDistribution == null)
 			this.labelDistribution = new ArrayList<Pair<L, Double>>(2);

@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Function;
 
 import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.io.output.WriterOutputStream;
@@ -50,8 +51,19 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 		
 		DataSet<PredictedDataInstance<Vector, Integer>> plataniosData = data.makePlataniosDataSet();
 		
+		List<Double> initEvaluationValues = new ArrayList<Double>();
+		for (int i = 0; i < evaluations.size(); i++) {
+			initEvaluationValues.add(0.0);
+		}
+		
+		int iterationsPerDataSet = data.size()/this.batchSize;
+		int maximumIterations = (int)Math.floor(this.maxDataSetRuns*iterationsPerDataSet);		
+		
+		NumberFormat format = new DecimalFormat("#0.000");
+		
 		output.debugWriteln("Areg training platanios model...");
 		
+		SupervisedModel<D, L> thisModel = this;
 		this.classifier =
 				new LogisticRegressionAdaGrad.Builder(plataniosData.get(0).features().size())
 					.sparse(true)
@@ -61,66 +73,85 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 					.l1RegularizationWeight(this.l1)
 					.l2RegularizationWeight(this.l2)
 					.batchSize(this.batchSize)
-					.maximumNumberOfIterations(this.evaluationIterations)
+					.maximumNumberOfIterations(maximumIterations)
 					.pointChangeTolerance(this.convergenceEpsilon)
+					.additionalCustomConvergenceCriterion(new Function<Vector, Boolean>() {
+						int iterations = 0;
+						int evaluationConstantIterations = 0;
+						Map<D, L> prevPredictions = null;
+						List<Double> prevEvaluationValues = initEvaluationValues;
+						SupervisedModel<D, L> model = thisModel;
+						
+						@Override
+						public Boolean apply(Vector t) {
+							this.iterations++;
+							if (this.iterations % evaluationIterations != 0)
+								return false;
+							
+							Map<D, L> predictions = classify(testData);
+							int labelDifferences = countLabelDifferences(prevPredictions, predictions);
+							List<Double> evaluationValues = new ArrayList<Double>();
+							for (SupervisedModelEvaluation<D, L> evaluation : evaluations) {
+								evaluationValues.add(evaluation.evaluate(model, testData, predictions));
+							}
+							
+							double pointChange = classifier.solver().getPointChange();
+							
+							String amountDoneStr = format.format(this.iterations/(double)maximumIterations);
+							String pointChangeStr = format.format(pointChange);
+							String statusStr = data.getName() + " (l1=" + l1 + ", l2=" + l2 + ") #" + iterations + 
+									" [" + amountDoneStr + "] -- point-change: " + pointChangeStr + " predict-diff: " + labelDifferences + "/" + predictions.size() + " ";
+							for (int i = 0; i < evaluations.size(); i++) {
+								String evaluationName = evaluations.get(i).getGenericName();
+								String evaluationDiffStr = format.format(evaluationValues.get(i) - this.prevEvaluationValues.get(i));
+								String evaluationValueStr= format.format(evaluationValues.get(i));
+								statusStr += evaluationName + " diff: " + evaluationDiffStr + " " + evaluationName + ": " + evaluationValueStr + " ";
+							}
+							output.debugWriteln(statusStr);
+							
+							double evaluationDiff = evaluationValues.get(0) - this.prevEvaluationValues.get(0);
+							if (Double.compare(evaluationDiff, 0.0) == 0) {
+								this.evaluationConstantIterations += evaluationIterations;
+							} else {
+								this.evaluationConstantIterations = 0;
+							}
+								
+							this.prevPredictions = predictions;
+							this.prevEvaluationValues = evaluationValues;
+							
+							if (maxEvaluationConstantIterations < this.evaluationConstantIterations)
+								return true;
+							
+							return false;
+						}
+						
+						private int countLabelDifferences(Map<D, L> labels1, Map<D, L> labels2) {
+							if (labels1 == null && labels2 != null)
+								return labels2.size();
+							if (labels1 != null && labels2 == null)
+								return labels1.size();
+							if (labels1 == null && labels2 == null)
+								return 0;
+							
+							int count = 0;
+							for (Entry<D, L> entry: labels1.entrySet()) {
+								if (!labels2.containsKey(entry.getKey()) || !entry.getValue().equals(labels2.get(entry.getKey())))
+									count++;
+							}
+							return count;
+						}
+						
+					})
 					.loggingLevel(0)
 					.random(data.getDatumTools().getDataTools().makeLocalRandom())
 					.build();
-		
-		Map<D, L> prevPredictions = classify(testData);
-		List<Double> prevEvaluationValues = new ArrayList<Double>();
-		for (SupervisedModelEvaluation<D, L> evaluation : evaluations) {
-			prevEvaluationValues.add(evaluation.evaluate(this, testData, prevPredictions));
-		}
-		
-		int iterationsPerDataSet = data.size()/this.batchSize;
-		int maximumIterations = (int)Math.floor(this.maxDataSetRuns*iterationsPerDataSet);
-		
+	
 		output.debugWriteln(data.getName() + " training for at most " + maximumIterations + 
 				" iterations (maximum " + this.maxDataSetRuns + " runs over size " + this.batchSize + " batches from " + data.size() + " examples)");
 		
-		int iterations = 0;
-		double pointChange = Double.MAX_VALUE;
-		int evaluationConstantIterations = 0;
-		
-		NumberFormat format = new DecimalFormat("#0.000"); 
-		
-		while (iterations < maximumIterations && pointChange > this.convergenceEpsilon && evaluationConstantIterations <= this.maxEvaluationConstantIterations) { 
-			if (!this.classifier.train(plataniosData)) {
-				output.debugWriteln("ERROR: Areg failed to train platanios model.");
-				return false;
-			}
-			
-			Map<D, L> predictions = classify(testData);
-			int labelDifferences = countLabelDifferences(prevPredictions, predictions);
-			List<Double> evaluationValues = new ArrayList<Double>();
-			for (SupervisedModelEvaluation<D, L> evaluation : evaluations) {
-				evaluationValues.add(evaluation.evaluate(this, testData, predictions));
-			}
-			pointChange = this.classifier.solver().getPointChange();
-			iterations += this.evaluationIterations;
-			
-			String amountDoneStr = format.format(iterations/(double)maximumIterations);
-			String pointChangeStr = format.format(pointChange);
-			String statusStr = data.getName() + " (l1=" + this.l1 + ", l2=" + this.l2 + ") #" + iterations + 
-					" [" + amountDoneStr + "] -- point-change: " + pointChangeStr + " predict-diff: " + labelDifferences + "/" + predictions.size() + " ";
-			for (int i = 0; i < evaluations.size(); i++) {
-				String evaluationName = evaluations.get(i).getGenericName();
-				String evaluationDiffStr = format.format(evaluationValues.get(i) - prevEvaluationValues.get(i));
-				String evaluationValueStr= format.format(evaluationValues.get(i));
-				statusStr += evaluationName + " diff: " + evaluationDiffStr + " " + evaluationName + ": " + evaluationValueStr + " ";
-			}
-			output.debugWriteln(statusStr);
-			
-			double evaluationDiff = evaluationValues.get(0) - prevEvaluationValues.get(0);
-			if (Double.compare(evaluationDiff, 0.0) == 0) {
-				evaluationConstantIterations += this.evaluationIterations;
-			} else {
-				evaluationConstantIterations = 0;
-			}
-			
-			prevPredictions = predictions;
-			prevEvaluationValues = evaluationValues;
+		if (!this.classifier.train(plataniosData)) {
+			output.debugWriteln("ERROR: Areg failed to train platanios model.");
+			return false;
 		}
 		
 		this.trainingData = data;
@@ -128,15 +159,6 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 		output.debugWriteln("Areg finished training platanios model."); 
 		
 		return true;
-	}
-	
-	private int countLabelDifferences(Map<D, L> labels1, Map<D, L> labels2) {
-		int count = 0;
-		for (Entry<D, L> entry: labels1.entrySet()) {
-			if (!labels2.containsKey(entry.getKey()) || !entry.getValue().equals(labels2.get(entry.getKey())))
-				count++;
-		}
-		return count;
 	}
 
 	@SuppressWarnings("unchecked")

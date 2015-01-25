@@ -52,7 +52,7 @@ import ark.util.ThreadMapper;
  * @param <L> Datum label type
  */
 public class DataSet<D extends Datum<L>, L> implements Collection<D> {
-	private enum DataFilter {
+	public enum DataFilter {
 		All,
 		OnlyLabeled,
 		OnlyUnlabeled
@@ -252,6 +252,18 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		}
 		
 		return clusters;
+	}
+	
+	public DataSet<D, L> getSubset(DataFilter dataFilter) {
+		DataSet<D, L> subset = new DataSet<D, L>(this.datumTools, this.labelMapping);
+		
+		Iterator<D> iterator = iterator(dataFilter);
+		
+		while (iterator.hasNext()) {
+			subset.add(iterator.next());
+		}
+		
+		return subset;
 	}
 	
 	public Datum.Tools<D, L> getDatumTools() {

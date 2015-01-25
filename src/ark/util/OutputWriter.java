@@ -21,6 +21,7 @@ package ark.util;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 
 /**
  * 
@@ -65,6 +66,50 @@ public class OutputWriter {
 			e.printStackTrace();
 			throw new RuntimeException();
 		}
+	}
+	
+	public boolean setDebugFile(File debugFile) {
+		try {
+			this.debugWriter.close();
+			this.debugWriter = new BufferedWriter(new FileWriter(debugFile.getAbsolutePath()));
+		} catch (IOException e) {
+			return false;
+		}
+		
+		return true;
+	}
+	
+	public boolean setResultsFile(File resultsFile) {
+		try {
+			this.resultsWriter.close();
+			this.resultsWriter = new BufferedWriter(new FileWriter(resultsFile.getAbsolutePath()));
+		} catch (IOException e) {
+			return false;
+		}
+		
+		return true;
+	}
+	
+	public boolean setDataFile(File dataFile) {
+		try {
+			this.dataWriter.close();
+			this.dataWriter = new BufferedWriter(new FileWriter(dataFile.getAbsolutePath()));
+		} catch (IOException e) {
+			return false;
+		}
+		
+		return true;
+	}
+	
+	public boolean setModelFile(File modelFile) {
+		try {
+			this.modelWriter.close();
+			this.modelWriter = new BufferedWriter(new FileWriter(modelFile.getAbsolutePath()));
+		} catch (IOException e) {
+			return false;
+		}
+		
+		return true;
 	}
 	
 	public String getDebugFilePath() {
