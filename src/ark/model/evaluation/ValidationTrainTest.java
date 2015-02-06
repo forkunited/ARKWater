@@ -24,7 +24,6 @@ import ark.util.Timer;
  *
  */
 public class ValidationTrainTest<D extends Datum<L>, L> extends Validation<D, L> {
-	private String name;
 	private FeaturizedDataSet<D, L> trainData;
 	private FeaturizedDataSet<D, L> testData;
 	private Map<D, L> classifiedData;

@@ -18,11 +18,13 @@
 
 package ark.data.feature;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import ark.data.annotation.Datum;
+import ark.data.annotation.Document;
 import ark.data.annotation.nlp.TokenSpan;
 
 /**
@@ -45,7 +47,16 @@ import ark.data.annotation.nlp.TokenSpan;
  * 
  */
 public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D, L> {
-
+	private boolean noTokenSpan;
+	
+	public FeatureNGramSentence() {
+		super();
+		
+		this.noTokenSpan = false;
+		this.parameterNames = Arrays.copyOf(this.parameterNames, this.parameterNames.length + 1);
+		this.parameterNames[this.parameterNames.length - 1] = "noTokenSpan";
+	}
+	
 	@Override
 	protected Map<String, Integer> getGramsForDatum(D datum) {
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
@@ -55,12 +66,17 @@ public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D,
 			if (tokenSpan.getSentenceIndex() < 0)
 				continue;
 			
-			List<String> tokens = tokenSpan.getDocument().getSentenceTokens(tokenSpan.getSentenceIndex());
-			if (tokens == null)
-				continue;
-			
-			for (int i = 0; i < tokens.size()-this.n+1; i++) {
-				List<String> ngrams = getCleanNGrams(tokens, i);
+			Document document = tokenSpan.getDocument();
+			int sentenceIndex = tokenSpan.getSentenceIndex();
+			for (int i = 0; i < document.getSentenceTokenCount(sentenceIndex)-this.n+1; i++) {
+				if (this.noTokenSpan && (
+						(tokenSpan.containsToken(sentenceIndex, i))
+						|| (tokenSpan.containsToken(sentenceIndex, i + this.n - 1))
+						|| (i < tokenSpan.getStartTokenIndex() && i + this.n - 1 >= tokenSpan.getEndTokenIndex())
+						))
+					continue;
+				
+				List<String> ngrams = getCleanNGramsAtPosition(document, sentenceIndex, i);
 				if (ngrams != null) {
 					for (String ngram : ngrams) {
 						if (this.n == 1) {
@@ -100,5 +116,27 @@ public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D,
 	public Feature<D, L> makeInstance() {
 		return new FeatureNGramSentence<D, L>();
 	} 
+	
+	@Override
+	public String getParameterValue(String parameter) {
+		String parameterValue = super.getParameterValue(parameter);
+		if (parameterValue != null)
+			return parameterValue;
+		else if (parameter.equals("noTokenSpan"))
+			return String.valueOf(this.noTokenSpan);
+		return null;
+	}
+
+	@Override
+	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+		if (super.setParameterValue(parameter, parameterValue, datumTools))
+			return true;
+		else if (parameter.equals("noTokenSpan"))
+			this.noTokenSpan = Boolean.valueOf(parameterValue);
+		else
+			return false;
+		
+		return true;
+	}
 
 }

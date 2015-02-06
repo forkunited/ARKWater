@@ -35,6 +35,7 @@ import ark.data.feature.FeatureGazetteerContains;
 import ark.data.feature.FeatureGazetteerEditDistance;
 import ark.data.feature.FeatureGazetteerInitialism;
 import ark.data.feature.FeatureGazetteerPrefixTokens;
+import ark.data.feature.FeatureGramCluster;
 import ark.data.feature.FeatureGramContextPattern;
 import ark.data.feature.FeatureIdentity;
 import ark.data.feature.FeatureDependencyPath;
@@ -42,6 +43,8 @@ import ark.data.feature.FeatureNGramContext;
 import ark.data.feature.FeatureNGramDep;
 import ark.data.feature.FeatureNGramSentence;
 import ark.data.feature.FeatureNGramPoS;
+import ark.data.feature.FeatureStringForm;
+import ark.data.feature.FeatureTokenCount;
 import ark.model.SupervisedModel;
 import ark.model.SupervisedModelAreg;
 import ark.model.SupervisedModelCreg;
@@ -173,7 +176,7 @@ public abstract class Datum<L> {
 		
 		public static interface InverseLabelIndicator<L> {
 			String toString();
-			L label(Map<String, Double> indicatorWeights);
+			L label(Map<String, Double> indicatorWeights, List<String> positiveIndicators);
 		}
 		
 		public static interface Clusterer<D extends Datum<L>, L, C> {
@@ -236,6 +239,9 @@ public abstract class Datum<L> {
 			addGenericFeature(new FeatureConstituencyPath<D, L>());
 			addGenericFeature(new FeatureConjunction<D, L>());
 			addGenericFeature(new FeatureGramContextPattern<D, L>());
+			addGenericFeature(new FeatureTokenCount<D, L>());
+			addGenericFeature(new FeatureStringForm<D, L>());
+			addGenericFeature(new FeatureGramCluster<D, L>());
 			
 			addGenericModel(new SupervisedModelCreg<D, L>());
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());

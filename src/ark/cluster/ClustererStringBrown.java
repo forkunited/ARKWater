@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ark.data.DataTools;
 import ark.util.CommandRunner;
 import ark.util.OutputWriter;
 
@@ -41,7 +42,7 @@ import ark.util.OutputWriter;
  * @author Bill McDowell 
  * 
  */
-public class ClustererBrown extends Clusterer<String> {
+public class ClustererStringBrown extends ClustererString {
 	private String name;
 	private File sourceDocument;
 	private int numClusters;
@@ -53,7 +54,8 @@ public class ClustererBrown extends Clusterer<String> {
 	
 	private Map<String, String> wordsToClusters;
 	
-	public ClustererBrown(String name, String cmdPath, File sourceDocument, int numClusters, OutputWriter output) {
+	public ClustererStringBrown(String name, String cmdPath, File sourceDocument, int numClusters, OutputWriter output, DataTools.StringTransform cleanFn) {
+		super(cleanFn);
 		this.name = name;
 		this.sourceDocument = sourceDocument;
 		this.numClusters = numClusters;
@@ -73,13 +75,10 @@ public class ClustererBrown extends Clusterer<String> {
 		return this.name;
 	}
 	
-	public synchronized List<String> getClusters(String word) {
+	public synchronized List<String> getClustersHelper(String word) {
 		if (this.wordsToClusters == null)
 			if (!loadWordsToClusters())
 				return null;	
-		
-		if (word.matches("[0-9]+"))
-			word = "[NUMBER]";
 		
 		if (!this.wordsToClusters.containsKey(word))
 			return null;

@@ -46,8 +46,6 @@ public class ThreadMapper<S, T> {
 			threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 			for (Future<T> futureResult : futureResults) {
 				T result = futureResult.get();
-				if (result == null)
-					return null;
 				results.add(result);
 			}
 		} catch (Exception e) {

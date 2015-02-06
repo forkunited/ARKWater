@@ -18,6 +18,8 @@
 
 package ark.model.evaluation;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +38,7 @@ import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
+import ark.util.SerializationUtil;
 
 /**
  * GridSearch performs a grid-search for hyper-parameter values
@@ -48,6 +51,49 @@ import ark.util.OutputWriter;
  * @param <L> datum label type
  */
 public class GridSearch<D extends Datum<L>, L> {
+	public static class GridDimension {
+		private String name;
+		private List<String> values;
+		private boolean trainingDimension;
+		
+		public GridDimension() {
+			this.values = new ArrayList<String>();
+			this.trainingDimension = true;
+		}
+		
+		public boolean deserialize(BufferedReader reader) throws IOException {
+			this.name = SerializationUtil.deserializeGenericName(reader);
+			boolean hasDimensionValues = false;
+			Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
+			for (Entry<String, String> parameter : parameters.entrySet()) {
+				if (parameter.getKey().equals("values")) {
+					String[] values = parameter.getValue().split(",");
+					for (String value : values) {
+						this.values.add(value.trim());
+					}
+					
+					hasDimensionValues =  true;
+				} else if (parameter.getKey().equals("training")) {
+					this.trainingDimension = Boolean.valueOf(parameter.getValue());
+				}
+			}
+			
+			return hasDimensionValues;
+		}
+		
+		public boolean isTrainingDimension() {
+			return this.trainingDimension;
+		}
+		
+		public List<String> getValues() {
+			return this.values;
+		}
+		
+		public String getName() {
+			return this.name;
+		}
+	}
+	
 	/**
 	 * GridPosition represents a position in the grid
 	 * of parameter values (a setting of values for the
@@ -183,8 +229,8 @@ public class GridSearch<D extends Datum<L>, L> {
 	private SupervisedModel<D, L> model;
 	private FeaturizedDataSet<D, L> trainData;
 	private FeaturizedDataSet<D, L> testData;
-	// map from parameters to lists of possible values
-	private Map<String, List<String>> possibleParameterValues;
+	
+	private List<GridDimension> dimensions;
 	// grid of evaluated grid positions (evaluated parameter settings)
 	private List<EvaluatedGridPosition> gridEvaluation;
 	// evaluation measure
@@ -197,20 +243,20 @@ public class GridSearch<D extends Datum<L>, L> {
 	 * @param model
 	 * @param trainData
 	 * @param testData
-	 * @param possibleParameterValues - Map from parameters to lists of their possible values
+	 * @param dimensions - Grid dimensions and their possible values
 	 * @param evaluation - Evaluation measure by which to search
 	 */
 	public GridSearch(String name,
 									SupervisedModel<D, L> model,
 									FeaturizedDataSet<D, L> trainData, 
 									FeaturizedDataSet<D, L> testData,
-									Map<String, List<String>> possibleParameterValues,
+									List<GridDimension> dimensions,
 									SupervisedModelEvaluation<D, L> evaluation) {
 		this.name = name;
 		this.model = model;
 		this.trainData = trainData;
 		this.testData = testData;
-		this.possibleParameterValues = possibleParameterValues;
+		this.dimensions = dimensions;
 		this.gridEvaluation = null;
 		this.evaluation = evaluation;
 		this.cleanDouble = new DecimalFormat("0.00000");
@@ -249,14 +295,14 @@ public class GridSearch<D extends Datum<L>, L> {
 		}
 		
 		try {
-			List<Future<EvaluatedGridPosition>> results = threadPool.invokeAll(tasks);
+			List<Future<List<EvaluatedGridPosition>>> results = threadPool.invokeAll(tasks);
 			threadPool.shutdown();
 			threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-			for (Future<EvaluatedGridPosition> futureResult : results) {
-				EvaluatedGridPosition result = futureResult.get();
+			for (Future<List<EvaluatedGridPosition>> futureResult : results) {
+				List<EvaluatedGridPosition> result = futureResult.get();
 				if (result == null)
 					return null;
-				this.gridEvaluation.add(result);
+				this.gridEvaluation.addAll(result);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -275,26 +321,42 @@ public class GridSearch<D extends Datum<L>, L> {
 		double maxValue = Double.NEGATIVE_INFINITY;
 		EvaluatedGridPosition maxPosition = null;
 		
-		for (EvaluatedGridPosition positionValue : gridEvaluation) {
-			if (positionValue.getPositionValue() > maxValue) {
-				maxValue = positionValue.getPositionValue();
-				maxPosition = positionValue;
+		for (EvaluatedGridPosition position: gridEvaluation) {
+			if (position.getPositionValue() > maxValue) {
+				maxValue = position.getPositionValue();
+				maxPosition = position;
 			}
 		}
+		
+		// FIXME This is a hack.  Currently non-training parameters will be same across
+		// all resulting models since models aren't cloned for non-training parameters
+		maxPosition.getValidation().getModel().setHyperParameterValues(maxPosition.coordinates, maxPosition.getValidation().datumTools);
 		
 		return maxPosition;
 	}
 	
 	private List<GridPosition> constructGrid() {
+		return constructGrid(null, true);
+	}
+	
+	private List<GridPosition> constructGrid(GridPosition initialPosition, boolean training) {
 		List<GridPosition> positions = new ArrayList<GridPosition>();
-		positions.add(new GridPosition());
-		for (Entry<String, List<String>> possibleValuesEntry : this.possibleParameterValues.entrySet()) {
+		
+		if (initialPosition != null) 
+			positions.add(initialPosition);
+		else
+			positions.add(new GridPosition());
+		
+		for (GridDimension dimension : this.dimensions) {
+			if (dimension.isTrainingDimension() != training)
+				continue;
+			
 			List<GridPosition> newPositions = new ArrayList<GridPosition>();
 			
 			for (GridPosition position : positions) {
-				for (String parameterValue : possibleValuesEntry.getValue()) {
+				for (String value : dimension.getValues()) {
 					GridPosition newPosition = position.clone();
-					newPosition.setParameterValue(possibleValuesEntry.getKey(), parameterValue);
+					newPosition.setParameterValue(dimension.getName(), value);
 					newPositions.add(newPosition);
 				}
 			}
@@ -305,36 +367,47 @@ public class GridSearch<D extends Datum<L>, L> {
 		return positions;
 	}
 	
-	private class PositionThread implements Callable<EvaluatedGridPosition> {
+	private class PositionThread implements Callable<List<EvaluatedGridPosition>> {
 		private GridPosition position;
 		private Map<String, String> parameterEnvironment;
+		private SupervisedModel<D, L> positionModel;
 		
 		public PositionThread(GridPosition position) {
 			this.position = position;
 			this.parameterEnvironment = new HashMap<String, String>();
 			this.parameterEnvironment.putAll(trainData.getDatumTools().getDataTools().getParameterEnvironment());
 			this.parameterEnvironment.putAll(this.position.getCoordinates());
+			this.positionModel = model.clone(trainData.getDatumTools(), this.parameterEnvironment, true);
 		}
 		
 		@Override
-		public EvaluatedGridPosition call() throws Exception {
+		public List<EvaluatedGridPosition> call() throws Exception {
+			List<GridPosition> positions = constructGrid(this.position, false); // Positions for non-training dimensions
+			List<EvaluatedGridPosition> evaluatedPositions = new ArrayList<EvaluatedGridPosition>();
+			boolean skipTraining = false;
+			for (GridPosition position : positions) {
+				evaluatedPositions.add(evaluatePosition(position, skipTraining));
+				skipTraining = true;
+			}
+			
+			return evaluatedPositions;
+		}
+		
+		private EvaluatedGridPosition evaluatePosition(GridPosition position, boolean skipTraining) {
 			OutputWriter output = trainData.getDatumTools().getDataTools().getOutputWriter();
 			
 			output.debugWriteln("Grid search evaluating " + evaluation.toString() + " of model (" + name + " " + position.toString() + ")");
 			
-			SupervisedModel<D, L> positionModel = model.clone(trainData.getDatumTools(), this.parameterEnvironment, true);
 			Map<String, String> parameterValues = position.getCoordinates();
 			for (Entry<String, String> entry : parameterValues.entrySet()) {
-				positionModel.setParameterValue(entry.getKey(), entry.getValue(), trainData.getDatumTools());	
+				this.positionModel.setParameterValue(entry.getKey(), entry.getValue(), trainData.getDatumTools());	
 			}
-			
-			//positionModel.setHyperParameterValue("warmRestart", "true", this.trainData.getDatumTools());
 			
 			List<SupervisedModelEvaluation<D, L>> evaluations = new ArrayList<SupervisedModelEvaluation<D, L>>(1);
 			evaluations.add(evaluation);
 			
-			ValidationTrainTest<D, L> validation = new ValidationTrainTest<D, L>(name + " " + position.toString(), 1, positionModel, trainData, testData, evaluations, null);
-			double computedEvaluation = validation.run().get(0);
+			ValidationTrainTest<D, L> validation = new ValidationTrainTest<D, L>(name + " " + position.toString(), 1, this.positionModel, trainData, testData, evaluations, null);
+			double computedEvaluation = validation.run(skipTraining).get(0);
 			if (computedEvaluation  < 0) {
 				output.debugWriteln("Error: Grid search evaluation failed at position " + position.toString());
 				return null;
@@ -342,8 +415,7 @@ public class GridSearch<D extends Datum<L>, L> {
 			
 			output.debugWriteln("Finished grid search evaluating model with hyper parameters (" + name + " " + position.toString() + ")");
 			
-			return new EvaluatedGridPosition(this.position, computedEvaluation, validation);
+			return new EvaluatedGridPosition(position, computedEvaluation, validation);
 		}
-		
 	}
 }

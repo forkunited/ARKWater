@@ -20,6 +20,7 @@ import org.platanios.learn.classification.LogisticRegressionAdaGrad;
 import org.platanios.learn.data.DataSet;
 import org.platanios.learn.data.PredictedDataInstance;
 import org.platanios.learn.math.matrix.Vector;
+import org.platanios.learn.math.matrix.VectorNorm;
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools;
@@ -33,11 +34,15 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 	private double l2;
 	private double convergenceEpsilon = -1.0;
 	private int maxEvaluationConstantIterations = 100000;
-	private double maxDataSetRuns = 1.0;
+	private double maxTrainingExamples = 10000;
 	private int batchSize = 100;
-	private int evaluationIterations;
-	private String[] hyperParameterNames = { "l1", "l2", "convergenceEpsilon", "maxEvaluationConstantIterations", "maxDataSetRuns", "batchSize", "evaluationIterations" };
+	private int evaluationIterations = 500;
+	private boolean weightedLabels = false;
+	private double classificationThreshold = 0.5;
+	private String[] hyperParameterNames = { "l1", "l2", "convergenceEpsilon", "maxEvaluationConstantIterations", "maxTrainingExamples", "batchSize", "evaluationIterations", "weightedLabels", "classificationThreshold" };
+	
 	private LogisticRegressionAdaGrad classifier;
+	private Vector classifierWeights;
 	private FeaturizedDataSet<D, L> trainingData;
 	
 	@Override
@@ -49,17 +54,17 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 			return false;
 		}
 		
-		DataSet<PredictedDataInstance<Vector, Integer>> plataniosData = data.makePlataniosDataSet();
+		DataSet<PredictedDataInstance<Vector, Double>> plataniosData = data.makePlataniosDataSet(this.weightedLabels, 1.0/5.0, true);
 		
 		List<Double> initEvaluationValues = new ArrayList<Double>();
 		for (int i = 0; i < evaluations.size(); i++) {
 			initEvaluationValues.add(0.0);
 		}
 		
-		int iterationsPerDataSet = data.size()/this.batchSize;
-		int maximumIterations = (int)Math.floor(this.maxDataSetRuns*iterationsPerDataSet);		
+		//int iterationsPerDataSet = plataniosData.size()/this.batchSize;
+		int maximumIterations =  (int)(this.maxTrainingExamples/this.batchSize);// (int)Math.floor(this.maxDataSetRuns*iterationsPerDataSet);		
 		
-		NumberFormat format = new DecimalFormat("#0.000");
+		NumberFormat format = new DecimalFormat("#0.000000");
 		
 		output.debugWriteln("Areg training platanios model...");
 		
@@ -81,12 +86,23 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 						Map<D, L> prevPredictions = null;
 						List<Double> prevEvaluationValues = initEvaluationValues;
 						SupervisedModel<D, L> model = thisModel;
+						Vector prevWeights = null;
 						
 						@Override
-						public Boolean apply(Vector t) {
+						public Boolean apply(Vector weights) {
 							this.iterations++;
-							if (this.iterations % evaluationIterations != 0)
+							
+							if (this.iterations % evaluationIterations != 0) {
+								this.prevWeights = weights;
+								classifierWeights = weights;
 								return false;
+							}
+								
+							LogisticRegressionAdaGrad tempClassifier = classifier;
+							classifier = new LogisticRegressionAdaGrad.Builder(plataniosData.get(0).features().size(), weights)
+								.sparse(true)
+								.useBiasTerm(true)
+								.build();
 							
 							Map<D, L> predictions = classify(testData);
 							int labelDifferences = countLabelDifferences(prevPredictions, predictions);
@@ -95,7 +111,9 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 								evaluationValues.add(evaluation.evaluate(model, testData, predictions));
 							}
 							
-							double pointChange = classifier.solver().getPointChange();
+							classifier = tempClassifier;
+							
+							double pointChange = weights.sub(this.prevWeights).norm(VectorNorm.L2_FAST);
 							
 							String amountDoneStr = format.format(this.iterations/(double)maximumIterations);
 							String pointChangeStr = format.format(pointChange);
@@ -118,6 +136,8 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 								
 							this.prevPredictions = predictions;
 							this.prevEvaluationValues = evaluationValues;
+							this.prevWeights = weights;
+							classifierWeights = weights;
 							
 							if (maxEvaluationConstantIterations < this.evaluationConstantIterations)
 								return true;
@@ -145,9 +165,9 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 					.loggingLevel(0)
 					.random(data.getDatumTools().getDataTools().makeLocalRandom())
 					.build();
-	
+
 		output.debugWriteln(data.getName() + " training for at most " + maximumIterations + 
-				" iterations (maximum " + this.maxDataSetRuns + " runs over size " + this.batchSize + " batches from " + data.size() + " examples)");
+				" iterations (maximum " + this.maxTrainingExamples + " examples over size " + this.batchSize + " batches from " + data.size() + " examples)");
 		
 		if (!this.classifier.train(plataniosData)) {
 			output.debugWriteln("ERROR: Areg failed to train platanios model.");
@@ -171,7 +191,7 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 			return null;
 		}
 		
-		DataSet<PredictedDataInstance<Vector, Integer>> plataniosData = data.makePlataniosDataSet();
+		DataSet<PredictedDataInstance<Vector, Double>> plataniosData = data.makePlataniosDataSet(this.weightedLabels, 0.0, false);
 
 		plataniosData = this.classifier.predict(plataniosData);
 		if (plataniosData == null) {
@@ -180,18 +200,20 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 		}
 		
 		Map<D, Map<L, Double>> posteriors = new HashMap<D, Map<L, Double>>();
-		for (PredictedDataInstance<Vector, Integer> prediction : plataniosData) {
+		for (PredictedDataInstance<Vector, Double> prediction : plataniosData) {
 			int datumId = Integer.parseInt(prediction.name());
 			D datum = data.getDatumById(datumId);
 			
 			Map<L, Double> posterior = new HashMap<L, Double>();
-			if (prediction.label() == 1) {
-				posterior.put((L)(new Boolean(true)), prediction.probability());
-				posterior.put((L)(new Boolean(false)), 1.0 - prediction.probability());
-			} else {
-				posterior.put((L)(new Boolean(false)), prediction.probability());
-				posterior.put((L)(new Boolean(true)), 1.0 - prediction.probability());
-			}
+			double p = (prediction.label() == 1) ? prediction.probability() : 1.0 - prediction.probability();
+			
+			// Offset bias term according to classification threshold so that
+			// output posterior p >= 0.5 iff model_p >= classification threshold
+			// i.e. log (p/(1-p)) = log (model_p/(1-model_p)) - log (threshold/(1-threshold))
+			p = p*(1.0-this.classificationThreshold)/(this.classificationThreshold*(1.0-p)+p*(1.0-this.classificationThreshold));
+			
+			posterior.put((L)(new Boolean(true)), p);
+			posterior.put((L)(new Boolean(false)), 1.0-p);
 			
 			posteriors.put(datum, posterior);
 		}
@@ -199,6 +221,43 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 		return posteriors;
 	}
 	
+	@SuppressWarnings("unchecked")
+	@Override
+	public Map<D, L> classify(FeaturizedDataSet<D, L> data) {
+		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
+
+		if (this.validLabels.size() > 2 || !this.validLabels.contains(true)) {
+			output.debugWriteln("ERROR: Areg only supports binary classification.");
+			return null;
+		}
+		
+		DataSet<PredictedDataInstance<Vector, Double>> plataniosData = data.makePlataniosDataSet(this.weightedLabels, 0.0, false);
+
+		plataniosData = this.classifier.predict(plataniosData);
+		if (plataniosData == null) {
+			output.debugWriteln("ERROR: Areg failed to compute data classifications.");
+			return null;
+		}
+		
+		Map<D, Boolean> predictions = new HashMap<D, Boolean>();
+		for (PredictedDataInstance<Vector, Double> prediction : plataniosData) {
+			int datumId = Integer.parseInt(prediction.name());
+			D datum = data.getDatumById(datumId);
+		
+			if (this.fixedDatumLabels.containsKey(datum)) {
+				predictions.put(datum, (Boolean)this.fixedDatumLabels.get(datum));
+				continue;
+			}
+			
+			double p = (prediction.label() == 1) ? prediction.probability() : 1.0 - prediction.probability();
+			if (p >= this.classificationThreshold)
+				predictions.put(datum, true);
+			else 
+				predictions.put(datum, false);
+		}
+		
+		return (Map<D, L>)predictions;
+	}
 	
 	@Override
 	protected boolean deserializeParameters(BufferedReader reader, Tools<D, L> datumTools) {
@@ -220,7 +279,7 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 	protected boolean serializeParameters(Writer writer) throws IOException {
 		writer.write("# WEIGHTS #\n");
 		
-		double[] weightArray = this.classifier.weights().getDenseArray(); 
+		double[] weightArray = this.classifierWeights.getDenseArray(); 
 		writer.write("featureVocabularySize=" + weightArray.length + "\n");
 		
 		List<Pair<Integer, Double>> sortedWeights = new ArrayList<Pair<Integer, Double>>();
@@ -282,14 +341,18 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 			return String.valueOf(this.l2);
 		else if (parameter.equals("convergenceEpsilon"))
 			return String.valueOf(this.convergenceEpsilon);
-		else if (parameter.equals("maxDataSetRuns"))
-			return String.valueOf(this.maxDataSetRuns);
+		else if (parameter.equals("maxTrainingExamples"))
+			return String.valueOf(this.maxTrainingExamples);
 		else if (parameter.equals("batchSize"))
 			return String.valueOf(this.batchSize);
 		else if (parameter.equals("evaluationIterations"))
 			return String.valueOf(this.evaluationIterations);
 		else if (parameter.equals("maxEvaluationConstantIterations"))
 			return String.valueOf(this.maxEvaluationConstantIterations);
+		else if (parameter.equals("weightedLabels"))
+			return String.valueOf(this.weightedLabels);
+		else if (parameter.equals("classificationThreshold"))
+			return String.valueOf(this.classificationThreshold);
 		return null;
 	}
 
@@ -302,14 +365,18 @@ public class SupervisedModelAreg<D extends Datum<L>, L> extends SupervisedModel<
 			this.l2 = Double.valueOf(parameterValue);
 		else if (parameter.equals("convergenceEpsilon"))
 			this.convergenceEpsilon = Double.valueOf(parameterValue);
-		else if (parameter.equals("maxDataSetRuns"))
-			this.maxDataSetRuns = Double.valueOf(parameterValue);
+		else if (parameter.equals("maxTrainingExamples"))
+			this.maxTrainingExamples = Double.valueOf(parameterValue);
 		else if (parameter.equals("batchSize"))
 			this.batchSize = Integer.valueOf(parameterValue);
 		else if (parameter.equals("evaluationIterations"))
 			this.evaluationIterations = Integer.valueOf(parameterValue);
 		else if (parameter.equals("maxEvaluationConstantIterations"))
 			this.maxEvaluationConstantIterations = Integer.valueOf(parameterValue);
+		else if (parameter.equals("weightedLabels"))
+			this.weightedLabels = Boolean.valueOf(parameterValue);
+		else if (parameter.equals("classificationThreshold"))
+			this.classificationThreshold = Double.valueOf(parameterValue);
 		else
 			return false;
 		return true;

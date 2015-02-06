@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.TreeMap;
 
@@ -66,8 +67,9 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	private int featureVocabularySize;
 	private boolean precomputedFeatures;
 	
-	private DataSetInMemory<PredictedDataInstance<Vector, Integer>> plataniosDataSet;
-
+	private DataSetInMemory<PredictedDataInstance<Vector, Double>> fullPlataniosDataSet;
+	private DataSetInMemory<PredictedDataInstance<Vector, Double>> labeledPlataniosDataSet;
+	
 	public FeaturizedDataSet(String name, Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
 		this(name, 1, datumTools, labelMapping);
 	}
@@ -336,26 +338,56 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		return dataSet;
 	}
 	
-	public synchronized DataSetInMemory<PredictedDataInstance<Vector, Integer>> makePlataniosDataSet() {
-		if (this.plataniosDataSet != null)
-			return this.plataniosDataSet;
+	public synchronized DataSetInMemory<PredictedDataInstance<Vector, Double>> makePlataniosDataSet(boolean weightedLabels, double minPositiveSampleRate, boolean onlyLabeled) {
+		if (this.fullPlataniosDataSet != null)
+			return (onlyLabeled) ? this.labeledPlataniosDataSet : this.fullPlataniosDataSet;
 		
-		ThreadMapper<D, PredictedDataInstance<Vector, Integer>> threadMapper 
-			= new ThreadMapper<D, PredictedDataInstance<Vector, Integer>>(new ThreadMapper.Fn<D, PredictedDataInstance<Vector, Integer>>() {
+		double pos = (this.labeledData.get(true) != null) ? this.labeledData.get(true).size() : 1.0;
+		double neg = (this.labeledData.get(false) != null) ? this.labeledData.get(false).size() : 0.0;
+		double posFrac = pos/(pos+neg);
+		double negFrac = 1.0;
+		if (posFrac < minPositiveSampleRate) {
+			double targetNeg = (pos-minPositiveSampleRate*pos)/minPositiveSampleRate;
+			negFrac = targetNeg/neg;
+		}
+		
+		final double finalNegFrac = negFrac;
+		final Random r = getDatumTools().getDataTools().makeLocalRandom();
+		
+		List<PredictedDataInstance<Vector, Double>> dataInstances = this.map(new ThreadMapper.Fn<D, PredictedDataInstance<Vector, Double>>() {
+				@SuppressWarnings("unchecked")
 				@Override
-				public PredictedDataInstance<Vector, Integer> apply(D datum) {
+				public PredictedDataInstance<Vector, Double> apply(D datum) {
 					Vector vector = getFeatureVocabularyValues(datum);
-					Integer label = null;
-					if (datum.getLabel() != null)
-						label = (Boolean)datum.getLabel() ? 1 : 0;
+					Double label = null;
+					
+					if (datum.getLabel() != null) {
+						if (!(Boolean)datum.getLabel() && r.nextDouble() > finalNegFrac)
+							return null;					
+						if (weightedLabels) {
+							label = datum.getLabelWeight((L)(new Boolean(true)));
+						} else {
+							label = (Boolean)datum.getLabel() ? 1.0 : 0.0;
+						}
+					}
 				
-					return new PredictedDataInstance<Vector, Integer>(String.valueOf(datum.getId()), vector, label, null, 1);
+					return new PredictedDataInstance<Vector, Double>(String.valueOf(datum.getId()), vector, label, null, 1);
 				}
 			});
 		
-		List<PredictedDataInstance<Vector, Integer>> dataInstances = threadMapper.run(new ArrayList<D>(this.data.values()), this.maxThreads);
-		this.plataniosDataSet = new DataSetInMemory<PredictedDataInstance<Vector, Integer>>(dataInstances);
+		List<PredictedDataInstance<Vector, Double>> fullDataInstances = new ArrayList<PredictedDataInstance<Vector, Double>>();
+		List<PredictedDataInstance<Vector, Double>> labeledDataInstances = new ArrayList<PredictedDataInstance<Vector, Double>>();
+		for (PredictedDataInstance<Vector, Double> dataInstance : dataInstances) {
+			if (dataInstance == null) 
+				continue;
+			fullDataInstances.add(dataInstance);
+			if (dataInstance.label() != null)
+				labeledDataInstances.add(dataInstance);
+		}
 		
-		return this.plataniosDataSet;
+		this.fullPlataniosDataSet = new DataSetInMemory<PredictedDataInstance<Vector, Double>>(fullDataInstances);
+		this.labeledPlataniosDataSet = new DataSetInMemory<PredictedDataInstance<Vector, Double>>(labeledDataInstances);
+		
+		return (onlyLabeled) ? this.labeledPlataniosDataSet : this.fullPlataniosDataSet;
 	}
 }

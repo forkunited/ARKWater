@@ -1,11 +1,12 @@
 package ark.model.evaluation;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,7 +41,7 @@ import ark.util.Pair;
 public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 	private List<Feature<D, L>> features;
 	private List<DataSet<D, L>> folds;
-	private Map<String, List<String>> possibleParameterValues; 
+	private List<GridSearch.GridDimension> gridDimensions; 
 	private DataSet<D, L> data;
 	
 	private List<Pair<GridSearch<D, L>.GridPosition, List<Double>>> gridFoldResults;
@@ -48,7 +49,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 	
 	private int k;
 	private boolean trainOnDev;
-	private String[] parameters = new String[] { "gridSearchParameterValues", "trainOnDev", "k"};
+	private String[] parameters = new String[] { "trainOnDev", "k"};
 	
 	/**
 	 * @param name
@@ -56,17 +57,9 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 	 */
 	public ValidationKCV(String name, DataSet<D, L> data) {
 		super(name, data.getDatumTools());
-		this.possibleParameterValues = new HashMap<String, List<String>>();
+		this.gridDimensions = new ArrayList<GridSearch.GridDimension>();
 		this.data = data;
 		this.features = new ArrayList<Feature<D, L>>();
-	}
-	
-	protected boolean addPossibleHyperParameterValue(String parameter, String parameterValue) {
-		if (!this.possibleParameterValues.containsKey(parameter))
-			this.possibleParameterValues.put(parameter, new ArrayList<String>());
-		this.possibleParameterValues.get(parameter).add(parameterValue);
-		
-		return true;
 	}
 	
 	@Override
@@ -115,7 +108,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 			this.evaluationValues.set(i, this.evaluationValues.get(i)/this.folds.size());
 		}
 		
-		if (this.possibleParameterValues.size() > 0) {
+		if (this.gridDimensions.size() > 0) {
 			this.gridFoldResults = new ArrayList<Pair<GridSearch<D, L>.GridPosition, List<Double>>>();
 			for (int i = 0; i < validationResults.size(); i++) {
 				List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation = validationResults.get(i).getGridEvaluation();
@@ -135,7 +128,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 		DecimalFormat cleanDouble = new DecimalFormat("0.00000");
 		OutputWriter output = this.folds.get(0).getDatumTools().getDataTools().getOutputWriter();
 
-		String gridSearchParameters = ((this.possibleParameterValues.size() > 0) ? this.validationResults.get(0).getBestParameters().toKeyString("\t") + "\t" : "");
+		String gridSearchParameters = ((this.gridDimensions.size() > 0) ? this.validationResults.get(0).getBestParameters().toKeyString("\t") + "\t" : "");
 		String evaluationsStr = "";
 		
 		for (int i = 0; i < this.evaluations.size(); i++) {
@@ -146,7 +139,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 		output.resultsWriteln("Fold\t" + gridSearchParameters + evaluationsStr);
 		
 		for (int i = 0; i < this.validationResults.size(); i++) {
-			String gridSearchParameterValues = ((this.possibleParameterValues.size() > 0) ? validationResults.get(i).getBestParameters().toValueString("\t") + "\t" : "");
+			String gridSearchParameterValues = ((this.gridDimensions.size() > 0) ? validationResults.get(i).getBestParameters().toValueString("\t") + "\t" : "");
 			String evaluationValuesStr = "";
 			for (int j = 0; j < this.validationResults.get(i).evaluationValues.size(); j++) {
 				evaluationValuesStr += cleanDouble.format(this.validationResults.get(i).evaluationValues.get(j)) + "\t";
@@ -156,7 +149,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 		}
 		
 		output.resultsWrite("Averages:\t");
-		for (int i = 0; i < this.possibleParameterValues.size(); i++)
+		for (int i = 0; i < this.gridDimensions.size(); i++)
 			output.resultsWrite("\t");
 		for (int i = 0; i < this.evaluationValues.size(); i++) {
 			output.resultsWrite(cleanDouble.format(this.evaluationValues.get(i)) + "\t");
@@ -165,7 +158,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 		
 		output.resultsWriteln("\nTotal Confusion Matrix:\n " + this.confusionMatrix.toString());
 		
-		if (this.possibleParameterValues.size() > 0) {
+		if (this.gridDimensions.size() > 0) {
 			output.resultsWriteln("\nGrid search results:");
 			output.resultsWrite(this.validationResults.get(0).getGridEvaluation().get(0).toKeyString("\t") + "\t");
 			for (int i = 0; i < this.folds.size(); i++)
@@ -266,7 +259,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 			for (int j = 0; j < folds.size(); j++) {
 				if (j == this.foldIndex) {
 					testData.addAll(folds.get(j));
-				} else if (possibleParameterValues.size() > 0 && j == ((foldIndex + 1) % folds.size())) {
+				} else if (gridDimensions.size() > 0 && j == ((foldIndex + 1) % folds.size())) {
 					devData.addAll(folds.get(j));
 				} else {
 					trainData.addAll(folds.get(j));	
@@ -296,8 +289,8 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 			 */
 			ValidationResult result = null;
 			List<Double> evaluationValues = null;
-			if (possibleParameterValues.size() > 0) {
-				ValidationGST<D, L> gridSearchValidation = new ValidationGST<D, L>(namePrefix, this.maxThreads, foldModel, trainData, devData, testData, evaluations, errorExampleExtractor, possibleParameterValues, true);
+			if (gridDimensions.size() > 0) {
+				ValidationGST<D, L> gridSearchValidation = new ValidationGST<D, L>(namePrefix, this.maxThreads, foldModel, trainData, devData, testData, evaluations, errorExampleExtractor, gridDimensions, true);
 				evaluationValues = gridSearchValidation.run();
 				result = new ValidationResult(foldIndex, evaluationValues, gridSearchValidation.getConfusionMatrix(), gridSearchValidation.getGridEvaluation(), gridSearchValidation.getBestGridPosition());
 			} else {
@@ -333,21 +326,8 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 
 	@Override
 	public String getParameterValue(String parameter) {
-		if (parameter.equals("trainOnDev"))
+		if (parameter.equals("trainOnDev")) {
 			return String.valueOf(this.trainOnDev);
-		else if (parameter.equals("gridSearchParameterValues")) {
-			StringBuilder str = new StringBuilder();
-			for (Entry<String, List<String>> entry : this.possibleParameterValues.entrySet()) {
-				str.append(entry.getKey()).append("(");
-				for (String value : entry.getValue())
-					str.append(value).append(",");
-				if (entry.getValue().size() > 0)
-					str.delete(str.length() - 1, str.length());
-				str.append("),");
-			}
-			
-			if (str.length() > 0)
-				str.delete(str.length() - 1, str.length());
 		} else if (parameter.equals("k"))
 			return String.valueOf(this.k);
 		
@@ -359,17 +339,25 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 			Tools<D, L> datumTools) {
 		if (parameter.equals("trainOnDev")) {
 			this.trainOnDev = Boolean.valueOf(parameterValue);
-		} else if (parameter.equals("gridSearchParameterValues")) {
-			parameterValue = parameterValue.substring(0, parameterValue.length() - 1);
-			String[] parts = parameterValue.split("(");
-			String valuesStr = parts[1];
-			String[] values = valuesStr.split(",");
-			for (String value : values)
-				this.addPossibleHyperParameterValue(parts[0], value.trim());
 		} else if (parameter.equals("k")) {
 			this.k = Integer.valueOf(parameterValue);
 		} else
 			return false;
+		
+		return true;
+	}
+	
+	@Override
+	public boolean deserializeNext(BufferedReader reader, String nextName) throws IOException {
+		if (nextName.equals("gridDimension")) {
+			GridSearch.GridDimension gridDimension = new GridSearch.GridDimension();
+			if (!gridDimension.deserialize(reader))
+				return false;
+			
+			this.gridDimensions.add(gridDimension);
+		} else {
+			return super.deserializeNext(reader, nextName);
+		}
 		
 		return true;
 	}

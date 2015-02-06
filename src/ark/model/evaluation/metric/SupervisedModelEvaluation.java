@@ -111,12 +111,16 @@ public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> implement
 	 * computing the evaluation measure.
 	 */
 	public double evaluate(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
-		LabelMapping<L> modelLabelMapping = model.getLabelMapping();
+		LabelMapping<L> modelLabelMapping = null;
+		if (model != null)
+			model.getLabelMapping();
 		if (this.labelMapping != null)
 			model.setLabelMapping(this.labelMapping);
 		
 		double evaluation = compute(model, data, predictions);
-		model.setLabelMapping(modelLabelMapping);
+		
+		if (model != null)
+			model.setLabelMapping(modelLabelMapping);
 		
 		return evaluation;
 	}

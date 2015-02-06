@@ -1,8 +1,9 @@
 package ark.model.evaluation;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +22,7 @@ import ark.model.SupervisedModel;
 import ark.model.SupervisedModelCompositeBinary;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
+import ark.util.SerializationUtil;
 import ark.util.ThreadMapper;
 import ark.util.ThreadMapper.Fn;
 import ark.util.Timer;
@@ -42,7 +44,9 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 	private Map<GridSearch<T, Boolean>.GridPosition, Integer> bestPositionCounts;
 	private SupervisedModelCompositeBinary<T, D, L> learnedCompositeModel;
 	
+	private List<SupervisedModelEvaluation<D, L>> compositeEvaluations;
 	private Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator;
+	private List<Double> compositeEvaluationValues;
 	
 	public ValidationGSTBinary(String name,
 			  int maxThreads,
@@ -52,8 +56,9 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 			  FeaturizedDataSet<D, L> testData,
 			  List<SupervisedModelEvaluation<D, L>> evaluations,
 			  TokenSpanExtractor<D, L> errorExampleExtractor,
-			  Map<String, List<String>> possibleParameterValues,
+			  List<GridSearch.GridDimension> gridDimensions,
 			  boolean trainOnDev,
+			  List<SupervisedModelEvaluation<D, L>> compositeEvaluations,
 			  Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
 		super(name, 
 			  maxThreads,
@@ -63,12 +68,12 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 			  testData,
 			  evaluations,
 			  errorExampleExtractor,
-			  possibleParameterValues,
+			  gridDimensions,
 			  trainOnDev);
 	
-		this.parameters = Arrays.copyOf(this.parameters, this.parameters.length + 1);
-		this.parameters[this.parameters.length - 1] = "inverseLabelIndicator";
 		this.inverseLabelIndicator = inverseLabelIndicator;
+		this.compositeEvaluations = compositeEvaluations;
+		this.compositeEvaluationValues = new ArrayList<Double>();
 	}
 
 	public ValidationGSTBinary(String name,
@@ -80,9 +85,10 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 							   DataSet<D, L> testData,
 							   List<SupervisedModelEvaluation<D, L>> evaluations,
 							   TokenSpanExtractor<D, L> errorExampleExtractor,
-							   Map<String, List<String>> possibleParameterValues,
+							   List<GridSearch.GridDimension> gridDimensions,
 							   boolean trainOnDev,
-							   Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
+							   Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator,
+							   List<SupervisedModelEvaluation<D, L>> compositeEvaluations) {
 		super(name, 
 			  maxThreads,
 			  model,
@@ -92,38 +98,43 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 			  testData,
 			  evaluations,
 			  errorExampleExtractor,
-			  possibleParameterValues,
+			  gridDimensions,
 			  trainOnDev);
 		
-		this.parameters = Arrays.copyOf(this.parameters, this.parameters.length + 1);
-		this.parameters[this.parameters.length - 1] = "inverseLabelIndicator";
 		this.inverseLabelIndicator = inverseLabelIndicator;
+		this.compositeEvaluations = compositeEvaluations;
+		this.compositeEvaluationValues = new ArrayList<Double>();
 	}
 
 	public ValidationGSTBinary(String name, 
 				 Datum.Tools<D, L> datumTools, 
 				 DataSet<D, L> trainData, 
 				 DataSet<D, L> devData, 
-				 DataSet<D, L> testData) {
+				 DataSet<D, L> testData,
+				 Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
 		super(name, datumTools, trainData, devData, testData);
-		this.parameters = Arrays.copyOf(this.parameters, this.parameters.length + 1);
-		this.parameters[this.parameters.length - 1] = "inverseLabelIndicator";
+		this.inverseLabelIndicator = inverseLabelIndicator;
+		this.compositeEvaluations = new ArrayList<SupervisedModelEvaluation<D, L>>();
+		this.compositeEvaluationValues = new ArrayList<Double>();
 	}
 
 	public ValidationGSTBinary(String name, 
 						 Datum.Tools<D, L> datumTools, 
 						 FeaturizedDataSet<D, L> trainData, 
 						 FeaturizedDataSet<D, L> devData, 
-						 FeaturizedDataSet<D, L> testData) {
+						 FeaturizedDataSet<D, L> testData,
+						 Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
 		super(name, datumTools, trainData, devData, testData);
-		this.parameters = Arrays.copyOf(this.parameters, this.parameters.length + 1);
-		this.parameters[this.parameters.length - 1] = "inverseLabelIndicator";
+		this.inverseLabelIndicator = inverseLabelIndicator;
+		this.compositeEvaluations = new ArrayList<SupervisedModelEvaluation<D, L>>();
+		this.compositeEvaluationValues = new ArrayList<Double>();
 	}
 	
-	public ValidationGSTBinary(String name, Datum.Tools<D, L> datumTools) {
+	public ValidationGSTBinary(String name, Datum.Tools<D, L> datumTools, Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
 		super(name, datumTools);
-		this.parameters = Arrays.copyOf(this.parameters, this.parameters.length + 1);
-		this.parameters[this.parameters.length - 1] = "inverseLabelIndicator";
+		this.inverseLabelIndicator = inverseLabelIndicator;
+		this.compositeEvaluations = new ArrayList<SupervisedModelEvaluation<D, L>>();
+		this.compositeEvaluationValues = new ArrayList<Double>();
 	}
 	
 	@Override
@@ -135,6 +146,7 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		this.binaryValidations = null;
 		this.bestPositionCounts = null;
 		this.learnedCompositeModel = null;
+		this.compositeEvaluationValues = new ArrayList<Double>();
 		
 		return true;
 	}
@@ -154,7 +166,7 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		
 		if (!this.trainData.getPrecomputedFeatures() 
 				|| !this.devData.getPrecomputedFeatures() 
-				|| (this.testData != null && this.testData.getPrecomputedFeatures())) {
+				|| (this.testData != null && !this.testData.getPrecomputedFeatures())) {
 			timer.startClock(this.name + " Feature Computation");
 			output.debugWriteln("Computing features...");
 			if (!this.trainData.precomputeFeatures()
@@ -194,17 +206,17 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 						binaryTestData,			
 						binaryEvaluations,
 						binaryTools.getTokenSpanExtractor(errorExampleExtractor.toString()),
-						possibleParameterValues,
+						gridDimensions,
 						trainOnDev);
 				
-				if (binaryTrainData.getDataSizeForLabel(true)/(double)binaryTrainData.size() <= 0.0001
+				if (binaryTrainData.getDataSizeForLabel(true) == 0
 						|| binaryDevData.getDataSizeForLabel(true) == 0 
 						|| (binaryTestData != null && binaryTestData.getDataSizeForLabel(true) == 0)) {
 					output.debugWriteln("Skipping " + labelIndicator.toString() + ".  Not enough positive examples.");
 					return binaryValidation;
 				}
 					
-				if (binaryValidation.run().get(0) < 0) {
+				if (!binaryValidation.runAndOutput()) {
 					return null;
 				}
 				
@@ -222,9 +234,11 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 			evaluationCounts.add(0.0);
 		}
 		
+		List<SupervisedModel<T, Boolean>> trainedModels = new ArrayList<SupervisedModel<T, Boolean>>();
+		List<LabelIndicator<L>> trainedLabelIndicators = new ArrayList<LabelIndicator<L>>();
 		for (int i = 0; i < this.binaryValidations.size(); i++) {
 			ValidationGST<T, Boolean> validation = this.binaryValidations.get(i);
-			if (this.binaryValidations.get(i).trainData.getDataSizeForLabel(true)/(double)trainData.size() <= 0.0001
+			if (this.binaryValidations.get(i).trainData.getDataSizeForLabel(true) == 0
 					|| this.binaryValidations.get(i).devData.getDataSizeForLabel(true) == 0
 					|| (this.binaryValidations.get(i).testData != null && this.binaryValidations.get(i).testData.getDataSizeForLabel(true) == 0)) {
 				output.resultsWriteln("Ignored " + this.trainData.getDatumTools().getLabelIndicators().get(i).toString() + " (lacking positive examples)");
@@ -249,23 +263,24 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 			if (!this.bestPositionCounts.containsKey(validation.bestGridPosition))
 				this.bestPositionCounts.put(validation.bestGridPosition, 0);
 			this.bestPositionCounts.put(validation.bestGridPosition, this.bestPositionCounts.get(validation.bestGridPosition) + 1);
+		
+			trainedModels.add(validation.getModel());
+			trainedLabelIndicators.add(this.trainData.getDatumTools().getLabelIndicators().get(i));
 		}
 		
 		for (int j = 0; j < this.evaluations.size(); j++) {
 			this.evaluationValues.set(j, this.evaluationValues.get(j) / evaluationCounts.get(j));
 		}
 		
-		List<SupervisedModel<T, Boolean>> binaryModels = new ArrayList<SupervisedModel<T, Boolean>>(this.binaryValidations.size());
-		for (ValidationGST<T, Boolean> binaryValidation : this.binaryValidations) {
-			binaryModels.add(binaryValidation.getModel());
-			
-		}
-		
 		this.learnedCompositeModel = new SupervisedModelCompositeBinary<T, D, L>(
-				binaryModels, 
-				this.datumTools.getLabelIndicators(), 
+				trainedModels, 
+				trainedLabelIndicators, 
 				this.binaryValidations.get(0).datumTools, 
 				this.inverseLabelIndicator);
+		
+		Map<D, L> classifiedData = this.learnedCompositeModel.classify(this.testData);
+		for (int j = 0; j < this.compositeEvaluations.size(); j++)
+			this.compositeEvaluationValues.add(this.compositeEvaluations.get(j).evaluate(this.learnedCompositeModel, this.testData, classifiedData));
 		
 		return this.evaluationValues;
 	}
@@ -309,6 +324,11 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		for (Entry<GridSearch<T, Boolean>.GridPosition, Integer> entry : this.bestPositionCounts.entrySet())
 			output.resultsWriteln(entry.getKey().toString() + "\t" + entry.getValue());	
 		
+		output.resultsWriteln("\nComposite evaluations:");
+		for (int i = 0; i < this.compositeEvaluations.size(); i++) {
+			output.resultsWriteln(this.compositeEvaluations.get(i).toString(false) + "\t" + cleanDouble.format(this.compositeEvaluationValues.get(i)));
+		}
+		
 		output.resultsWriteln("\nTime:\n" + this.datumTools.getDataTools().getTimer().toString());
 	
 		return true;
@@ -316,19 +336,27 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 	
 	@Override
 	public String getParameterValue(String parameter) {
-		if (parameter.equals("inverseLabelIndicator"))
-			return this.inverseLabelIndicator.toString();
-		else 
-			return super.getParameterValue(parameter);
+		return super.getParameterValue(parameter);
 	}
 
 	@Override
 	public boolean setParameterValue(String parameter, String parameterValue,
 			Tools<D, L> datumTools) {
-		if (parameter.equals("inverseLabelIndicator")) {
-			this.inverseLabelIndicator = datumTools.getInverseLabelIndicator(parameterValue);
-			return true;
-		} else 
-			return super.setParameterValue(parameter, parameterValue, datumTools);
+		return super.setParameterValue(parameter, parameterValue, datumTools);
+	}
+	
+	@Override
+	public boolean deserializeNext(BufferedReader reader, String nextName) throws IOException {
+		if (nextName.equals("compositeEvaluation")) {
+			String evaluationName = SerializationUtil.deserializeGenericName(reader);
+			SupervisedModelEvaluation<D, L> evaluation = this.datumTools.makeEvaluationInstance(evaluationName);
+			if (!evaluation.deserialize(reader, false, this.datumTools))
+				return false;
+			this.compositeEvaluations.add(evaluation);
+		} else {
+			return super.deserializeNext(reader, nextName);
+		}
+		
+		return true;
 	}
 }

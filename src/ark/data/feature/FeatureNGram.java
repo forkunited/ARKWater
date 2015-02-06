@@ -24,6 +24,8 @@ import java.util.List;
 
 import ark.cluster.Clusterer;
 import ark.data.annotation.Datum;
+import ark.data.annotation.Document;
+import ark.data.annotation.nlp.TokenSpan;
 
 /**
  * 
@@ -62,7 +64,7 @@ import ark.data.annotation.Datum;
  */
 public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D, L> {	
 	protected int n;
-	protected Clusterer<String> clusterer;
+	protected Clusterer<TokenSpan> clusterer;
 	
 	public FeatureNGram() {
 		super();
@@ -74,40 +76,32 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 		this.parameterNames[this.parameterNames.length - 1] = "n";
 	}
 
-	protected List<String> getCleanNGrams(List<String> tokens, int startIndex) {
-		List<String> ngram = new ArrayList<String>(this.n);
-		for (int i = startIndex; i < startIndex + this.n; i++)
-			ngram.add(tokens.get(i));
+	protected List<String> getCleanNGramsAtPosition(Document document, int sentenceIndex, int startTokenIndex) {
+		if (this.clusterer != null) {
+			TokenSpan ngramSpan = new TokenSpan(document, sentenceIndex, startTokenIndex, startTokenIndex + this.n);
+			List<String> clusters = this.clusterer.getClusters(ngramSpan);
+			if (clusters == null)
+				return new ArrayList<String>();
+			else
+				return clusters;
+		} 
 		
-		StringBuilder ngramGlue = new StringBuilder();
-		for (String gram : ngram) {
-			String cleanGram = this.cleanFn.transform(gram);
+		StringBuilder ngram = new StringBuilder();		
+		for (int i = startTokenIndex; i < startTokenIndex + this.n; i++) {
+			String cleanGram = this.cleanFn.transform(document.getToken(sentenceIndex, i));
 			if (cleanGram.length() == 0)
 				continue;
-			
-			if (this.clusterer != null) {
-				List<String> clusters = this.clusterer.getClusters(cleanGram);
-				if (clusters == null || clusters.size() == 0)
-					continue;
-				if (this.n > 1) {
-					ngramGlue = ngramGlue.append(clusters.get(0)).append("_");
-				} else {
-					return clusters;
-				}
-			} else { 
-				ngramGlue = ngramGlue.append(cleanGram).append("_");
-			}
+			ngram.append(cleanGram).append("_");
 		}
 		
-
-		List<String> retNgrams = new ArrayList<String>();
-		if (ngramGlue.length() == 0)
-			return retNgrams;
+		List<String> ngrams = new ArrayList<String>();
+		if (ngram.length() == 0)
+			return ngrams;
 		
-		ngramGlue = ngramGlue.delete(ngramGlue.length() - 1, ngramGlue.length());
-		retNgrams.add(ngramGlue.toString());
+		ngram = ngram.delete(ngram.length() - 1, ngram.length());	
+		ngrams.add(ngram.toString());
 		
-		return retNgrams;
+		return ngrams;
 	}
 
 	@Override
@@ -127,7 +121,7 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
 		else if (parameter.equals("clusterer"))
-			this.clusterer = datumTools.getDataTools().getStringClusterer(parameterValue);
+			this.clusterer = datumTools.getDataTools().getTokenSpanClusterer(parameterValue);
 		else if (parameter.equals("n"))
 			this.n = Integer.valueOf(parameterValue);
 		else

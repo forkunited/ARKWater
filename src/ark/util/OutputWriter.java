@@ -68,10 +68,11 @@ public class OutputWriter {
 		}
 	}
 	
-	public boolean setDebugFile(File debugFile) {
+	public boolean setDebugFile(File debugFile, boolean append) {
 		try {
 			this.debugWriter.close();
-			this.debugWriter = new BufferedWriter(new FileWriter(debugFile.getAbsolutePath()));
+			this.debugFile = debugFile;
+			this.debugWriter = new BufferedWriter(new FileWriter(debugFile.getAbsolutePath(), append));
 		} catch (IOException e) {
 			return false;
 		}
@@ -79,10 +80,11 @@ public class OutputWriter {
 		return true;
 	}
 	
-	public boolean setResultsFile(File resultsFile) {
+	public boolean setResultsFile(File resultsFile, boolean append) {
 		try {
 			this.resultsWriter.close();
-			this.resultsWriter = new BufferedWriter(new FileWriter(resultsFile.getAbsolutePath()));
+			this.resultsFile = resultsFile;
+			this.resultsWriter = new BufferedWriter(new FileWriter(resultsFile.getAbsolutePath(), append));
 		} catch (IOException e) {
 			return false;
 		}
@@ -90,10 +92,11 @@ public class OutputWriter {
 		return true;
 	}
 	
-	public boolean setDataFile(File dataFile) {
+	public boolean setDataFile(File dataFile, boolean append) {
 		try {
 			this.dataWriter.close();
-			this.dataWriter = new BufferedWriter(new FileWriter(dataFile.getAbsolutePath()));
+			this.dataFile = dataFile;
+			this.dataWriter = new BufferedWriter(new FileWriter(dataFile.getAbsolutePath(), append));
 		} catch (IOException e) {
 			return false;
 		}
@@ -101,10 +104,11 @@ public class OutputWriter {
 		return true;
 	}
 	
-	public boolean setModelFile(File modelFile) {
+	public boolean setModelFile(File modelFile, boolean append) {
 		try {
 			this.modelWriter.close();
-			this.modelWriter = new BufferedWriter(new FileWriter(modelFile.getAbsolutePath()));
+			this.modelFile = modelFile;
+			this.modelWriter = new BufferedWriter(new FileWriter(modelFile.getAbsolutePath(), append));
 		} catch (IOException e) {
 			return false;
 		}

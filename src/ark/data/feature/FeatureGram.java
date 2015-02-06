@@ -35,33 +35,6 @@ import ark.util.BidirectionalLookupTable;
 
 /**
  * 
- * FeatureNGram computes gram features for datums.  For
- * a datum d and token-extractor T, and scaling function s:R->R the feature computes 
- * the vector:
- * 
- * <s(1(v_1\in F(T(d))))), s(1(v_2 \in F(T(d)))), ... , s(1(v_n \in F(T(d))))>
- * 
- * Where F(T(d)) is a subset of the tokens given by T(d) that 
- * depends on the 
- * particular gram feature that is being computed (e.g. NGramContext,
- * NGramDep, etc), and v_i 
- * is an gram in vocabulary of possible grams from the full
- * data-set.  
- * 
- * For examples of possible F, see the feature types that extend 
- * this class.  Possibilities for s are given by the Scale enum 
- * defined below.
- * 
- * The minFeatureOccurrence parameter determines the minimum number
- * of times an n-gram must occur in the data-set for it to be included
- * as a component in the computed vectors.
- * 
- * The cleanFn parameter is a string cleaning function that is applied to
- * each gram in each n-gram before the vectors are computed.
- * 
- * Optionally, if a clusterer (Brown) parameter is provided, then grams of
- * the n-grams are first mapped to their clusters or sets of 
- * prefixes of their clusters.
  * 
  * @author Bill McDowell
  * 

@@ -18,15 +18,19 @@
 
 package ark.data.feature;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import ark.data.annotation.Datum;
+import ark.data.annotation.Document;
 import ark.data.annotation.nlp.TokenSpan;
 
 /**
+ * FIXME Outdated documentation
+ * 
  * For each datum d FeatureNGramContext computes a
  * vector:
  * 
@@ -44,14 +48,23 @@ import ark.data.annotation.nlp.TokenSpan;
  * @param <L> datum label type
  */
 public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, L> {
-	private int contextWindowSize;
+	public enum Mode {
+		BEFORE,
+		AFTER,
+		WITHIN
+	}
+	
+	private int maxGramDistance;
+	private Mode mode;
 	
 	public FeatureNGramContext() {
 		super();
 		
-		this.contextWindowSize = 0;
-		this.parameterNames = Arrays.copyOf(this.parameterNames, this.parameterNames.length + 1);
-		this.parameterNames[this.parameterNames.length - 1] = "contextWindowSize";
+		this.maxGramDistance = 0;
+		this.mode = Mode.WITHIN;
+		this.parameterNames = Arrays.copyOf(this.parameterNames, this.parameterNames.length + 2);
+		this.parameterNames[this.parameterNames.length - 1] = "maxGramDistance";
+		this.parameterNames[this.parameterNames.length - 2] = "mode";
 	}
 	
 	@Override
@@ -62,24 +75,42 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 		for (TokenSpan tokenSpan : tokenSpans) {
 			if (tokenSpan.getSentenceIndex() < 0)
 				continue;
-			List<String> tokens = tokenSpan.getDocument().getSentenceTokens(tokenSpan.getSentenceIndex());
-			if (tokens == null)
-				continue;
-			int startIndex = Math.max(0, tokenSpan.getStartTokenIndex() - this.contextWindowSize);
-			int endIndex = Math.min(tokens.size(), tokenSpan.getEndTokenIndex() + this.contextWindowSize) - this.n + 1;
-			for (int i = startIndex; i < endIndex; i++) {				
-				List<String> ngrams = getCleanNGrams(tokens, i);
-				if (ngrams != null) {
-					for (String ngram : ngrams) {
-						if (!retNgrams.containsKey(ngram))
-							retNgrams.put(ngram, 1);
-						else
-							retNgrams.put(ngram, retNgrams.get(ngram) + 1);
-					}
-				}
+			
+			Document document = tokenSpan.getDocument();
+			int startIndex = 0, endIndex = 0;
+			if (this.mode == Mode.BEFORE) {
+				startIndex = Math.max(0, tokenSpan.getStartTokenIndex() - this.maxGramDistance);
+				endIndex = tokenSpan.getStartTokenIndex();
+			} else if (this.mode == Mode.AFTER) {
+				startIndex = Math.min(document.getSentenceTokenCount(tokenSpan.getSentenceIndex()), tokenSpan.getEndTokenIndex());
+				endIndex =  Math.min(document.getSentenceTokenCount(tokenSpan.getSentenceIndex()), tokenSpan.getEndTokenIndex() + this.maxGramDistance);
+			} else { // WITHIN
+				startIndex = tokenSpan.getStartTokenIndex();
+				endIndex = tokenSpan.getStartTokenIndex();
+			}
+			
+			List<String> ngrams = getNGramsInWindow(document, tokenSpan.getSentenceIndex(), startIndex, endIndex);
+			for (String ngram : ngrams) {
+				if (!retNgrams.containsKey(ngram))
+					retNgrams.put(ngram, 1);
+				else
+					retNgrams.put(ngram, retNgrams.get(ngram) + 1);
 			}
 		}
+			
 		return retNgrams;
+	}
+	
+	// All n-grams in window between startTokenIndex (inclusive) and endTokenIndex (exclusive) (whole n-gram must fit in window)
+	private List<String> getNGramsInWindow(Document document, int sentenceIndex, int startTokenIndex, int endTokenIndex) {
+		List<String> ngrams = new ArrayList<String>();
+		for (int i = startTokenIndex; i < endTokenIndex - this.n + 1; i++) {		
+			List<String> ngramsAtPosition = getCleanNGramsAtPosition(document, sentenceIndex, i);
+			if (ngrams != null) {
+				ngrams.addAll(ngramsAtPosition);
+			}
+		}
+		return ngrams;
 	}
 
 	@Override
@@ -97,8 +128,10 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 		String parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
-		else if (parameter.equals("contextWindowSize"))
-			return String.valueOf(this.contextWindowSize);
+		else if (parameter.equals("maxGramDistance"))
+			return String.valueOf(this.maxGramDistance);
+		else if (parameter.equals("mode"))
+			return this.mode.toString();
 		return null;
 	}
 
@@ -106,8 +139,10 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
 		if (super.setParameterValue(parameter, parameterValue, datumTools))
 			return true;
-		else if (parameter.equals("contextWindowSize"))
-			this.contextWindowSize = Integer.valueOf(parameterValue);
+		else if (parameter.equals("maxGramDistance"))
+			this.maxGramDistance = Integer.valueOf(parameterValue);
+		else if (parameter.equals("mode"))
+			this.mode = Mode.valueOf(parameterValue);
 		else
 			return false;
 		

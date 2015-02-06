@@ -3,6 +3,7 @@ package ark.model;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,15 @@ public class SupervisedModelCompositeBinary<T extends Datum<Boolean>, D extends 
 		this.inverseLabelIndicator = inverseLabelIndicator;
 	}
 	
+	public SupervisedModel<T, Boolean> getModelForIndicator(String indicatorStr) {
+		for (int i = 0; i < this.labelIndicators.size(); i++) {
+			if (this.labelIndicators.get(i).toString().equals(indicatorStr))
+				return this.binaryModels.get(i);
+		}
+		
+		return null;
+	}
+
 	@Override
 	public boolean train(FeaturizedDataSet<D, L> data,
 			FeaturizedDataSet<D, L> testData,
@@ -41,7 +51,7 @@ public class SupervisedModelCompositeBinary<T extends Datum<Boolean>, D extends 
 		Map<D, Map<L, Double>> p = new HashMap<D, Map<L, Double>>();
 		final FeaturizedDataSet<T, Boolean> binaryData = (FeaturizedDataSet<T, Boolean>)data.makeBinaryDataSet(this.binaryTools);
 		
-		ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Map<Boolean, Double>>> threads 
+		ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Map<Boolean, Double>>> pThreads 
 		= new ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Map<Boolean, Double>>>(
 				new Fn<SupervisedModel<T, Boolean>, Map<T, Map<Boolean, Double>>>() {
 					@Override
@@ -52,15 +62,30 @@ public class SupervisedModelCompositeBinary<T extends Datum<Boolean>, D extends 
 				}
 			);
 		
-		List<Map<T, Map<Boolean, Double>>> binaryP = threads.run(this.binaryModels, data.getMaxThreads());
+		ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Boolean>> cThreads 
+		= new ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Boolean>>(
+				new Fn<SupervisedModel<T, Boolean>, Map<T, Boolean>>() {
+					@Override
+					public Map<T, Boolean> apply(
+							SupervisedModel<T, Boolean> model) {
+						return model.classify(binaryData);
+					}
+				}
+			);
 		
-		for (Entry<T, Map<Boolean, Double>> entry : binaryP.get(0).entrySet()) {
+		List<Map<T, Map<Boolean, Double>>> binaryP = pThreads.run(this.binaryModels, data.getMaxThreads());
+		List<Map<T, Boolean>> binaryC = cThreads.run(this.binaryModels, data.getMaxThreads());
+		
+		for (Entry<T, Map<Boolean, Double>> entry : binaryP.get(0).entrySet()) { // For each datum
 			Map<String, Double> indicatorWeights = new HashMap<String, Double>();
-			for (int i = 0; i < binaryP.size(); i++) {
-				indicatorWeights.put(this.labelIndicators.toString(), entry.getValue().get(true));
+			List<String> positiveIndicators = new ArrayList<String>();
+			for (int i = 0; i < binaryP.size(); i++) { // For each label indicator
+				indicatorWeights.put(this.labelIndicators.get(i).toString(), binaryP.get(i).get(entry.getKey()).get(true));
+				if (binaryC.get(i).get(entry.getKey()))
+					positiveIndicators.add(this.labelIndicators.get(i).toString());
 			}
 			
-			L label = this.inverseLabelIndicator.label(indicatorWeights);
+			L label = this.inverseLabelIndicator.label(indicatorWeights, positiveIndicators);
 			D datum = data.getDatumById(entry.getKey().getId());
 			
 			Map<L, Double> datumP = new HashMap<L, Double>();

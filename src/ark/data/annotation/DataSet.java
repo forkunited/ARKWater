@@ -26,12 +26,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 
 import org.json.JSONException;
@@ -107,8 +109,8 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	private Datum.Tools<D, L> datumTools;
 	private Datum.Tools.LabelMapping<L> labelMapping;
 	
-	private Map<L, List<Integer>> labeledData;
-	private List<Integer> unlabeledData;
+	protected Map<L, Set<Integer>> labeledData;
+	protected Set<Integer> unlabeledData;
 	protected TreeMap<Integer, D> data;
 	
 	private Comparator<L> labelComparator = new Comparator<L>() {
@@ -132,6 +134,24 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		this.datumTools = datumTools;
 	}
 	
+	public boolean setDatumLabel(D datum, L label) {
+		if (!this.contains(datum))
+			return false;
+		if (datum.getLabel() == null) {
+			this.unlabeledData.remove(datum.getId());
+			this.data.remove(datum.getId());	
+			datum.setLabel(label);
+			add(datum);
+		} else {
+			this.labeledData.get(datum.getLabel()).remove(datum.getId());
+			this.data.remove(datum.getId());			
+			datum.setLabel(label);
+			add(datum);
+		}
+		
+		return true;
+	}
+	
 	public boolean addAll(Collection<? extends D> data) {
 		for (D datum : data)
 			if (!add(datum))
@@ -140,12 +160,14 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	}
 	
 	public boolean add(D datum) {
+		if (contains(datum))
+			return true;
 		L label = (this.labelMapping == null) ? datum.getLabel() : this.labelMapping.map(datum.getLabel());
 		if (label == null) {
 			this.unlabeledData.add(datum.getId());
 		} else {
 			if (!this.labeledData.containsKey(label))
-				this.labeledData.put(label, new ArrayList<Integer>());
+				this.labeledData.put(label, new HashSet<Integer>());
 			this.labeledData.get(label).add(datum.getId());
 		}
 		
@@ -173,7 +195,7 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		List<D> labelData = new ArrayList<D>();
 		if (!this.labeledData.containsKey(label))
 			return labelData;
-		List<Integer> datumIds = this.labeledData.get(label);
+		Set<Integer> datumIds = this.labeledData.get(label);
 		for (Integer datumId : datumIds)
 			labelData.add(this.data.get(datumId));
 		return labelData;
@@ -345,8 +367,8 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		// is based on the Object reference (for example if L is an enum)
 		// (This isn't an issue right now since the labeledData map is no longer used
 		// to iterate through the data)
-		this.labeledData = new TreeMap<L, List<Integer>>(this.labelComparator);
-		this.unlabeledData = new ArrayList<Integer>();
+		this.labeledData = new TreeMap<L, Set<Integer>>(this.labelComparator);
+		this.unlabeledData = new HashSet<Integer>();
 		
 		// For iterating in order by ID
 		this.data = new TreeMap<Integer, D>();
@@ -378,7 +400,7 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 	public Pair<L, Integer> computeMajorityLabel() {
 		L maxLabel = null;
 		int maxLabelCount = 0;
-		for (Entry<L, List<Integer>> entry : this.labeledData.entrySet()) {
+		for (Entry<L, Set<Integer>> entry : this.labeledData.entrySet()) {
 			if (entry.getValue().size() > maxLabelCount) {
 				maxLabel = entry.getKey();
 				maxLabelCount = entry.getValue().size();

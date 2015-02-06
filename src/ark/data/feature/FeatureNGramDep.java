@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import ark.data.annotation.Datum;
+import ark.data.annotation.Document;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.data.annotation.nlp.DependencyParse;
 
@@ -83,9 +84,7 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 			if (tokenSpan.getSentenceIndex() < 0)
 				continue;
 			
-			List<String> tokens = tokenSpan.getDocument().getSentenceTokens(tokenSpan.getSentenceIndex());
-			if (tokens == null)
-				continue;
+			Document document = tokenSpan.getDocument();
 			int startIndex = tokenSpan.getStartTokenIndex();
 			int endIndex = tokenSpan.getEndTokenIndex();
 			DependencyParse dependencyParse = tokenSpan.getDocument().getDependencyParse(tokenSpan.getSentenceIndex());
@@ -95,8 +94,9 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 					List<DependencyParse.Dependency> dependencies = dependencyParse.getGovernedDependencies(i);
 					for (DependencyParse.Dependency dependency : dependencies) {
 						int depIndex = dependency.getDependentTokenIndex();
-						if (depIndex <= tokens.size() - this.n && (depIndex < startIndex || depIndex >= endIndex)) {
-							List<String> ngrams = getCleanNGrams(tokens, depIndex);
+						if (depIndex <= document.getSentenceTokenCount(tokenSpan.getSentenceIndex()) - this.n 
+								&& (depIndex < startIndex || depIndex >= endIndex)) {
+							List<String> ngrams = getCleanNGramsAtPosition(document, tokenSpan.getSentenceIndex(), depIndex);
 							for (String ngram : ngrams) {
 								String retNgram = ngram + "_C";
 								if (this.useRelationTypes)
@@ -115,8 +115,8 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 					List<DependencyParse.Dependency> dependencies = dependencyParse.getGoverningDependencies(i);
 					for (DependencyParse.Dependency dependency : dependencies) {
 						int govIndex = dependency.getGoverningTokenIndex();
-						if (govIndex >= 0 && govIndex <= tokens.size() - this.n && (govIndex < startIndex || govIndex >= endIndex)) {
-							List<String> ngrams = getCleanNGrams(tokens, govIndex);
+						if (govIndex >= 0 && govIndex <= document.getSentenceTokenCount(tokenSpan.getSentenceIndex()) - this.n && (govIndex < startIndex || govIndex >= endIndex)) {
+							List<String> ngrams = getCleanNGramsAtPosition(document, tokenSpan.getSentenceIndex(), govIndex);
 							for (String ngram : ngrams) {
 								String retNgram = ngram + "_P";
 								if (this.useRelationTypes)

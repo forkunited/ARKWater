@@ -3,11 +3,18 @@ package ark.cluster;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ClustererAffix extends Clusterer<String> {
+import ark.data.DataTools;
+
+public class ClustererStringAffix extends ClustererString {
 	private String name;
 	private int maxAffixLength;
 	
-	public ClustererAffix(String name, int maxAffixLength) {
+	public ClustererStringAffix(String name, int maxAffixLength) {
+		this(name, maxAffixLength, null);
+	}
+	
+	public ClustererStringAffix(String name, int maxAffixLength, DataTools.StringTransform cleanFn) {
+		super(cleanFn);
 		this.name = name;
 		this.maxAffixLength = maxAffixLength;
 	}
@@ -18,10 +25,13 @@ public class ClustererAffix extends Clusterer<String> {
 	}
 	
 	@Override
-	public List<String> getClusters(String str) {
+	protected List<String> getClustersHelper(String str) {
 		List<String> affixes = new ArrayList<String>();
 		
-		for (int i = 1; i <= this.maxAffixLength; i++) {
+		if (this.cleanFn != null)
+			str = this.cleanFn.transform(str);
+		
+		for (int i = 3; i <= this.maxAffixLength; i++) {
 			if (i >= str.length())
 				continue;
 			

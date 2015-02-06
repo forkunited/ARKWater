@@ -27,7 +27,10 @@ import ark.util.OutputWriter;
 import ark.util.StringUtil;
 import ark.util.Timer;
 import ark.cluster.Clusterer;
+import ark.cluster.ClustererString;
+import ark.cluster.ClustererTokenSpanPoSTag;
 import ark.data.Gazetteer;
+import ark.data.annotation.nlp.TokenSpan;
 
 /**
  * 
@@ -116,6 +119,7 @@ public class DataTools {
 	protected Map<String, DataTools.StringTransform> cleanFns;
 	protected Map<String, DataTools.StringCollectionTransform> collectionFns;
 	protected Map<String, Clusterer<String>> stringClusterers;
+	protected Map<String, Clusterer<TokenSpan>> tokenSpanClusterers;
 	protected Map<String, Path> paths;
 	protected Map<String, String> parameterEnvironment; // Environment variables that have been set 
 	
@@ -129,6 +133,7 @@ public class DataTools {
 		this.cleanFns = new HashMap<String, DataTools.StringTransform>();
 		this.collectionFns = new HashMap<String, DataTools.StringCollectionTransform>();
 		this.stringClusterers = new HashMap<String, Clusterer<String>>();
+		this.tokenSpanClusterers = new HashMap<String, Clusterer<TokenSpan>>();
 		this.paths = new HashMap<String, Path>();
 		this.parameterEnvironment = new HashMap<String, String>();
 		
@@ -154,8 +159,11 @@ public class DataTools {
 			}
 		});
 		
+		this.addTokenSpanClusterer(new ClustererTokenSpanPoSTag());
+		
 		this.collectionFns.put("None", null);
 		this.stringClusterers.put("None", null);
+		this.tokenSpanClusterers.put("None", null);
 		this.globalRandom = new Random();
 		this.timer = new Timer();
 	}
@@ -175,6 +183,11 @@ public class DataTools {
 	public Clusterer<String> getStringClusterer(String name) {
 		return this.stringClusterers.get(name);
 	}
+	
+	public Clusterer<TokenSpan> getTokenSpanClusterer(String name) {
+		return this.tokenSpanClusterers.get(name);
+	}
+	
 	
 	public Path getPath(String name) {
 		return this.paths.get(name);
@@ -248,8 +261,13 @@ public class DataTools {
 		return true;
 	}
 	
-	public boolean addStringClusterer(Clusterer<String> clusterer) {
+	public boolean addStringClusterer(ClustererString clusterer) {
 		this.stringClusterers.put(clusterer.getName(), clusterer);
+		return true;
+	}
+	
+	public boolean addTokenSpanClusterer(Clusterer<TokenSpan> clusterer) {
+		this.tokenSpanClusterers.put(clusterer.getName(), clusterer);
 		return true;
 	}
 	
