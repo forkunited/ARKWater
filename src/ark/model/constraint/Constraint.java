@@ -17,18 +17,17 @@
  */
 
 package ark.model.constraint;
-
+/*
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.List;*/
 
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.data.feature.FeaturizedDataSet;
-import ark.util.SerializationUtil;
 
-/**
+/** FIXME Needs refactoring
  * Constraint represents an abstract constraint on a featurized data set.  
  * Implementations
  * of children of this class can be used to select subsets of a data set
@@ -86,7 +85,7 @@ public abstract class Constraint<D extends Datum<L>, L> {
 	 * @return the constraint represented by the str.
 	 */
 	public static <D extends Datum<L>, L> Constraint<D, L> fromString(String str) {
-		StringReader reader = new StringReader(str);
+		/*StringReader reader = new StringReader(str);
 		List<Constraint<D, L>> constraints = new ArrayList<Constraint<D, L>>();
 		
 		try {
@@ -127,6 +126,7 @@ public abstract class Constraint<D extends Datum<L>, L> {
 			}
 		}
 		
-		return currentConstraint;
+		return currentConstraint;*/
+		return null;
 	}
 }
