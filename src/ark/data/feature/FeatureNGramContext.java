@@ -24,9 +24,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Document;
 import ark.data.annotation.nlp.TokenSpan;
+import ark.parse.Obj;
 
 /**
  * FIXME Outdated documentation
@@ -58,7 +60,11 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	private Mode mode;
 	
 	public FeatureNGramContext() {
-		super();
+		
+	}
+	
+	public FeatureNGramContext(Context<D, L> context) {
+		super(context);
 		
 		this.maxGramDistance = 0;
 		this.mode = Mode.WITHIN;
@@ -86,7 +92,7 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 				endIndex =  Math.min(document.getSentenceTokenCount(tokenSpan.getSentenceIndex()), tokenSpan.getEndTokenIndex() + this.maxGramDistance);
 			} else { // WITHIN
 				startIndex = tokenSpan.getStartTokenIndex();
-				endIndex = tokenSpan.getStartTokenIndex();
+				endIndex = tokenSpan.getEndTokenIndex();
 			}
 			
 			List<String> ngrams = getNGramsInWindow(document, tokenSpan.getSentenceIndex(), startIndex, endIndex);
@@ -119,30 +125,30 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureNGramContext<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureNGramContext<D, L>(context);
 	}
 	
 	@Override
-	public String getParameterValue(String parameter) {
-		String parameterValue = super.getParameterValue(parameter);
+	public Obj getParameterValue(String parameter) {
+		Obj parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
 		else if (parameter.equals("maxGramDistance"))
-			return String.valueOf(this.maxGramDistance);
+			return Obj.stringValue(String.valueOf(this.maxGramDistance));
 		else if (parameter.equals("mode"))
-			return this.mode.toString();
+			return Obj.stringValue(this.mode.toString());
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, datumTools))
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (super.setParameterValue(parameter, parameterValue))
 			return true;
 		else if (parameter.equals("maxGramDistance"))
-			this.maxGramDistance = Integer.valueOf(parameterValue);
+			this.maxGramDistance = Integer.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("mode"))
-			this.mode = Mode.valueOf(parameterValue);
+			this.mode = Mode.valueOf(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		

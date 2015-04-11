@@ -20,6 +20,7 @@ package ark.data.feature;
 
 import java.util.List;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
 import ark.util.Pair;
 
@@ -35,7 +36,13 @@ import ark.util.Pair;
  * @param <L> datum label type
  */
 public class FeatureGazetteerContains<D extends Datum<L>, L> extends FeatureGazetteer<D, L> { 
+	
 	public FeatureGazetteerContains() {
+		
+	}
+	
+	public FeatureGazetteerContains(Context<D, L> context) {
+		super(context);
 		this.extremumType = FeatureGazetteer.ExtremumType.Maximum;
 	}
 	
@@ -54,7 +61,7 @@ public class FeatureGazetteerContains<D extends Datum<L>, L> extends FeatureGaze
 	}
 	
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureGazetteerContains<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureGazetteerContains<D, L>(context);
 	}
 }

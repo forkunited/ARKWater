@@ -18,14 +18,15 @@
 
 package ark.data.feature;
 
-import java.io.BufferedReader;
-import java.io.Writer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 
 /**
  * FeatureIdentity returns a vector D(d) for double
@@ -41,6 +42,14 @@ public class FeatureIdentity<D extends Datum<L>, L> extends Feature<D, L> {
 	protected String[] parameterNames = {"doubleExtractor"};
 	
 	protected int vocabularySize;
+	
+	public FeatureIdentity() {
+		
+	}
+	
+	public FeatureIdentity(Context<D, L> context) {
+		this.context = context;
+	}
 	
 	@Override
 	public boolean init(FeaturizedDataSet<D, L> dataSet) {
@@ -77,17 +86,16 @@ public class FeatureIdentity<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("doubleExtractor"))
-			return (this.doubleExtractor == null) ? null : this.doubleExtractor.toString();
+			return Obj.stringValue((this.doubleExtractor == null) ? "" : this.doubleExtractor.toString());
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("doubleExtractor"))
-			this.doubleExtractor = datumTools.getDoubleExtractor(parameterValue);
+			this.doubleExtractor = this.context.getDatumTools().getDoubleExtractor(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		return true;
@@ -110,22 +118,26 @@ public class FeatureIdentity<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 	
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureIdentity<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureIdentity<D, L>(context);
 	}
-	
+
 	@Override
-	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
+	protected <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			Feature<T, Boolean> binaryFeature) {
+		return binaryFeature;
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
 		return true;
 	}
-	
+
 	@Override
-	protected boolean serializeHelper(Writer writer) {
-		return true;
+	protected AssignmentList toParseInternalHelper(AssignmentList internalAssignments) {
+		return internalAssignments;
 	}
 	
-	@Override
-	protected boolean deserializeHelper(BufferedReader writer) {
-		return true;
-	}
+	
 }

@@ -18,23 +18,19 @@
 
 package ark.model;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
 import ark.data.annotation.structure.DatumStructure;
 import ark.data.annotation.structure.DatumStructureCollection;
 import ark.data.feature.FeaturizedDataSet;
-import ark.util.BidirectionalLookupTable;
-import ark.util.Pair;
-import ark.util.SerializationUtil;
+import ark.parse.Obj;
 
 /**
  * SupervisedModelSVMStructured represents a structured SVM trained with
@@ -65,49 +61,16 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 	
 	public SupervisedModelSVMStructured() {
 		super();
+		
+		this.hyperParameterNames = Arrays.copyOf(this.hyperParameterNames, this.hyperParameterNames.length + 3);
+		this.hyperParameterNames[this.hyperParameterNames.length - 1] = "datumStructureOptimizer";
+		this.hyperParameterNames[this.hyperParameterNames.length - 2] = "datumStructureCollection";
+		this.hyperParameterNames[this.hyperParameterNames.length - 3] = "includeStructuredTraining";
 	}
 	
-	@Override
-	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
-			Tools<D, L> datumTools) throws IOException {
-		if (name.equals("datumStructureCollection")) {
-			this.datumStructureCollection = SerializationUtil.deserializeAssignmentRight(reader);
-		} else if (name.equals("datumStructureOptimizer")) {
-			this.datumStructureOptimizer = SerializationUtil.deserializeAssignmentRight(reader);
-		} else if (name.equals("includeStructuredTraining")) {
-			this.includeStructuredTraining = Boolean.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
-		} else {
-			return super.deserializeExtraInfo(name, reader, datumTools);
-		}
-		
-		return true;
-	}
-
-	@Override
-	protected boolean serializeExtraInfo(Writer writer) throws IOException {		
-		if (this.datumStructureCollection != null) {
-			writer.write("\t");
-			Pair<String, String> datumStructureCollectionAssignment = new Pair<String, String>("datumStructureCollection", this.datumStructureCollection);
-			if (!SerializationUtil.serializeAssignment(datumStructureCollectionAssignment, writer))
-				return false;
-			writer.write("\n");
-		}
-		
-		if (this.datumStructureOptimizer != null) {
-			writer.write("\t");
-			Pair<String, String> datumStructureOptimizerAssignment = new Pair<String, String>("datumStructureOptimizer", this.datumStructureOptimizer);
-			if (!SerializationUtil.serializeAssignment(datumStructureOptimizerAssignment, writer))
-				return false;
-			writer.write("\n");
-		}
-		
-		writer.write("\t");
-		Pair<String, String> datumStructureOptimizerAssignment = new Pair<String, String>("includeStructuredTraining", String.valueOf(this.includeStructuredTraining));
-		if (!SerializationUtil.serializeAssignment(datumStructureOptimizerAssignment, writer))
-			return false;
-		writer.write("\n");
-		
-		return super.serializeExtraInfo(writer);
+	public SupervisedModelSVMStructured(Context<D, L> context) {
+		this();
+		this.context = context;
 	}
 	
 	@Override
@@ -252,25 +215,9 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 		return value;
 	}
 	
-	@SuppressWarnings("unchecked")
-	public <D1 extends Datum<L1>, L1> SupervisedModel<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelObjects) {
-		SupervisedModelSVMStructured<D1, L1> clone = (SupervisedModelSVMStructured<D1, L1>)super.clone(datumTools, environment, copyLabelObjects);
-		
-		if (copyLabelObjects)
-			clone.labelIndices = (BidirectionalLookupTable<L1, Integer>)this.labelIndices;
-		
-		
-		clone.trainingIterations = this.trainingIterations;
-		clone.datumStructureCollection = this.datumStructureCollection;
-		clone.datumStructureOptimizer = this.datumStructureOptimizer;
-		clone.includeStructuredTraining = this.includeStructuredTraining;
-		
-		return clone;
-	}
-	
 	@Override
-	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelSVMStructured<D, L>();
+	public SupervisedModel<D, L> makeInstance(Context<D, L> context) {
+		return new SupervisedModelSVMStructured<D, L>(context);
 	}
 
 	@Override
@@ -520,5 +467,35 @@ public class SupervisedModelSVMStructured<D extends Datum<L>, L> extends Supervi
 			return actualDatumLabels;
 		else
 			return optimizedDatumLabels;
+	}
+	
+	@Override
+	public Obj getParameterValue(String parameter) {
+		Obj parameterValue = super.getParameterValue(parameter);
+		if (parameterValue != null)
+			return parameterValue;
+		else if (parameter.equals("datumStructureOptimizer"))
+			return Obj.stringValue(this.datumStructureOptimizer);
+		else if (parameter.equals("datumStructureCollection"))
+			return Obj.stringValue(this.datumStructureCollection);
+		else if (parameter.equals("includeStructuredTraining"))
+			return Obj.stringValue(String.valueOf(this.includeStructuredTraining));
+		else
+			return null;
+	}
+
+	@Override
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (super.setParameterValue(parameter, parameterValue))
+			return true;
+		else if (parameter.equals("datumStructureOptimizer"))
+			this.datumStructureOptimizer = this.context.getMatchValue(parameterValue);
+		else if (parameter.equals("datumStructureCollection"))
+			this.datumStructureCollection = this.context.getMatchValue(parameterValue);
+		else if (parameter.equals("includeStructuredTraining"))
+			this.includeStructuredTraining = Boolean.valueOf(this.context.getMatchValue(parameterValue));
+		else
+			return false;
+		return true;
 	}
 }

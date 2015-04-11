@@ -42,7 +42,6 @@ import edu.stanford.nlp.trees.GrammaticalRelation;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
-
 import ark.data.annotation.Document;
 import ark.data.annotation.Language;
 import ark.data.annotation.nlp.ConstituencyParse;
@@ -74,24 +73,36 @@ import ark.util.Pair;
  *
  */
 public class NLPAnnotatorStanford extends NLPAnnotator {
-	private StanfordCoreNLP pipeline;
+	private StanfordCoreNLP tokenPipeline;
+	private StanfordCoreNLP nlpPipeline;
 	private Annotation annotatedText;
 	private boolean disabledNer;
+	private int minSentenceAnnotationLength;
+	private int maxSentenceAnnotationLength;
 	
 	public NLPAnnotatorStanford() {
+		this(0, Integer.MAX_VALUE);
+	}
+	
+	public NLPAnnotatorStanford(int minSentenceAnnotationLength, int maxSentenceAnnotationLength) {
 		setLanguage(Language.English);
 		this.disabledNer = true;
+		this.minSentenceAnnotationLength = minSentenceAnnotationLength;
+		this.maxSentenceAnnotationLength = maxSentenceAnnotationLength;
 	}
 	
 	public NLPAnnotatorStanford(NLPAnnotatorStanford annotator) {
 		this.language = annotator.language;
-		this.pipeline = annotator.pipeline;
+		this.tokenPipeline = annotator.tokenPipeline;
+		this.nlpPipeline = annotator.nlpPipeline;
 		this.disabledNer = annotator.disabledNer;
 		this.disabledConstituencyParses = annotator.disabledConstituencyParses;
 		this.disabledDependencyParses = annotator.disabledDependencyParses;
 		this.disabledPoSTags = annotator.disabledPoSTags;
 		this.text = annotator.text;
 		this.annotatedText = annotator.annotatedText;
+		this.minSentenceAnnotationLength = annotator.minSentenceAnnotationLength;
+		this.maxSentenceAnnotationLength = annotator.maxSentenceAnnotationLength;
 	}
 	
 	public void enableNer() {
@@ -115,22 +126,23 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	}
 	
 	public boolean initializePipeline() {
-		Properties props = new Properties();
+		Properties tokenProps = new Properties();
+		tokenProps.put("annotators", "tokenize, ssplit");
+		this.tokenPipeline = new StanfordCoreNLP(tokenProps);
+		
 		String propsStr = "tokenize, ssplit";
 		if (!this.disabledPoSTags)
 			propsStr = propsStr + ", pos";
 		if (!this.disabledConstituencyParses || !this.disabledDependencyParses)
 			propsStr = propsStr + ", lemma, parse";
-	    if (!this.disabledNer)
-	    	propsStr = propsStr + ", ner";
+		if (!this.disabledNer)
+			propsStr = propsStr + ", ner";
 		
-		props.put("annotators", propsStr); // ner before parse?
-	    this.pipeline = new StanfordCoreNLP(props);
+		Properties props = new Properties();
+		props.put("annotators", propsStr);
+		this.nlpPipeline = new StanfordCoreNLP(props);
+		
 	    return true;
-	}
-	
-	public StanfordCoreNLP getPipeline() {
-		return this.pipeline;
 	}
 	
 	/**
@@ -139,16 +151,50 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	 * and is ready to return annotations for it
 	 */
 	public boolean setText(String text) {
-		if (this.pipeline == null) {
+		if (this.tokenPipeline == null) {
 			if (!initializePipeline())
 				return false;
 		}
 		
-		this.text = text;
-		this.annotatedText = new Annotation(text);
-		this.pipeline.annotate(this.annotatedText);
+		this.text = filterText(text);
+		this.annotatedText = new Annotation(this.text);
+		this.nlpPipeline.annotate(this.annotatedText);
 		
 		return true;
+	}
+	
+	private String filterText(String text) {
+		if (this.minSentenceAnnotationLength == 0 && this.maxSentenceAnnotationLength == Integer.MAX_VALUE)
+			return text;
+		
+		Annotation annotatedText = new Annotation(text);
+		this.tokenPipeline.annotate(annotatedText);
+		String[][] tokens = makeTokensInternal(annotatedText);
+		
+		StringBuilder cleanTextBuilder = new StringBuilder();
+		for (int i = 0; i < tokens.length; i++) {
+			if (tokens[i].length < this.minSentenceAnnotationLength || tokens[i].length > this.maxSentenceAnnotationLength)
+				continue;
+			
+			int endSymbolsStartToken = tokens[i].length + 1;
+			for (int j = tokens[i].length - 1; j >= 0; j--) {
+				if (tokens[i][j].matches("[^A-Za-z0-9]+")) {
+					endSymbolsStartToken = j;
+				} else {
+					break;
+				}
+			}
+			
+			for (int j = 0; j < tokens[i].length; j++) {
+				cleanTextBuilder.append(tokens[i][j]);
+				if (j < endSymbolsStartToken - 1)
+					cleanTextBuilder.append(" ");
+			}
+			
+			cleanTextBuilder.append(" ");
+		}
+		
+		return cleanTextBuilder.toString().trim();
 	}
 	
 	/**
@@ -156,7 +202,11 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	 * sentence of the text.
 	 */
 	public String[][] makeTokens() {
-		List<CoreMap> sentences = this.annotatedText.get(SentencesAnnotation.class);
+		return makeTokensInternal(this.annotatedText);
+	}
+	
+	private String[][] makeTokensInternal(Annotation annotation) {
+		List<CoreMap> sentences = annotation.get(SentencesAnnotation.class);
 		String[][] tokens = new String[sentences.size()][];
 		for(int i = 0; i < sentences.size(); i++) {
 			List<CoreLabel> sentenceTokens = sentences.get(i).get(TokensAnnotation.class);
@@ -169,7 +219,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		
 		return tokens;
 	}
-	
+			
 	/**
 	 * @return an array of ner tags for each segmented 
 	 * sentence of the text.

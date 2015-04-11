@@ -18,24 +18,25 @@
 
 package ark.model;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.constraint.Constraint;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
-import ark.util.SerializationUtil;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 
 /**
+ * FIXME Needs refactoring...
+ * 
  * SupervisedModelPartition partitions the training and evaluation
  * according to a set of constraints so that all data in a single
  * part of the partition satisfy the corresponding constraint.  The
@@ -74,6 +75,11 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		this.features = new HashMap<String, List<Feature<D, L>>>();
 	}
 	
+	public SupervisedModelPartition(Context<D, L> context) {
+		this();
+		this.context = context;
+	}
+	
 	/**
 	 * @param data
 	 * @param testData
@@ -103,6 +109,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 			for (int j = i + 1; j < this.orderedModels.size(); j++)
 				this.models.get(this.orderedModels.get(j)).fixDatumLabels(fixedLabels);
 		}
+		
 		return true;
 	}
 
@@ -178,7 +185,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	 * documentation.
 	 *  
 	 */
-	@Override
+	/*@Override
 	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
 			Tools<D, L> datumTools) throws IOException {
 		String[] nameParts = name.split("_");
@@ -260,7 +267,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		}
 		
 		return true;
-	}
+	}*/
 
 	@Override
 	public String getGenericName() {
@@ -268,7 +275,8 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
+		/* FIXME 
 		int firstUnderscoreIndex = parameter.indexOf("_");
 		if (parameter.equals("defaultLabel"))
 			return (this.defaultLabel == null) ? null : this.defaultLabel.toString();
@@ -276,15 +284,14 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 			String modelReference = parameter.substring(0, firstUnderscoreIndex);
 			String modelParameter = parameter.substring(firstUnderscoreIndex + 1);
 			this.models.get(modelReference).getParameterValue(modelParameter);
-		}
+		}*/
 		
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
-		int firstUnderscoreIndex = parameter.indexOf("_");
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		/* FIXME int firstUnderscoreIndex = parameter.indexOf("_");
 		if (parameter.equals("defaultLabel")) {
 			this.defaultLabel = (parameterValue == null) ? null : datumTools.labelFromString(parameterValue);
 			return true;
@@ -292,7 +299,7 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 			String modelReference = parameter.substring(0, firstUnderscoreIndex);
 			String modelParameter = parameter.substring(firstUnderscoreIndex + 1);
 			this.models.get(modelReference).setParameterValue(modelParameter, parameterValue, datumTools);
-		}
+		}*/
 		return false;
 	}
 
@@ -316,11 +323,32 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 	}
 
 	@Override
-	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelPartition<D, L>();
+	public SupervisedModel<D, L> makeInstance(Context<D, L> context) {
+		return new SupervisedModelPartition<D, L>(context);
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	protected <T extends Datum<Boolean>> SupervisedModel<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			SupervisedModel<T, Boolean> binaryModel) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 	
-	@SuppressWarnings("unchecked")
+	/*@SuppressWarnings("unchecked")
 	public <D1 extends Datum<L1>, L1> SupervisedModel<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelObjects) {
 		SupervisedModelPartition<D1, L1> clone = (SupervisedModelPartition<D1, L1>)super.clone(datumTools, environment, copyLabelObjects);
 		
@@ -346,6 +374,6 @@ public class SupervisedModelPartition<D extends Datum<L>, L> extends SupervisedM
 		}
 		
 		return clone;
-	}
+	}*/
 
 }

@@ -21,8 +21,10 @@ package ark.data.feature;
 import java.util.Arrays;
 import java.util.List;
 
+import ark.data.Context;
 import ark.data.DataTools;
 import ark.data.annotation.Datum;
+import ark.parse.Obj;
 import ark.util.Pair;
 import ark.util.StringUtil;
 
@@ -45,6 +47,12 @@ public class FeatureGazetteerPrefixTokens<D extends Datum<L>, L> extends Feature
 	private int minTokens;
 	
 	public FeatureGazetteerPrefixTokens() {
+		
+	}
+	
+	public FeatureGazetteerPrefixTokens(Context<D, L> context) {
+		super(context);
+		
 		this.extremumType = FeatureGazetteer.ExtremumType.Maximum;
 		
 		this.prefixTokensMeasure = new DataTools.StringPairMeasure() {
@@ -75,26 +83,26 @@ public class FeatureGazetteerPrefixTokens<D extends Datum<L>, L> extends Feature
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureGazetteerPrefixTokens<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureGazetteerPrefixTokens<D, L>(context);
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
-		String parameterValue = super.getParameterValue(parameter);
+	public Obj getParameterValue(String parameter) {
+		Obj parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
 		else if (parameter.equals("minTokens"))
-			return String.valueOf(this.minTokens);
+			return Obj.stringValue(String.valueOf(this.minTokens));
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, datumTools))
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (super.setParameterValue(parameter, parameterValue))
 			return true;
 		else if (parameter.equals("minTokens"))
-			this.minTokens = Integer.valueOf(parameterValue);
+			this.minTokens = Integer.valueOf(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		

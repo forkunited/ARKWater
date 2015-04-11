@@ -1,8 +1,8 @@
 package ark.util;
 
-import ark.data.annotation.Datum;
+import ark.parse.Obj;
 
-public interface Parameterizable<D extends Datum<L>, L> {
+public interface Parameterizable {
 	/**
 	 * @return parameters that can be set
 	 */
@@ -18,9 +18,7 @@ public interface Parameterizable<D extends Datum<L>, L> {
 	 * 
 	 * @param parameter
 	 * @param parameterValue
-	 * @param datumTools
-	 * @return true if the parameter has been set to parameterValue.  Some parameters are set to
-	 * objects retrieved through datumTools that are named by parameterValue.
+	 * @return true if the parameter has been set to parameterValue.
 	 */
-	boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools);
+	boolean setParameterValue(String parameter, Obj parameterValue);
 }

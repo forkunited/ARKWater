@@ -33,6 +33,7 @@ import org.platanios.learn.data.PredictedDataInstance;
 import org.platanios.learn.math.matrix.SparseVector;
 import org.platanios.learn.math.matrix.Vector;
 
+import ark.data.Context;
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelIndicator;
@@ -66,9 +67,6 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	private Map<Integer, Vector> featureVocabularyValues; // Map from datum ids to indices to values
 	private int featureVocabularySize;
 	private boolean precomputedFeatures;
-	
-	private DataSetInMemory<PredictedDataInstance<Vector, Double>> fullPlataniosDataSet;
-	private DataSetInMemory<PredictedDataInstance<Vector, Double>> labeledPlataniosDataSet;
 	
 	public FeaturizedDataSet(String name, Datum.Tools<D, L> datumTools, Datum.Tools.LabelMapping<L> labelMapping) {
 		this(name, 1, datumTools, labelMapping);
@@ -192,6 +190,14 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		return this.features.get(index);
 	}
 	
+	public Feature<D, L> getFeatureByVocabularyIndex(int index) {
+		return this.features.get(this.features.floorKey(index));
+	}
+	
+	public int getFeatureStartVocabularyIndex(int index) {
+		return this.features.floorKey(index);
+	}
+	
 	public Feature<D, L> getFeatureByReferenceName(String referenceName) {
 		return this.referencedFeatures.get(referenceName);
 	}
@@ -273,6 +279,27 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		return vector;
 	}
 	
+	public Vector computeFeatureVocabularyRange(D datum, int startIndex, int endIndex) {
+		Map<Integer, Double> values = new HashMap<Integer, Double>();
+		for (Entry<Integer, Feature<D, L>> featureEntry : this.features.entrySet()) {
+			if (featureEntry.getKey() + featureEntry.getValue().getVocabularySize() <= startIndex)
+				continue;
+			if (featureEntry.getKey() >= endIndex)
+				break;
+			
+			Map<Integer, Double> featureValues = featureEntry.getValue().computeVector(datum);
+			
+			for (Entry<Integer, Double> featureValueEntry : featureValues.entrySet()) {
+				int index = featureValueEntry.getKey() + featureEntry.getKey();
+				if (index < startIndex || index >= endIndex)
+					continue;
+				values.put(index - startIndex, featureValueEntry.getValue());
+			}
+		}
+		
+		return new SparseVector(endIndex - startIndex, values);
+	}
+	
 	public boolean precomputeFeatures() {
 		if (this.precomputedFeatures)
 			return true;
@@ -318,17 +345,16 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	}
 	
 	@Override
-	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinaryDataSet(String labelIndicator, Datum.Tools<T, Boolean> datumTools) {
+	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinary(LabelIndicator<L> labelIndicator, Context<T, Boolean> context) {
 		List<Feature<T, Boolean>> features = new ArrayList<Feature<T, Boolean>>();
 		for (Feature<D, L> feature : this.featureList) {
-			features.add(feature.clone(datumTools, datumTools.getDataTools().getParameterEnvironment(), false));
+			features.add(feature.makeBinary(context, labelIndicator));
 		}
 		
-		FeaturizedDataSet<T, Boolean> dataSet = new FeaturizedDataSet<T, Boolean>(this.name + ((labelIndicator == null) ? "" : "/" + labelIndicator), features, 1, datumTools, null);
-		LabelIndicator<L> indicator = (labelIndicator == null) ? null : getDatumTools().getLabelIndicator(labelIndicator);
+		FeaturizedDataSet<T, Boolean> dataSet = new FeaturizedDataSet<T, Boolean>(this.name + ((labelIndicator == null) ? "" : "/" + labelIndicator.toString()), features, 1, context.getDatumTools(), null);
 		
 		for (D datum : this) {
-			dataSet.add(getDatumTools().<T>makeBinaryDatum(datum, indicator));
+			dataSet.add(getDatumTools().<T>makeBinaryDatum(datum, labelIndicator));
 		}
 		
 		dataSet.featureVocabularySize = this.featureVocabularySize;
@@ -338,10 +364,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		return dataSet;
 	}
 	
-	public synchronized DataSetInMemory<PredictedDataInstance<Vector, Double>> makePlataniosDataSet(boolean weightedLabels, double minPositiveSampleRate, boolean onlyLabeled) {
-		if (this.fullPlataniosDataSet != null)
-			return (onlyLabeled) ? this.labeledPlataniosDataSet : this.fullPlataniosDataSet;
-		
+	public DataSetInMemory<PredictedDataInstance<Vector, Double>> makePlataniosDataSet(boolean weightedLabels, double minPositiveSampleRate, boolean onlyLabeled, boolean infiniteVectorsWithBias) {
 		double pos = (this.labeledData.get(true) != null) ? this.labeledData.get(true).size() : 1.0;
 		double neg = (this.labeledData.get(false) != null) ? this.labeledData.get(false).size() : 0.0;
 		double posFrac = pos/(pos+neg);
@@ -358,9 +381,18 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 				@SuppressWarnings("unchecked")
 				@Override
 				public PredictedDataInstance<Vector, Double> apply(D datum) {
-					Vector vector = getFeatureVocabularyValues(datum);
-					Double label = null;
+					Vector vector = null;
+					if (infiniteVectorsWithBias) {
+						vector = new SparseVector(Integer.MAX_VALUE);
+						Map<Integer, Double> features = getFeatureVocabularyValuesAsMap(datum);
+						vector.set(0, 1.0);
+						for (Entry<Integer, Double> entry : features.entrySet())
+							vector.set(entry.getKey(), entry.getValue());
+					} else {
+						vector =  getFeatureVocabularyValues(datum);
+					}
 					
+					Double label = null;
 					if (datum.getLabel() != null) {
 						if (!(Boolean)datum.getLabel() && r.nextDouble() > finalNegFrac)
 							return null;					
@@ -375,19 +407,15 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 				}
 			});
 		
-		List<PredictedDataInstance<Vector, Double>> fullDataInstances = new ArrayList<PredictedDataInstance<Vector, Double>>();
-		List<PredictedDataInstance<Vector, Double>> labeledDataInstances = new ArrayList<PredictedDataInstance<Vector, Double>>();
+		// FIXME: Could do this faster by adding to list in thread mapper... but this is good enough for now
+		List<PredictedDataInstance<Vector, Double>> retDataInstances = new ArrayList<PredictedDataInstance<Vector, Double>>();
 		for (PredictedDataInstance<Vector, Double> dataInstance : dataInstances) {
 			if (dataInstance == null) 
 				continue;
-			fullDataInstances.add(dataInstance);
-			if (dataInstance.label() != null)
-				labeledDataInstances.add(dataInstance);
+			if (!onlyLabeled || dataInstance.label() != null)
+				retDataInstances.add(dataInstance);
 		}
 		
-		this.fullPlataniosDataSet = new DataSetInMemory<PredictedDataInstance<Vector, Double>>(fullDataInstances);
-		this.labeledPlataniosDataSet = new DataSetInMemory<PredictedDataInstance<Vector, Double>>(labeledDataInstances);
-		
-		return (onlyLabeled) ? this.labeledPlataniosDataSet : this.fullPlataniosDataSet;
+		return new DataSetInMemory<PredictedDataInstance<Vector, Double>>(retDataInstances);
 	}
 }

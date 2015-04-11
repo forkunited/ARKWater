@@ -1,12 +1,14 @@
 package ark.data.feature;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
+
+import ark.data.Context;
 import ark.data.annotation.Datum;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.annotation.nlp.TokenSpan;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 
 public class FeatureTokenCount<D extends Datum<L>, L> extends Feature<D, L> {
 	protected Datum.Tools.TokenSpanExtractor<D, L> tokenExtractor;
@@ -15,6 +17,10 @@ public class FeatureTokenCount<D extends Datum<L>, L> extends Feature<D, L> {
 	
 	public FeatureTokenCount() {
 		
+	}
+	
+	public FeatureTokenCount(Context<D, L> context) {
+		this.context = context;
 	}
 	
 	@Override
@@ -61,37 +67,22 @@ public class FeatureTokenCount<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("maxCount")) 
-			return String.valueOf(this.maxCount);
+			return Obj.stringValue(String.valueOf(this.maxCount));
 		else if (parameter.equals("tokenExtractor"))
-			return (this.tokenExtractor == null) ? null : this.tokenExtractor.toString();
+			return (this.tokenExtractor == null) ? null : Obj.stringValue(this.tokenExtractor.toString());
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("maxCount")) 
-			this.maxCount = Integer.valueOf(parameterValue);
+			this.maxCount = Integer.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("tokenExtractor"))
-			this.tokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
+			this.tokenExtractor = this.context.getDatumTools().getTokenSpanExtractor(this.context.getMatchValue(parameterValue));
 		else
 			return false;
-		return true;
-	}
-	
-	@Override
-	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
-		return true;
-	}
-	
-	@Override
-	protected boolean serializeHelper(Writer writer) throws IOException {
-		return true;
-	}
-	
-	@Override
-	protected boolean deserializeHelper(BufferedReader reader) throws IOException {
 		return true;
 	}
 
@@ -101,7 +92,25 @@ public class FeatureTokenCount<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureTokenCount<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureTokenCount<D, L>(context);
+	}
+
+	@Override
+	protected <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			Feature<T, Boolean> binaryFeature) {
+		return binaryFeature;
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
+		return true;
+	}
+
+	@Override
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		return internalAssignments;
 	}
 }

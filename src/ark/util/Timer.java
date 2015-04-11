@@ -21,6 +21,10 @@ public class Timer {
 			return this.stopped;
 		}
 		
+		public long getRunTimeInMillis() {
+			return this.runTime + System.currentTimeMillis() - this.startTime;
+		}
+		
 		public boolean stop() {
 			if (isStopped())
 				return false;
@@ -62,6 +66,10 @@ public class Timer {
 			this.clocks.put(clockName, new Clock());
 				
 		return this.clocks.get(clockName).start();
+	}
+	
+	public long getClockRunTimeInMillis(String clockName) {
+		return this.clocks.get(clockName).getRunTimeInMillis();
 	}
 	
 	public synchronized boolean stopClock(String clockName) {

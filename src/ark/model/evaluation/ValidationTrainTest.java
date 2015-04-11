@@ -6,9 +6,7 @@ import java.util.Map;
 
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
 import ark.data.annotation.Datum.Tools.TokenSpanExtractor;
-import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
@@ -123,52 +121,5 @@ public class ValidationTrainTest<D extends Datum<L>, L> extends Validation<D, L>
 	
 	public Map<D, L> getClassifiedData(){
 		return this.classifiedData;
-	}
-
-	@Override
-	public String[] getParameterNames() {
-		return new String[0];
-	}
-
-	@Override
-	public String getParameterValue(String parameter) {
-		return null;
-	}
-
-	@Override
-	public boolean setParameterValue(String parameter, String parameterValue,
-			Tools<D, L> datumTools) {
-		return true;
-	}
-
-	@Override
-	protected boolean setMaxThreads(int maxThreads) {
-		this.maxThreads = maxThreads;
-		this.trainData.setMaxThreads(maxThreads);
-		this.testData.setMaxThreads(maxThreads);
-		return true;
-	}
-	
-	@Override
-	protected boolean addFeature(Feature<D, L> feature) {
-		OutputWriter output = this.datumTools.getDataTools().getOutputWriter();
-		Timer timer = this.datumTools.getDataTools().getTimer();
-		String featureStr = feature.toString(false);
-		
-		output.debugWriteln(this.name + " initializing feature (" + featureStr + ")...");
-		timer.startClock(featureStr + " Initialization");
-		if (!this.trainData.addFeature(feature, true))
-			return false;
-		timer.stopClock(featureStr + " Initialization");
-		output.debugWriteln(this.name + " finished initializing feature (" + featureStr + ").");
-		
-		if (!this.testData.addFeature(feature, false))
-			return false;
-		
-		output.debugWriteln(this.name + " serializing feature (" + featureStr + ")...");
-		output.modelWriteln(feature.toString(true));
-		output.debugWriteln(this.name + " finished serializing feature (" + featureStr + ").");
-		
-		return true;
 	}
 }

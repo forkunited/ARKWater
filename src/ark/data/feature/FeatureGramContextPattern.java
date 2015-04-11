@@ -7,12 +7,14 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import ark.data.Context;
 import ark.data.Gazetteer;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Document;
 import ark.data.annotation.nlp.PoSTag;
 import ark.data.annotation.nlp.PoSTagClass;
 import ark.data.annotation.nlp.TokenSpan;
+import ark.parse.Obj;
 
 public class FeatureGramContextPattern<D extends Datum<L>, L> extends FeatureGram<D, L> {
 	public enum CapturePart {
@@ -35,7 +37,11 @@ public class FeatureGramContextPattern<D extends Datum<L>, L> extends FeatureGra
 	protected Pattern convertedAfterPattern;
 
 	public FeatureGramContextPattern() {
-		super();
+		
+	}
+	
+	public FeatureGramContextPattern(Context<D, L> context) {
+		super(context);
 		
 		this.beforePattern = "";
 		this.afterPattern = "";
@@ -50,35 +56,37 @@ public class FeatureGramContextPattern<D extends Datum<L>, L> extends FeatureGra
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
-		String parameterValue = super.getParameterValue(parameter);
+	public Obj getParameterValue(String parameter) {
+		Obj parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
 		else if (parameter.equals("beforePattern"))
-			return this.beforePattern;
+			return Obj.stringValue(this.beforePattern);
 		else if (parameter.equals("afterPattern"))
-			return this.afterPattern;
+			return Obj.stringValue(this.afterPattern);
 		else if (parameter.equals("capturePart"))
-			return this.capturePart.toString();
+			return Obj.stringValue(this.capturePart.toString());
 		else if (parameter.equals("captureGroup"))
-			return String.valueOf(this.captureGroup);
+			return Obj.stringValue(String.valueOf(this.captureGroup));
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, datumTools))
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (super.setParameterValue(parameter, parameterValue))
 			return true;
 		else if (parameter.equals("beforePattern")) {
-			this.beforePattern = parameterValue;
-			this.convertedBeforePattern = Pattern.compile(convertPattern(parameterValue, datumTools));
+			String value = this.context.getMatchValue(parameterValue);
+			this.beforePattern = value;
+			this.convertedBeforePattern = Pattern.compile(convertPattern(value));
 		} else if (parameter.equals("afterPattern")) {
-			this.afterPattern = parameterValue;
-			this.convertedAfterPattern = Pattern.compile(convertPattern(parameterValue, datumTools));
+			String value = this.context.getMatchValue(parameterValue);
+			this.afterPattern = value;
+			this.convertedAfterPattern = Pattern.compile(convertPattern(value));
 		} else if (parameter.equals("captureGroup"))
-			this.captureGroup = Integer.valueOf(parameterValue);
+			this.captureGroup = Integer.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("capturePart"))
-			this.capturePart = CapturePart.valueOf(parameterValue);
+			this.capturePart = CapturePart.valueOf(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		
@@ -169,7 +177,7 @@ public class FeatureGramContextPattern<D extends Datum<L>, L> extends FeatureGra
 		return strRemoved.toString().trim();
 	}
 	
-	protected String convertPattern(String inputPattern, Datum.Tools<D, L> datumTools) {
+	protected String convertPattern(String inputPattern) {
 		// Replace pos tag class references with disjunctions
 		Matcher posTagClassMatcher = this.posTagClassPattern.matcher(inputPattern);
 		while (posTagClassMatcher.find()) {
@@ -194,7 +202,7 @@ public class FeatureGramContextPattern<D extends Datum<L>, L> extends FeatureGra
 		while (gazetteerMatcher.find()) {
 			StringBuilder termStr = new StringBuilder();
 			String gazetteerName = gazetteerMatcher.group(1);
-			Gazetteer gazetteer = datumTools.getDataTools().getGazetteer(gazetteerName);
+			Gazetteer gazetteer = this.context.getDatumTools().getDataTools().getGazetteer(gazetteerName);
 			termStr.append("(");
 			Set<String> terms = gazetteer.getValues();
 			for (String term : terms) {
@@ -254,7 +262,7 @@ public class FeatureGramContextPattern<D extends Datum<L>, L> extends FeatureGra
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureGramContextPattern<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureGramContextPattern<D, L>(context);
 	}
 }

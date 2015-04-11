@@ -21,6 +21,7 @@ package ark.data.feature;
 
 import java.util.List;
 
+import ark.data.Context;
 import ark.data.DataTools;
 import ark.data.annotation.Datum;
 import ark.util.Pair;
@@ -45,6 +46,12 @@ public class FeatureGazetteerEditDistance<D extends Datum<L>, L> extends Feature
 	private DataTools.StringPairMeasure editDistanceMeasure;
 	
 	public FeatureGazetteerEditDistance() {
+		
+	}
+	
+	public FeatureGazetteerEditDistance(Context<D, L> context) {
+		super(context);
+		
 		this.extremumType = FeatureGazetteer.ExtremumType.Minimum;
 		
 		this.editDistanceMeasure = new DataTools.StringPairMeasure() {
@@ -65,7 +72,7 @@ public class FeatureGazetteerEditDistance<D extends Datum<L>, L> extends Feature
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureGazetteerEditDistance<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureGazetteerEditDistance<D, L>(context);
 	}
 }

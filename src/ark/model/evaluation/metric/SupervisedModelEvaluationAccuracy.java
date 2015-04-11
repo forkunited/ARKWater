@@ -22,10 +22,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
+import ark.parse.Obj;
 import ark.util.Pair;
 
 /**
@@ -40,6 +41,14 @@ import ark.util.Pair;
 public class SupervisedModelEvaluationAccuracy<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
 	private boolean computeBaseline;
 	private String[] parameterNames = { "computeBaseline" };
+	
+	public SupervisedModelEvaluationAccuracy() {
+		
+	}
+	
+	public SupervisedModelEvaluationAccuracy(Context<D, L> context) {
+		this.context = context;
+	}
 	
 	@Override
 	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
@@ -73,8 +82,8 @@ public class SupervisedModelEvaluationAccuracy<D extends Datum<L>, L> extends Su
 	}
 
 	@Override
-	public SupervisedModelEvaluation<D, L> makeInstance() {
-		return new SupervisedModelEvaluationAccuracy<D, L>();
+	public SupervisedModelEvaluation<D, L> makeInstance(Context<D, L> context) {
+		return new SupervisedModelEvaluationAccuracy<D, L>(context);
 	}
 
 	@Override
@@ -83,18 +92,17 @@ public class SupervisedModelEvaluationAccuracy<D extends Datum<L>, L> extends Su
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("computeBaseline"))
-			return String.valueOf(this.computeBaseline);
+			return Obj.stringValue(String.valueOf(this.computeBaseline));
 		else
 			return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("computeBaseline"))
-			this.computeBaseline = Boolean.valueOf(parameterValue);
+			this.computeBaseline = Boolean.valueOf(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		return true;

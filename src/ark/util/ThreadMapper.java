@@ -1,6 +1,7 @@
 package ark.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -32,7 +33,7 @@ public class ThreadMapper<S, T> {
 		this.fn = fn;
 	}
 	
-	public List<T> run(List<S> items, int maxThreads) {
+	public List<T> run(Collection<S> items, int maxThreads) {
 		List<T> results = new ArrayList<T>(items.size());
 		ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
 		List<Task> tasks = new ArrayList<Task>();

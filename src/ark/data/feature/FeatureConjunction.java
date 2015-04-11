@@ -18,14 +18,15 @@
 
 package ark.data.feature;
 
-import java.io.BufferedReader;
-import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 import ark.util.ThreadMapper;
@@ -52,6 +53,11 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	private FeaturizedDataSet<D, L> dataSet; // Has other initialized features to be conjoined
 	
 	public FeatureConjunction() {
+		
+	}
+	
+	public FeatureConjunction(Context<D, L> context) {
+		this.context = context;
 		this.vocabulary = new BidirectionalLookupTable<String, Integer>();
 	}
 	
@@ -136,18 +142,18 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("minFeatureOccurrence"))
-			return String.valueOf(this.minFeatureOccurrence);
+			return Obj.stringValue(String.valueOf(this.minFeatureOccurrence));
 		else if (parameter.equals("featureReferences")) {
 			if (this.featureReferences == null)
-				return "";
+				return Obj.stringValue("");
 			StringBuilder featureReferences = new StringBuilder();
 			for (int i = 0; i < this.featureReferences.length; i++)
 				featureReferences = featureReferences.append(this.featureReferences[i]).append("/");
 			if (featureReferences.length() > 0)
 				featureReferences = featureReferences.delete(featureReferences.length() - 1, featureReferences.length());
-			return featureReferences.toString();
+			return Obj.stringValue(featureReferences.toString());
 		}
 
 		return null;
@@ -155,11 +161,11 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 
 	@Override
 	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
+			Obj parameterValue) {
 		if (parameter.equals("minFeatureOccurrence")) {
-		 	this.minFeatureOccurrence = Integer.valueOf(parameterValue);
+		 	this.minFeatureOccurrence = Integer.valueOf(this.context.getMatchValue(parameterValue));
 		} else if (parameter.equals("featureReferences")) {
-			this.featureReferences = parameterValue.split("/");
+			this.featureReferences = this.context.getMatchValue(parameterValue).split("/");
 		} else {
 			return false;
 		}
@@ -167,26 +173,28 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureConjunction<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureConjunction<D, L>(context);
 	}
-	
+
 	@Override
-	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
-		if (!newObjects) {
-			FeatureConjunction<D1,L1> cloneFeature = (FeatureConjunction<D1, L1>)clone;
-			cloneFeature.vocabulary = this.vocabulary;
-		}
+	protected <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			Feature<T, Boolean> binaryFeature) {
+		FeatureConjunction<T, Boolean> binaryFeatureConj = (FeatureConjunction<T, Boolean>)binaryFeature;
+		binaryFeatureConj.vocabulary = this.vocabulary;
+
+		return binaryFeatureConj;
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
 		return true;
 	}
-	
+
 	@Override
-	protected boolean serializeHelper(Writer writer) {
-		return true;
-	}
-	
-	@Override
-	protected boolean deserializeHelper(BufferedReader writer) {
-		return true;
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		return internalAssignments;
 	}
 }

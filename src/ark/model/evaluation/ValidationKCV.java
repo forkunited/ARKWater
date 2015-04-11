@@ -1,6 +1,6 @@
 package ark.model.evaluation;
 
-import java.io.BufferedReader;
+/*import java.io.BufferedReader;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -13,16 +13,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import ark.data.annotation.DataSet;
+import ark.data.annotation.DataSet;*/
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
+/*import ark.data.annotation.Datum.Tools;
 import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
 import ark.util.OutputWriter;
-import ark.util.Pair;
+import ark.util.Pair;*/
 
 /**
+ * FIXME Needs refactoring
  * ValidationKCV performs a k-fold cross validation with 
  * a given model on set of annotated 
  * organization mentions 
@@ -38,8 +39,8 @@ import ark.util.Pair;
  * @param <D> datum type
  * @param <L> datum label type
  */
-public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
-	private List<Feature<D, L>> features;
+public class ValidationKCV<D extends Datum<L>, L>/* extends Validation<D, L>*/ {
+/*	private List<Feature<D, L>> features;
 	private List<DataSet<D, L>> folds;
 	private List<GridSearch.GridDimension> gridDimensions; 
 	private DataSet<D, L> data;
@@ -49,13 +50,13 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 	
 	private int k;
 	private boolean trainOnDev;
-	private String[] parameters = new String[] { "trainOnDev", "k"};
+	private String[] parameters = new String[] { "trainOnDev", "k"};*/
 	
 	/**
 	 * @param name
 	 * @param data - Dataset to randomly partition into folds
 	 */
-	public ValidationKCV(String name, DataSet<D, L> data) {
+/*	public ValidationKCV(String name, DataSet<D, L> data) {
 		super(name, data.getDatumTools());
 		this.gridDimensions = new ArrayList<GridSearch.GridDimension>();
 		this.data = data;
@@ -184,7 +185,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 	 * @author Bill McDowell
 	 *
 	 */
-	private class ValidationResult  {
+/*	private class ValidationResult  {
 		private int foldIndex;
 		private List<Double> evaluationValues;
 		private ConfusionMatrix<D, L> confusionMatrix;
@@ -227,7 +228,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 	 * @author Bill McDowell
 	 *
 	 */
-	private class ValidationThread implements Callable<ValidationResult> {
+/*	private class ValidationThread implements Callable<ValidationResult> {
 		private int foldIndex;
 		private int maxThreads;
 		// fold-specific environment variables that can be referenced by
@@ -250,7 +251,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 			/*
 			 * Initialize training, dev, and test sets
 			 */
-			output.debugWriteln("Initializing CV data sets for " + name);
+/*			output.debugWriteln("Initializing CV data sets for " + name);
 			Datum.Tools<D, L> datumTools = folds.get(this.foldIndex).getDatumTools();
 			Datum.Tools.LabelMapping<L> labelMapping = folds.get(this.foldIndex).getLabelMapping();
 			FeaturizedDataSet<D, L> testData = new FeaturizedDataSet<D, L>(namePrefix + " Test", this.maxThreads, datumTools, labelMapping);
@@ -268,7 +269,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 			
 			/* Need cloned bunch of features for the fold so that they can be 
 			 * reinitialized without affecting other folds' results */
-			output.debugWriteln("Initializing features for CV fold " + this.foldIndex);
+/*			output.debugWriteln("Initializing features for CV fold " + this.foldIndex);
 			for (Feature<D, L> feature : features) {
 				Feature<D, L> foldFeature = feature.clone(datumTools, this.parameterEnvironment);
 				if (!foldFeature.init(trainData))
@@ -287,7 +288,7 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 			/*
 			 *  Run either TrainTestValidation or GridSearchTestValidation on the fold
 			 */
-			ValidationResult result = null;
+/*			ValidationResult result = null;
 			List<Double> evaluationValues = null;
 			if (gridDimensions.size() > 0) {
 				ValidationGST<D, L> gridSearchValidation = new ValidationGST<D, L>(namePrefix, this.maxThreads, foldModel, trainData, devData, testData, evaluations, errorExampleExtractor, gridDimensions, true);
@@ -360,5 +361,5 @@ public class ValidationKCV<D extends Datum<L>, L> extends Validation<D, L> {
 		}
 		
 		return true;
-	}
+	}*/
 }

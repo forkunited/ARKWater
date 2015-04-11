@@ -1,0 +1,86 @@
+package ark.parse;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/* Terminals (tokens returned by the scanner). */
+terminal        COMMA, EQUALS, SEMI, DOLLAR;
+terminal        RIGHT_ARROW, COMP;
+terminal        LPAREN, RPAREN;
+terminal        LSQUARE_BRACKET, RSQUARE_BRACKET;
+terminal        LCURLY_BRACE, RCURLY_BRACE;
+terminal String STRING;
+
+/* Non terminals */
+non terminal AssignmentList assignmentTypedList;
+non terminal Assignment     assignmentTyped;
+non terminal AssignmentList assignmentUntypedList;
+non terminal Assignment     assignmentUntyped;
+non terminal List<String>   assignmentTypedModifierList;
+non terminal String         assignmentTypedModifier;
+non terminal Obj            obj;
+non terminal Obj.Value      value;
+non terminal Obj.Value      curlyBracedValue;
+non terminal Obj.Array      array;
+non terminal Obj.Array      arrayParts;
+non terminal Obj.Function   function;
+non terminal Obj.Rule       rule;
+
+/* Precedences */
+precedence right COMP;
+
+/* The grammar */
+start with assignmentTypedList;
+
+/* FIXME: Handle error when al.add returns false */
+assignmentTypedList ::= assignmentTyped:a SEMI assignmentTypedList:al {: al.add(a); RESULT = al; :}
+                      | /* empty */                                   {: RESULT = new AssignmentList(); :}
+                      ;
+
+assignmentTyped ::= assignmentTypedModifierList:ml STRING:t STRING:n EQUALS obj:o {: RESULT = Assignment.assignmentTyped(ml,t,n,o); :};
+
+assignmentTypedModifierList ::= assignmentTypedModifier:m assignmentTypedModifierList:ml {: ml.add(m); RESULT = ml; :}
+                              | /* empty */                                              {: RESULT = new ArrayList<String>(); :}
+                              ;
+
+/* FIXME: Handle error when al.add returns false */
+assignmentUntypedList ::= assignmentUntyped:a COMMA assignmentUntypedList:al {: al.add(a); RESULT = al; :}
+                        | /* empty */                                        {: RESULT = new AssignmentList(); :}
+                        ;
+
+assignmentUntyped ::= STRING:n EQUALS obj:o   {: RESULT = Assignment.assignmentUntyped(n,o); :}
+                    | value:v                 {: RESULT = Assignment.assignmentUntyped(v); :}
+                    ;
+
+obj ::= rule:r                                {: RESULT = r; :}
+      | function:f                            {: RESULT = f; :}
+      | array:a                               {: RESULT = a; :}
+      | value:v                               {: RESULT = v; :}
+      ;
+
+rule ::= LPAREN function:f1 RPAREN RIGHT_ARROW LPAREN function:f2 RPAREN   {: RESULT = Obj.rule(f1, f2); :}
+       | LPAREN function:f1 RPAREN RIGHT_ARROW function:f2                 {: RESULT = Obj.rule(f1, f2); :}
+       | function:f1 RIGHT_ARROW LPAREN function:f2 RPAREN                 {: RESULT = Obj.rule(f1, f2); :}
+       | function:f1 RIGHT_ARROW function:f2                               {: RESULT = Obj.rule(f1, f2); :}
+       ;
+
+function ::= STRING:n LPAREN assignmentUntypedList:al RPAREN                                                    {: RESULT = Obj.function(n,al); :}
+           | STRING:n LPAREN assignmentUntypedList:aul RPAREN LCURLY_BRACE assignmentTypedList:atl RCURLY_BRACE {: RESULT = Obj.function(n,aul,atl); :}
+           | function:f1 COMP function:f2                                                                       {: RESULT = Obj.functionComposition(f1, f2); :}
+           | function:f COMP curlyBracedValue:v                                                                 {: RESULT = Obj.functionComposition(f, v); :}
+           | curlyBracedValue:v COMP function:f                                                                 {: RESULT = Obj.functionComposition(f, v); :}
+           | curlyBracedValue:v1 COMP curlyBracedValue:v2                                                       {: RESULT = Obj.functionComposition(v1,v2); :}
+           ;
+
+array ::= LPAREN arrayParts RPAREN;
+
+arrayParts ::= value:v COMMA arrayParts:a {: a.add(v); RESULT = a; :}
+        | /* empty */                     {: RESULT = Obj.array(); :}
+        ;
+
+value ::= LSQUARE_BRACKET STRING:s RSQUARE_BRACKET {: RESULT = Obj.squareBracketedValue(s); :}
+        | curlyBracedValue:v                       {: RESULT = v; :}
+        | STRING:s                                 {: RESULT = Obj.stringValue(s); :}
+        ;
+
+curlyBracedValue ::= DOLLAR LCURLY_BRACE STRING:s RCURLY_BRACE {: RESULT = Obj.curlyBracedValue(s); :};

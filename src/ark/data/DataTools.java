@@ -121,7 +121,6 @@ public class DataTools {
 	protected Map<String, Clusterer<String>> stringClusterers;
 	protected Map<String, Clusterer<TokenSpan>> tokenSpanClusterers;
 	protected Map<String, Path> paths;
-	protected Map<String, String> parameterEnvironment; // Environment variables that have been set 
 	
 	protected long randomSeed;
 	protected Random globalRandom;
@@ -135,7 +134,6 @@ public class DataTools {
 		this.stringClusterers = new HashMap<String, Clusterer<String>>();
 		this.tokenSpanClusterers = new HashMap<String, Clusterer<TokenSpan>>();
 		this.paths = new HashMap<String, Path>();
-		this.parameterEnvironment = new HashMap<String, String>();
 		
 		this.outputWriter = outputWriter;
 		
@@ -191,10 +189,6 @@ public class DataTools {
 	
 	public Path getPath(String name) {
 		return this.paths.get(name);
-	}
-	
-	public Map<String, String> getParameterEnvironment() {
-		return this.parameterEnvironment;
 	}
 	
 	public OutputWriter getOutputWriter() {
@@ -253,6 +247,7 @@ public class DataTools {
 				}
 			}
 		);
+		
 		return true;
 	}
 	
@@ -275,12 +270,7 @@ public class DataTools {
 		this.paths.put(name, path);
 		return true;
 	}
-	
-	public boolean addToParameterEnvironment(String name, String value) {
-		this.parameterEnvironment.put(name, value);
-		return true;
-	}
-	
+
 	public boolean setRandomSeed(long seed) {
 		this.randomSeed = seed;
 		this.globalRandom.setSeed(this.randomSeed);

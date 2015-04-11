@@ -18,24 +18,22 @@
 
 package ark.model.evaluation.metric;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.annotation.Datum.Tools.LabelMapping;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
+import ark.parse.ARKParsableFunction;
+import ark.parse.Assignment;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.Pair;
-import ark.util.Parameterizable;
-import ark.util.SerializationUtil;
 
 /**
  * SupervisedModelEvaluation represents evaluation measure
@@ -52,7 +50,8 @@ import ark.util.SerializationUtil;
  * @param <D> datum type
  * @param <L> datum label type
  */
-public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> implements Parameterizable<D, L> {
+public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> extends ARKParsableFunction {
+	protected Context<D, L> context;
 	protected LabelMapping<L> labelMapping;
 	
 	/**
@@ -77,7 +76,7 @@ public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> implement
 	 * @return a generic instance of the evaluation measure.  This is used when deserializing
 	 * the parameters for the measure from a configuration file
 	 */
-	public abstract SupervisedModelEvaluation<D, L> makeInstance();
+	public abstract SupervisedModelEvaluation<D, L> makeInstance(Context<D, L> context);
 	
 	/**
 	 * @param predictions
@@ -124,97 +123,50 @@ public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> implement
 		
 		return evaluation;
 	}
-	
-	public <D1 extends Datum<L1>, L1> SupervisedModelEvaluation<D1, L1> clone(Datum.Tools<D1, L1> datumTools) {
-		return clone(datumTools, null, true);
-	}
-	
-	@SuppressWarnings("unchecked")
-	public <D1 extends Datum<L1>, L1> SupervisedModelEvaluation<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelMapping) {
-		SupervisedModelEvaluation<D1, L1> clone = datumTools.makeEvaluationInstance(getGenericName(), true);
-		String[] parameterNames = getParameterNames();
-		for (int i = 0; i < parameterNames.length; i++) {
-			String parameterValue = getParameterValue(parameterNames[i]);
-			if (environment != null && parameterValue != null) {
-				for (Entry<String, String> entry : environment.entrySet())
-					parameterValue = parameterValue.replace("--" + entry.getKey() + "--", entry.getValue());
-			}
-			clone.setParameterValue(parameterNames[i], parameterValue, datumTools);
-		}
 		
-		if (copyLabelMapping)
-			clone.labelMapping = (LabelMapping<L1>)this.labelMapping;
-		
+	public SupervisedModelEvaluation<D, L> clone() {
+		SupervisedModelEvaluation<D, L> clone = this.context.getDatumTools().makeEvaluationInstance(getGenericName(), this.context);
+		if (!clone.fromParse(getModifiers(), getReferenceName(), toParse()))
+			return null;
 		return clone;
 	}
 	
-	public boolean deserialize(BufferedReader reader, boolean readGenericName, Datum.Tools<D, L> datumTools) throws IOException {
-		if (readGenericName && SerializationUtil.deserializeGenericName(reader) == null)
-			return false;
+	public <T extends Datum<Boolean>> SupervisedModelEvaluation<T, Boolean> makeBinary(Context<T, Boolean> context, LabelIndicator<L> labelIndicator) {
+		SupervisedModelEvaluation<T, Boolean> binaryEvaluation = context.getDatumTools().makeEvaluationInstance(getGenericName(), context);
 		
-		Map<String, String> parameters = SerializationUtil.deserializeArguments(reader);
-		if (parameters != null)
-			for (Entry<String, String> entry : parameters.entrySet()) {
-				if (entry.getKey().equals("labelMapping"))
-					this.labelMapping = datumTools.getLabelMapping(entry.getValue());
-				else
-					setParameterValue(entry.getKey(), entry.getValue(), datumTools);
-			}
-
-		return true;
+		binaryEvaluation.referenceName = this.referenceName;
+		binaryEvaluation.modifiers = this.modifiers;
+		binaryEvaluation.labelMapping = null;
+		
+		String[] parameterNames = getParameterNames();
+		for (int i = 0; i < parameterNames.length; i++)
+			binaryEvaluation.setParameterValue(parameterNames[i], getParameterValue(parameterNames[i]));
+		
+		return binaryEvaluation;
 	}
 	
-	public boolean serialize(Writer writer) throws IOException {
-		writer.write(toString(false));
-		return true;
-	}
-	
-	public String toString(boolean withVocabulary) {
-		if (withVocabulary) {
-			StringWriter stringWriter = new StringWriter();
-			try {
-				if (serialize(stringWriter))
-					return stringWriter.toString();
-				else
-					return null;
-			} catch (IOException e) {
-				return null;
-			}
-		} else {
-			String genericName = getGenericName();
-			Map<String, String> parameters = new HashMap<String, String>();
-			String[] parameterNames = getParameterNames();
-			for (int i = 0; i < parameterNames.length; i++)
-				parameters.put(parameterNames[i], getParameterValue(parameterNames[i]));
-			
-			if (this.labelMapping != null)
-				parameters.put("labelMapping", this.labelMapping.toString());
-			
-			StringWriter parametersWriter = new StringWriter();
-			
-			try {
-				SerializationUtil.serializeArguments(parameters, parametersWriter);
-			} catch (IOException e) {
-				return null;
-			}
-			
-			String parametersStr = parametersWriter.toString();
-			return genericName + "(" + parametersStr + ")";
+	@Override
+	protected boolean fromParseInternal(AssignmentList internalAssignments) {
+		if (internalAssignments == null)
+			return true;
+		
+		if (internalAssignments.contains("labelMapping")) {
+			Obj.Value labelMapping = (Obj.Value)internalAssignments.get("labelMapping").getValue();
+			this.labelMapping = this.context.getDatumTools().getLabelMapping(this.context.getMatchValue(labelMapping));
 		}
-	}
-	
-	public String toString() {
-		return toString(false);
-	}
-	
-	
-	public boolean fromString(String str, Datum.Tools<D, L> datumTools) {
-		try {
-			return deserialize(new BufferedReader(new StringReader(str)), true, datumTools);
-		} catch (IOException e) {
-			
-		}
+		
 		return true;
 	}
 	
+	@Override
+	protected AssignmentList toParseInternal() {
+		AssignmentList internalAssignments = new AssignmentList();
+		
+		if (this.labelMapping != null) {
+			Obj.Value labelMapping = Obj.stringValue(this.labelMapping.toString());
+			internalAssignments.add(Assignment.assignmentTyped(new ArrayList<String>(), Context.VALUE_STR, "labelMapping", labelMapping));
+		}
+		
+		return (internalAssignments.size() == 0) ? null : internalAssignments;
+	}
 }

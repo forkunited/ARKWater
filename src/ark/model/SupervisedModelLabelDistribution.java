@@ -18,17 +18,18 @@
 
 package ark.model;
 
-import java.io.BufferedReader;
-import java.io.Writer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 
 /**
  * SupervisedModelLabelDistribution learns a single posterior
@@ -46,6 +47,11 @@ public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends Sup
 	
 	public SupervisedModelLabelDistribution() {
 		this.labelDistribution = new HashMap<L, Double>();
+	}
+	
+	public SupervisedModelLabelDistribution(Context<D, L> context) {
+		this();
+		this.context = context;
 	}
 	
 	@Override
@@ -81,39 +87,13 @@ public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends Sup
 	}
 	
 	@Override
-	protected boolean deserializeParameters(BufferedReader reader,
-			Tools<D, L> datumTools) {
-		// TODO: Serialize the distribution.  This isn't necessary for now because we never save
-		// this kind of model since it's just used to compute the majority baseline
-		return true;
-	}
-
-	@Override
-	protected boolean serializeParameters(Writer writer) {
-		// TODO: Serialize the distribution.  This isn't necessary for now because we never save
-		// this kind of model since it's just used to compute the majority baseline
-		return true;
-	}
-	
-	@Override
 	public String[] getParameterNames() {
 		return new String[0];
 	}
 
 	@Override
-	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelLabelDistribution<D, L>();
-	}
-
-	@Override
-	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
-			Tools<D, L> datumTools) {
-		return true;
-	}
-
-	@Override
-	protected boolean serializeExtraInfo(Writer writer) {
-		return true;
+	public SupervisedModel<D, L> makeInstance(Context<D, L> context) {
+		return new SupervisedModelLabelDistribution<D, L>(context);
 	}
 
 	@Override
@@ -122,13 +102,30 @@ public class SupervisedModelLabelDistribution<D extends Datum<L>, L> extends Sup
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		return true;
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
+		return true;
+	}
+
+	@Override
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		return internalAssignments;
+	}
+
+	@Override
+	protected <T extends Datum<Boolean>> SupervisedModel<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			SupervisedModel<T, Boolean> binaryModel) {
+		return binaryModel;
 	}
 }

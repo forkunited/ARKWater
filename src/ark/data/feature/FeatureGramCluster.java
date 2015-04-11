@@ -6,14 +6,20 @@ import java.util.List;
 import java.util.Map;
 
 import ark.cluster.Clusterer;
+import ark.data.Context;
 import ark.data.annotation.Datum;
 import ark.data.annotation.nlp.TokenSpan;
+import ark.parse.Obj;
 
 public class FeatureGramCluster<D extends Datum<L>, L> extends FeatureGram<D, L> {	
 	protected Clusterer<TokenSpan> clusterer;
 	
 	public FeatureGramCluster() {
-		super();
+		
+	}
+	
+	public FeatureGramCluster(Context<D, L> context) {
+		super(context);
 		
 		this.clusterer = null;
 		this.parameterNames = Arrays.copyOf(this.parameterNames, this.parameterNames.length + 1);
@@ -22,21 +28,21 @@ public class FeatureGramCluster<D extends Datum<L>, L> extends FeatureGram<D, L>
 
 
 	@Override
-	public String getParameterValue(String parameter) {
-		String parameterValue = super.getParameterValue(parameter);
+	public Obj getParameterValue(String parameter) {
+		Obj parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
 		else if (parameter.equals("clusterer"))
-			return (this.clusterer == null) ? "None" : this.clusterer.getName();
+			return Obj.stringValue((this.clusterer == null) ? "None" : this.clusterer.getName());
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, datumTools))
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (super.setParameterValue(parameter, parameterValue))
 			return true;
 		else if (parameter.equals("clusterer"))
-			this.clusterer = datumTools.getDataTools().getTokenSpanClusterer(parameterValue);
+			this.clusterer = this.context.getDatumTools().getDataTools().getTokenSpanClusterer(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		
@@ -68,7 +74,7 @@ public class FeatureGramCluster<D extends Datum<L>, L> extends FeatureGram<D, L>
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureGramCluster<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureGramCluster<D, L>(context);
 	}
 }

@@ -18,28 +18,25 @@
 
 package ark.model;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
 import java.util.Random;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
-import ark.data.annotation.Datum.Tools.LabelMapping;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
+import ark.parse.Assignment;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.BidirectionalLookupTable;
 import ark.util.OutputWriter;
-import ark.util.Pair;
-import ark.util.SerializationUtil;
 
 /**
  * SupervisedModelSVM represents a multi-class SVM trained with
@@ -78,14 +75,9 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		this.featureNames = new HashMap<Integer, String>();
 	}
 	
-	@Override
-	public boolean setLabels(Set<L> validLabels, LabelMapping<L> labelMapping) {
-		if (!super.setLabels(validLabels, labelMapping))
-			return false;
-		
-		setLabelIndices();
-		
-		return true;
+	public SupervisedModelSVM(Context<D, L> context) {
+		this();
+		this.context = context;
 	}
 	
 	protected boolean setLabelIndices() {
@@ -95,37 +87,6 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 			this.labelIndices.put(label, i);
 			i++;
 		}
-		return true;
-	}
-	
-	@Override
-	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
-			Tools<D, L> datumTools) throws IOException {
-		if (this.validLabels != null && this.labelIndices == null) {
-			// Might be better to do this somewhere else...?
-			setLabelIndices();
-		}
-		
-		if (name.equals("trainingIterations")) {
-			this.trainingIterations = Integer.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
-		} else if (name.equals("earlyStopIfNoLabelChange")){
-			this.earlyStopIfNoLabelChange = Boolean.valueOf(SerializationUtil.deserializeAssignmentRight(reader));
-			System.out.println("\n\n\n");
-			System.out.println("earlyStopIfnoLabelChange: " + earlyStopIfNoLabelChange);
-			System.out.println("\n\n\n");
-		}
-		
-		return true;
-	}
-
-	@Override
-	protected boolean serializeExtraInfo(Writer writer) throws IOException {
-		writer.write("\t");
-		Pair<String, String> trainingIterationsAssignment = new Pair<String, String>("trainingIterations", String.valueOf(this.trainingIterations));
-		if (!SerializationUtil.serializeAssignment(trainingIterationsAssignment, writer))
-			return false;
-		writer.write("\n");
-		
 		return true;
 	}
 
@@ -164,7 +125,7 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 				
 				String statusStr = "(l2=" + this.l2 + ") Finished iteration " + iteration + /*" objective diff: " + objectiveValueDiff + " objective: " + objectiveValue + */" prediction-diff: " + labelDifferences + "/" + predictions.size() + " ";
 				for (int i = 0; i < evaluations.size(); i++) {
-					String evaluationName = evaluations.get(i).toString(false);
+					String evaluationName = evaluations.get(i).toString();
 					double evaluationDiff = evaluationValues.get(i) - prevEvaluationValues.get(i);
 					statusStr += evaluationName + " diff: " + evaluationDiff + " " + evaluationName + ": " + evaluationValues.get(i) + " ";
 				}
@@ -458,238 +419,28 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("l2"))
-			return String.valueOf(this.l2);
+			return Obj.stringValue(String.valueOf(this.l2));
 		else if (parameter.equals("epsilon"))
-			return String.valueOf(this.epsilon);
+			return Obj.stringValue(String.valueOf(this.epsilon));
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("l2"))
-			this.l2 = Double.valueOf(parameterValue);
+			this.l2 = Double.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("epsilon"))
-			this.epsilon = Double.valueOf(parameterValue);
+			this.epsilon = Double.valueOf(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		return true;
 	}
-	
-	@SuppressWarnings("unchecked")
-	@Override
-	public <D1 extends Datum<L1>, L1> SupervisedModel<D1, L1> clone(Datum.Tools<D1, L1> datumTools, Map<String, String> environment, boolean copyLabelObjects) {
-		SupervisedModelSVM<D1, L1> clone = (SupervisedModelSVM<D1, L1>)super.clone(datumTools, environment, copyLabelObjects);
-		
-		if (copyLabelObjects)
-			clone.labelIndices = (BidirectionalLookupTable<L1, Integer>)this.labelIndices;
-		
-		clone.trainingIterations = this.trainingIterations;
-		clone.earlyStopIfNoLabelChange = this.earlyStopIfNoLabelChange;
-		
-		return clone;
-	}
-	
-	@Override
-	protected boolean deserializeParameters(BufferedReader reader,
-			Tools<D, L> datumTools) throws IOException {
-		Pair<String, String> tAssign = SerializationUtil.deserializeAssignment(reader);
-		Pair<String, String> numWeightsAssign = SerializationUtil.deserializeAssignment(reader);
-	
-		int numWeights = Integer.valueOf(numWeightsAssign.getSecond());
-		this.numFeatures = numWeights / this.labelIndices.size();
-		
-		this.t = Integer.valueOf(tAssign.getSecond());
-		this.featureNames = new HashMap<Integer, String>();
-		
-		this.feature_w = new HashMap<Integer, Double>();
-		this.feature_G = new HashMap<Integer, Double>();
-		
-		this.bias_b = new double[this.labelIndices.size()];
-		this.bias_G = new double[this.bias_b.length];	
-		
-		String assignmentLeft = null;
-		while ((assignmentLeft = SerializationUtil.deserializeAssignmentLeft(reader)) != null) {
-			if (assignmentLeft.equals("labelFeature")) {
-				String labelFeature = SerializationUtil.deserializeGenericName(reader);
-				Map<String, String> featureParameters = SerializationUtil.deserializeArguments(reader);
-				
-				String featureName = labelFeature.substring(labelFeature.indexOf("-") + 1);
-				double w = Double.valueOf(featureParameters.get("w"));
-				double G = Double.valueOf(featureParameters.get("G"));
-				int labelIndex = Integer.valueOf(featureParameters.get("labelIndex"));
-				int featureIndex = Integer.valueOf(featureParameters.get("featureIndex"));
-				
-				int index = labelIndex*this.numFeatures+featureIndex;
-				this.featureNames.put(featureIndex, featureName);
-				this.feature_w.put(index, w);
-				this.feature_G.put(index, G);
-			} else if (assignmentLeft.equals("labelBias")) {
-				SerializationUtil.deserializeGenericName(reader);
-				Map<String, String> biasParameters = SerializationUtil.deserializeArguments(reader);
-				double b = Double.valueOf(biasParameters.get("b"));
-				double G = Double.valueOf(biasParameters.get("G"));
-				int index = Integer.valueOf(biasParameters.get("index"));
-				
-				this.bias_b[index] = b;
-				this.bias_G[index] = G;
-			} else {
-				break;
-			}
-		}
-		
-		return true;
-	}
-	
-	@Override
-	protected boolean serializeParameters(Writer writer) throws IOException {
-		Pair<String, String> tAssignment = new Pair<String, String>("t", String.valueOf(this.t));
-		if (!SerializationUtil.serializeAssignment(tAssignment, writer))
-			return false;
-		writer.write("\n");
-		
-		Pair<String, String> numFeatureWeightsAssignment = new Pair<String, String>("numWeights", String.valueOf(this.labelIndices.size()*this.numFeatures));
-		if (!SerializationUtil.serializeAssignment(numFeatureWeightsAssignment, writer))
-			return false;
-		writer.write("\n"); 
-		
-		if (this.labelIndices.size() == 2)
-			return serializeParametersBinary(writer);
-		
-		for (int i = 0; i < this.labelIndices.size(); i++) {
-			String label = this.labelIndices.reverseGet(i).toString();
-			String biasValue = label +
-					  "(b=" + this.bias_b[i] +
-					  ", G=" + this.bias_G[i] +
-					  ", index=" + i +
-					  ")";
-
-			Pair<String, String> biasAssignment = new Pair<String, String>("labelBias", biasValue);
-			if (!SerializationUtil.serializeAssignment(biasAssignment, writer))
-				return false;
-			writer.write("\n");
-		}
-		
-		List<Entry<Integer, Double>> wList = new ArrayList<Entry<Integer, Double>>(this.feature_w.entrySet());
-		Collections.sort(wList, new Comparator<Entry<Integer, Double>>() {
-			@Override
-			public int compare(Entry<Integer, Double> e1,
-					Entry<Integer, Double> e2) {
-				if (Math.abs(e1.getValue()) > Math.abs(e2.getValue()))
-					return -1;
-				else if (Math.abs(e1.getValue()) < Math.abs(e2.getValue()))
-					return 1;
-				else
-					return 0;
-			} });
-		
-		for (Entry<Integer, Double> weightEntry : wList) {
-			int weightIndex = weightEntry.getKey();
-			int labelIndex = getLabelIndex(weightIndex);
-			int featureIndex = getFeatureIndex(weightIndex);
-			String label = this.labelIndices.reverseGet(labelIndex).toString();
-			String featureName = this.featureNames.get(featureIndex);
-			double w = weightEntry.getValue();
-			double G = (this.feature_G.containsKey(weightIndex)) ? this.feature_G.get(weightIndex) : 0;
-			
-			if (w == 0)
-				continue;
-			
-			String featureValue = label + "-" + 
-					  featureName + 
-					  "(w=" + w +
-					  ", G=" + G +
-					  ", labelIndex=" + labelIndex +
-					  ", featureIndex=" + featureIndex + 
-					  ")";
-
-			Pair<String, String> featureAssignment = new Pair<String, String>("labelFeature", featureValue);
-			if (!SerializationUtil.serializeAssignment(featureAssignment, writer))
-				return false;
-			writer.write("\n");
-		}
-
-		writer.write("\n");
-		
-		return true;
-	}
-	
-	protected boolean serializeParametersBinary(Writer writer) throws IOException {
-		int onIndex = 0;
-		int offIndex = 1;
-		
-		if (this.labelIndices.reverseGet(0).toString().equals("true")) {
-			onIndex = 0;
-			offIndex = 1;
-		} else {
-			onIndex = 1;
-			offIndex = 0;
-		}
-		
-		double b = this.bias_b[onIndex] - this.bias_b[offIndex];
-		String biasValue = "true_false(b=" + b + ")";
-	
-		Pair<String, String> biasAssignment = new Pair<String, String>("labelBias", biasValue);
-		if (!SerializationUtil.serializeAssignment(biasAssignment, writer))
-			return false;
-		writer.write("\n");
-		
-		Map<Integer, Double> mergedWeights = new HashMap<Integer, Double>();
-		for (Entry<Integer, Double> weightEntry : this.feature_w.entrySet()) {
-			int labelIndex = getLabelIndex(weightEntry.getKey());
-			int featureIndex = getFeatureIndex(weightEntry.getKey());
-			double delta = weightEntry.getValue();
-			if (labelIndex != onIndex)
-				delta = -delta;
-			if (!mergedWeights.containsKey(featureIndex))
-				mergedWeights.put(featureIndex, 0.0);
-			mergedWeights.put(featureIndex, mergedWeights.get(featureIndex) + delta);
-		}
-		
-		List<Entry<Integer, Double>> wList = new ArrayList<Entry<Integer, Double>>(mergedWeights.entrySet());
-		Collections.sort(wList, new Comparator<Entry<Integer, Double>>() {
-			@Override
-			public int compare(Entry<Integer, Double> e1,
-					Entry<Integer, Double> e2) {
-				if (e1.getValue() > e2.getValue())
-					return -1;
-				else if (e1.getValue() < e2.getKey())
-					return 1;
-				else
-					return 0;
-			} });
-		
-		for (Entry<Integer, Double> weightEntry : wList) {
-			int featureIndex = weightEntry.getKey();
-			String label = "true_false";
-			String featureName = this.featureNames.get(featureIndex);
-			double w = weightEntry.getValue();
-			
-			if (w == 0)
-				continue;
-			
-			String featureValue = label + "-" + 
-					  featureName + 
-					  "(w=" + w +
-					  ", featureIndex=" + featureIndex + 
-					  ")";
-
-			Pair<String, String> featureAssignment = new Pair<String, String>("labelFeature", featureValue);
-			if (!SerializationUtil.serializeAssignment(featureAssignment, writer))
-				return false;
-			writer.write("\n");
-		}
-
-		writer.write("\n");
-		
-		return true;
-	}
 
 	@Override
-	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelSVM<D, L>();
+	public SupervisedModel<D, L> makeInstance(Context<D, L> context) {
+		return new SupervisedModelSVM<D, L>(context);
 	}
 
 	@Override
@@ -746,5 +497,143 @@ public class SupervisedModelSVM<D extends Datum<L>, L> extends SupervisedModel<D
 		}
 	
 		return classifiedData;
+	}
+	
+	@Override
+	protected <T extends Datum<Boolean>> SupervisedModel<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			SupervisedModel<T, Boolean> binaryModel) {
+		SupervisedModelSVM<T, Boolean> binaryModelSVM = (SupervisedModelSVM<T, Boolean>)binaryModel;
+		
+		binaryModelSVM.earlyStopIfNoLabelChange = this.earlyStopIfNoLabelChange;
+		binaryModelSVM.trainingIterations = this.trainingIterations;
+		binaryModelSVM.setLabelIndices();
+		
+		return binaryModelSVM;
+	}
+	
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
+		setLabelIndices();
+		
+		if (internalAssignments.contains("trainingIterations"))
+			this.trainingIterations = Integer.valueOf(internalAssignments.get("trainingIterations").getValue().toString());
+		if (internalAssignments.contains("earlyStopIfNoLabelChange"))
+			this.earlyStopIfNoLabelChange = Boolean.valueOf(internalAssignments.get("earlyStopIfNoLabelChange").getValue().toString());
+		
+		if (!internalAssignments.contains("t") || !internalAssignments.contains("numWeights"))
+			return true;
+		
+		int numWeights = Integer.valueOf(internalAssignments.get("numWeights").getValue().toString());
+		this.numFeatures = numWeights / this.labelIndices.size();
+		
+		this.t = Integer.valueOf(internalAssignments.get("t").getValue().toString());
+		this.featureNames = new HashMap<Integer, String>();
+		
+		this.feature_w = new HashMap<Integer, Double>();
+		this.feature_G = new HashMap<Integer, Double>();
+		
+		this.bias_b = new double[this.labelIndices.size()];
+		this.bias_G = new double[this.bias_b.length];	
+		
+		for (int i = 0; i < internalAssignments.size(); i++) {
+			Assignment assignment = internalAssignments.get(i);
+			if (assignment.getName().startsWith("b-")) {
+				Obj.Array bArr = (Obj.Array)assignment.getValue();
+				
+				double b = Double.valueOf(bArr.getStr(1));
+				double G = Double.valueOf(bArr.getStr(2));
+				int index = Integer.valueOf(bArr.getStr(3));
+				
+				this.bias_b[index] = b;
+				this.bias_G[index] = G;
+			} else if (assignment.getName().startsWith("w-")) {
+				Obj.Array wArr = (Obj.Array)assignment.getValue();
+				
+				String featureName = wArr.getStr(1);
+				double w = Double.valueOf(wArr.getStr(2));
+				double G = Double.valueOf(wArr.getStr(3));
+				int labelIndex = Integer.valueOf(wArr.getStr(4));
+				int featureIndex = Integer.valueOf(wArr.getStr(5));
+				
+				int index = labelIndex*this.numFeatures+featureIndex;
+				this.featureNames.put(featureIndex, featureName);
+				this.feature_w.put(index, w);
+				this.feature_G.put(index, G);
+			}
+		}
+		
+		return true;
+	}
+
+	@Override
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		
+		internalAssignments.add(
+				Assignment.assignmentTyped(null, Context.VALUE_STR, "trainingIterations", Obj.stringValue(String.valueOf(this.trainingIterations)))
+		);
+		
+		internalAssignments.add(
+				Assignment.assignmentTyped(null, Context.VALUE_STR, "earlyStopIfNoLabelChange", Obj.stringValue(String.valueOf(this.earlyStopIfNoLabelChange)))
+		);
+		
+		if (this.numFeatures == 0)
+			return internalAssignments;
+		
+		internalAssignments.add(
+			Assignment.assignmentTyped(null, Context.VALUE_STR, "t", Obj.stringValue(String.valueOf(this.t)))
+		);
+		
+		internalAssignments.add(
+			Assignment.assignmentTyped(null, Context.VALUE_STR, "numWeights", Obj.stringValue(String.valueOf(this.labelIndices.size()*this.numFeatures)))
+		);
+		 
+		for (int i = 0; i < this.labelIndices.size(); i++) {
+			String label = this.labelIndices.reverseGet(i).toString();
+			String b = String.valueOf(this.bias_b[i]);
+			String G = String.valueOf(this.bias_G[i]);
+			String index = String.valueOf(i);
+			
+			Obj.Array biasArray = Obj.array(new String[] { label, b, G, index });
+			internalAssignments.add(
+				Assignment.assignmentTyped(null, Context.ARRAY_STR, "b-" + index, biasArray)
+			);
+		}
+		
+		List<Entry<Integer, Double>> wList = new ArrayList<Entry<Integer, Double>>(this.feature_w.entrySet());
+		Collections.sort(wList, new Comparator<Entry<Integer, Double>>() {
+			@Override
+			public int compare(Entry<Integer, Double> e1,
+					Entry<Integer, Double> e2) {
+				if (Math.abs(e1.getValue()) > Math.abs(e2.getValue()))
+					return -1;
+				else if (Math.abs(e1.getValue()) < Math.abs(e2.getValue()))
+					return 1;
+				else
+					return 0;
+			} });
+		
+		for (Entry<Integer, Double> weightEntry : wList) {
+			if (Double.compare(weightEntry.getValue(), 0.0) == 0)
+				continue;
+			
+			String weightIndex = String.valueOf(weightEntry.getKey());
+			int labelIndex = getLabelIndex(weightEntry.getKey());
+			String labelIndexStr = String.valueOf(labelIndex);
+			int featureIndex = getFeatureIndex(weightEntry.getKey());
+			String featureIndexStr = String.valueOf(featureIndex); 
+			String label = this.labelIndices.reverseGet(labelIndex).toString();
+			String featureName = this.featureNames.get(featureIndex);
+			String w = String.valueOf(weightEntry.getValue());
+			String G = String.valueOf((this.feature_G.containsKey(weightEntry.getKey())) ? this.feature_G.get(weightEntry.getKey()) : 0);
+			
+			Obj.Array weightArray = Obj.array(new String[] { label, featureName, w, G, labelIndexStr, featureIndexStr });
+			internalAssignments.add(
+				Assignment.assignmentTyped(null, Context.ARRAY_STR, "w-" + weightIndex, weightArray)
+			);
+		}
+		
+		return internalAssignments;
 	}
 }

@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.json.JSONObject;
 
+import ark.data.Context;
 import ark.data.DataTools;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.data.annotation.structure.DatumStructureCollection;
@@ -45,6 +46,17 @@ import ark.data.feature.FeatureNGramSentence;
 import ark.data.feature.FeatureNGramPoS;
 import ark.data.feature.FeatureStringForm;
 import ark.data.feature.FeatureTokenCount;
+import ark.data.feature.fn.Fn;
+import ark.data.feature.fn.FnAffix;
+import ark.data.feature.fn.FnComposite;
+import ark.data.feature.fn.FnFilter;
+import ark.data.feature.fn.FnHead;
+import ark.data.feature.fn.FnNGramContext;
+import ark.data.feature.fn.FnNGramDocument;
+import ark.data.feature.fn.FnNGramInside;
+import ark.data.feature.fn.FnNGramSentence;
+import ark.data.feature.fn.FnPoS;
+import ark.data.feature.fn.FnString;
 import ark.model.SupervisedModel;
 import ark.model.SupervisedModelAreg;
 import ark.model.SupervisedModelCreg;
@@ -196,8 +208,13 @@ public abstract class Datum<L> {
 		private Map<String, Feature<D, L>> genericFeatures;
 		private Map<String, SupervisedModel<D, L>> genericModels;
 		private Map<String, SupervisedModelEvaluation<D, L>> genericEvaluations;
-
+		
 		private Map<String, DatumStructureCollection<D, L>> genericDatumStructureCollections;
+		
+
+		private Map<String, List<Fn<List<TokenSpan>, List<TokenSpan>>>> genericTokenSpanFns;
+		private Map<String, List<Fn<List<TokenSpan>, List<String>>>> genericTokenSpanStrFns;
+		private Map<String, List<Fn<List<String>, List<String>>>> genericStrFns;
 		
 		public Tools(DataTools dataTools) {
 			this.dataTools = dataTools;
@@ -213,6 +230,10 @@ public abstract class Datum<L> {
 			this.genericEvaluations = new HashMap<String, SupervisedModelEvaluation<D, L>>();
 			
 			this.genericDatumStructureCollections = new HashMap<String, DatumStructureCollection<D, L>>();
+			
+			this.genericTokenSpanFns = new HashMap<String, List<Fn<List<TokenSpan>, List<TokenSpan>>>>();
+			this.genericTokenSpanStrFns = new HashMap<String, List<Fn<List<TokenSpan>, List<String>>>>();
+			this.genericStrFns = new HashMap<String, List<Fn<List<String>, List<String>>>>();
 			
 			addLabelMapping(new LabelMapping<L>() {
 				public String toString() {
@@ -254,6 +275,22 @@ public abstract class Datum<L> {
 			addGenericEvaluation(new SupervisedModelEvaluationPrecision<D, L>());
 			addGenericEvaluation(new SupervisedModelEvaluationRecall<D, L>());
 			addGenericEvaluation(new SupervisedModelEvaluationF<D, L>());
+			
+			addGenericTokenSpanFn(new FnComposite.FnCompositeTokenSpan());
+			addGenericTokenSpanFn(new FnHead());
+			addGenericTokenSpanFn(new FnNGramContext());
+			addGenericTokenSpanFn(new FnNGramDocument());
+			addGenericTokenSpanFn(new FnNGramInside());
+			addGenericTokenSpanFn(new FnNGramSentence());
+			
+			addGenericTokenSpanStrFn(new FnComposite.FnCompositeTokenSpanTokenSpanStr());
+			addGenericTokenSpanStrFn(new FnComposite.FnCompositeTokenSpanStrStr());
+			addGenericTokenSpanStrFn(new FnPoS());
+			addGenericTokenSpanStrFn(new FnString());
+
+			addGenericStrFn(new FnComposite.FnCompositeStr());
+			addGenericStrFn(new FnAffix());
+			addGenericStrFn(new FnFilter());
 		}
 		
 		public DataTools getDataTools() {
@@ -284,41 +321,50 @@ public abstract class Datum<L> {
 			return this.inverseLabelIndicators.get(name);
 		}
 		
-		public Feature<D, L> makeFeatureInstance(String genericFeatureName) {
-			return makeFeatureInstance(genericFeatureName, false);
+		public Feature<D, L> makeFeatureInstance(String genericFeatureName, Context<D, L> context) {
+			return this.genericFeatures.get(genericFeatureName).makeInstance(context); 
 		}
 		
-		public SupervisedModel<D, L> makeModelInstance(String genericModelName) {
-			return makeModelInstance(genericModelName, false);
+		public SupervisedModel<D, L> makeModelInstance(String genericModelName, Context<D, L> context) {
+			return this.genericModels.get(genericModelName).makeInstance(context); 
 		}
 		
-		public SupervisedModelEvaluation<D, L> makeEvaluationInstance(String genericEvaluationName) {
-			return makeEvaluationInstance(genericEvaluationName, false);
-		}
-		
-		public Feature<D, L> makeFeatureInstance(String genericFeatureName, boolean noParameters) {
-			if (noParameters)
-				return this.genericFeatures.get(genericFeatureName).makeInstance();
-			else
-				return this.genericFeatures.get(genericFeatureName).clone(this, this.dataTools.getParameterEnvironment());
-		}
-		
-		public SupervisedModel<D, L> makeModelInstance(String genericModelName, boolean noParameters) {
-			if (noParameters)
-				return this.genericModels.get(genericModelName).makeInstance(null, null);
-			else
-				return this.genericModels.get(genericModelName).clone(this, this.dataTools.getParameterEnvironment(), true);
-		}
-		
-		public SupervisedModelEvaluation<D, L> makeEvaluationInstance(String genericEvaluationName, boolean noParameters) {
-			if (noParameters)
-				return this.genericEvaluations.get(genericEvaluationName).makeInstance();
-			else
-				return this.genericEvaluations.get(genericEvaluationName).clone(this, this.dataTools.getParameterEnvironment(), true);
+		public SupervisedModelEvaluation<D, L> makeEvaluationInstance(String genericEvaluationName, Context<D, L> context) {
+			return this.genericEvaluations.get(genericEvaluationName).makeInstance(context); 
 		}
 		
 		public DatumStructureCollection<D, L> makeDatumStructureCollection(String genericCollectionName, DataSet<D, L> data) {
 			return this.genericDatumStructureCollections.get(genericCollectionName).makeInstance(data);
+		}
+		
+		public List<Fn<List<String>, List<String>>> makeStrFns(String genericStrFnName, Context<D, L> context) {
+			List<Fn<List<String>, List<String>>> genericStrFns = this.genericStrFns.get(genericStrFnName);
+			List<Fn<List<String>, List<String>>> strFns = new ArrayList<Fn<List<String>, List<String>>>(genericStrFns.size());
+			
+			for (Fn<List<String>, List<String>> genericStrFn : genericStrFns)
+				strFns.add(genericStrFn.makeInstance(context));
+			
+			return strFns;
+		}
+		
+		public List<Fn<List<TokenSpan>, List<TokenSpan>>> makeTokenSpanFns(String genericTokenSpanFnName, Context<D, L> context) {
+			List<Fn<List<TokenSpan>, List<TokenSpan>>> genericTokenSpanFns = this.genericTokenSpanFns.get(genericTokenSpanFnName);
+			List<Fn<List<TokenSpan>, List<TokenSpan>>> tokenSpanFns = new ArrayList<Fn<List<TokenSpan>, List<TokenSpan>>>(genericTokenSpanFns.size());
+			
+			for (Fn<List<TokenSpan>, List<TokenSpan>> genericTokenSpanFn : genericTokenSpanFns)
+				tokenSpanFns.add(genericTokenSpanFn.makeInstance(context));
+			
+			return tokenSpanFns;
+		}
+		
+		public List<Fn<List<TokenSpan>, List<String>>> makeTokenSpanStrFns(String genericTokenSpanStrFnName, Context<D, L> context) {
+			List<Fn<List<TokenSpan>, List<String>>> genericTokenSpanStrFns = this.genericTokenSpanStrFns.get(genericTokenSpanStrFnName);
+			List<Fn<List<TokenSpan>, List<String>>> tokenSpanStrFns = new ArrayList<Fn<List<TokenSpan>, List<String>>>(genericTokenSpanStrFns.size());
+			
+			for (Fn<List<TokenSpan>, List<String>> genericTokenSpanStrFn : genericTokenSpanStrFns)
+				tokenSpanStrFns.add(genericTokenSpanStrFn.makeInstance(context));
+			
+			return tokenSpanStrFns;
 		}
 		
 		public boolean addTokenSpanExtractor(TokenSpanExtractor<D, L> tokenSpanExtractor) {
@@ -358,6 +404,27 @@ public abstract class Datum<L> {
 		
 		public boolean addGenericDatumStructureCollection(DatumStructureCollection<D, L> datumStructureCollection) {
 			this.genericDatumStructureCollections.put(datumStructureCollection.getGenericName(), datumStructureCollection);
+			return true;
+		}
+		
+		public boolean addGenericStrFn(Fn<List<String>, List<String>> strFn) {
+			if (!this.genericStrFns.containsKey(strFn.getGenericName()))
+				this.genericStrFns.put(strFn.getGenericName(), new ArrayList<Fn<List<String>, List<String>>>());
+			this.genericStrFns.get(strFn.getGenericName()).add(strFn);
+			return true;
+		}
+		
+		public boolean addGenericTokenSpanFn(Fn<List<TokenSpan>, List<TokenSpan>> tokenSpanFn) {
+			if (!this.genericTokenSpanFns.containsKey(tokenSpanFn.getGenericName()))
+				this.genericTokenSpanFns.put(tokenSpanFn.getGenericName(), new ArrayList<Fn<List<TokenSpan>, List<TokenSpan>>>());
+			this.genericTokenSpanFns.get(tokenSpanFn.getGenericName()).add(tokenSpanFn);
+			return true;
+		}
+		
+		public boolean addGenericTokenSpanStrFn(Fn<List<TokenSpan>, List<String>> tokenSpanStrFn) {
+			if (!this.genericTokenSpanStrFns.containsKey(tokenSpanStrFn.getGenericName()))
+				this.genericTokenSpanStrFns.put(tokenSpanStrFn.getGenericName(), new ArrayList<Fn<List<TokenSpan>, List<String>>>());
+			this.genericTokenSpanStrFns.get(tokenSpanStrFn.getGenericName()).add(tokenSpanStrFn);
 			return true;
 		}
 		

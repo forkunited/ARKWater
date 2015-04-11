@@ -18,19 +18,19 @@
 
 package ark.data.feature;
 
-import java.io.BufferedReader;
-import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.annotation.nlp.TokenSpan;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 
 /**
- * FIXME Fill this in sometime maybe
  * 
  * @author Jesse Dodge
  *
@@ -38,15 +38,19 @@ import ark.util.CounterTable;
  * @param <L>
  */
 public class FeatureSurfaceDistance<D extends Datum<L>, L> extends Feature<D, L>{
-	
 	protected BidirectionalLookupTable<String, Integer> vocabulary;
 
 	protected Datum.Tools.TokenSpanExtractor<D, L> sourceTokenExtractor;
 	protected Datum.Tools.TokenSpanExtractor<D, L> targetTokenExtractor;
 	protected String[] parameterNames = {"sourceTokenExtractor", "targetTokenExtractor", "PoS"};
 	
-	public FeatureSurfaceDistance(){
-		vocabulary = new BidirectionalLookupTable<String, Integer>();
+	public FeatureSurfaceDistance() {
+		
+	}
+	
+	public FeatureSurfaceDistance(Context<D, L> context) {
+		this.vocabulary = new BidirectionalLookupTable<String, Integer>();
+		this.context = context;
 	}
 
 	@Override
@@ -100,20 +104,20 @@ public class FeatureSurfaceDistance<D extends Datum<L>, L> extends Feature<D, L>
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("sourceTokenExtractor")) 
-			return (this.sourceTokenExtractor == null) ? null : this.sourceTokenExtractor.toString();
+			return Obj.stringValue((this.sourceTokenExtractor == null) ? "" : this.sourceTokenExtractor.toString());
 		else if (parameter.equals("targetTokenExtractor"))
-			return (this.targetTokenExtractor == null) ? null : this.targetTokenExtractor.toString();
+			return Obj.stringValue((this.targetTokenExtractor == null) ? "" : this.targetTokenExtractor.toString());
 		return null;	}
 
 	@Override
 	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
+			Obj parameterValue) {
 		if (parameter.equals("sourceTokenExtractor")) 
-			this.sourceTokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
+			this.sourceTokenExtractor = this.context.getDatumTools().getTokenSpanExtractor(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("targetTokenExtractor")) 
-			this.targetTokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
+			this.targetTokenExtractor = this.context.getDatumTools().getTokenSpanExtractor(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		return true;
@@ -121,27 +125,29 @@ public class FeatureSurfaceDistance<D extends Datum<L>, L> extends Feature<D, L>
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureSurfaceDistance<D,L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureSurfaceDistance<D,L>(context);
 	}
-	
+
 	@Override
-	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
-		if (!newObjects) {
-			FeatureSurfaceDistance<D1,L1> cloneFeature = (FeatureSurfaceDistance<D1, L1>)clone;
-			cloneFeature.vocabulary = this.vocabulary;
-		}
+	protected <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			Feature<T, Boolean> binaryFeature) {
+		FeatureSurfaceDistance<T, Boolean> binaryFeatureSurf = (FeatureSurfaceDistance<T, Boolean>)binaryFeature;
 		
+		binaryFeatureSurf.vocabulary = this.vocabulary;
+		
+		return binaryFeatureSurf;
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
 		return true;
 	}
-	
+
 	@Override
-	protected boolean serializeHelper(Writer writer) {
-		return true;
-	}
-	
-	@Override
-	protected boolean deserializeHelper(BufferedReader writer) {
-		return true;
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		return internalAssignments;
 	}
 }

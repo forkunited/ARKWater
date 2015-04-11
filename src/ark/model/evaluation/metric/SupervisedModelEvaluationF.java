@@ -23,10 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
+import ark.parse.Obj;
 import ark.util.Pair;
 
 /**
@@ -53,8 +54,16 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 	
 	private Mode mode = Mode.MACRO_WEIGHTED;
 	private double Beta = 1.0;
-	private L filterLabel;
+	private String filterLabel; // Must be stored as string to work with ValidationGSTBinary
 	private String[] parameterNames = { "mode", "Beta", "filterLabel" };
+	
+	public SupervisedModelEvaluationF() {
+		
+	}
+	
+	public SupervisedModelEvaluationF(Context<D, L> context) {
+		this.context = context;
+	}
 	
 	@Override
 	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
@@ -103,9 +112,10 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 			weights.put(actual, weights.get(actual) + 1.0);
 		}
 		
+		L filterLabelTyped = data.getDatumTools().labelFromString(this.filterLabel);
 		for (Entry<L, Double> entry : weights.entrySet()) {
-			if (this.filterLabel != null) {
-				if (entry.getKey().equals(this.filterLabel))
+			if (filterLabelTyped != null) {
+				if (entry.getKey().equals(filterLabelTyped))
 					entry.setValue(1.0);
 				else
 					entry.setValue(0.0);
@@ -156,33 +166,32 @@ public class SupervisedModelEvaluationF<D extends Datum<L>, L> extends Supervise
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("mode"))
-			return this.mode.toString();
+			return Obj.stringValue(this.mode.toString());
 		else if (parameter.equals("Beta"))
-			return String.valueOf(this.Beta);
+			return Obj.stringValue(String.valueOf(this.Beta));
 		else if (parameter.equals("filterLabel"))
-			return (this.filterLabel == null) ? "" : this.filterLabel.toString();
+			return Obj.stringValue((this.filterLabel == null) ? "" : this.filterLabel);
 		else
 			return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("mode"))
-			this.mode = Mode.valueOf(parameterValue);
+			this.mode = Mode.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("Beta"))
-			this.Beta = Double.valueOf(parameterValue);
+			this.Beta = Double.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("filterLabel"))
-			this.filterLabel = datumTools.labelFromString(parameterValue);
+			this.filterLabel = this.context.getMatchValue(parameterValue);
 		else
 			return false;
 		return true;
 	}
 
 	@Override
-	public SupervisedModelEvaluation<D, L> makeInstance() {
-		return new SupervisedModelEvaluationF<D, L>();
+	public SupervisedModelEvaluation<D, L> makeInstance(Context<D, L> context) {
+		return new SupervisedModelEvaluationF<D, L>(context);
 	}
 }

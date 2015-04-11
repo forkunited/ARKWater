@@ -23,10 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.SupervisedModel;
+import ark.parse.Obj;
 import ark.util.Pair;
 
 /**
@@ -47,8 +48,16 @@ import ark.util.Pair;
  */
 public class SupervisedModelEvaluationPrecision<D extends Datum<L>, L> extends SupervisedModelEvaluation<D, L> {
 	private boolean weighted;
-	private L filterLabel;
+	private String filterLabel; // Must be stored as string to work with ValidationGSTBinary
 	private String[] parameterNames = { "weighted", "filterLabel" };
+	
+	public SupervisedModelEvaluationPrecision() {
+		
+	}
+
+	public SupervisedModelEvaluationPrecision(Context<D, L> context) {
+		this.context = context;
+	}
 	
 	@Override
 	protected double compute(SupervisedModel<D, L> model, FeaturizedDataSet<D, L> data, Map<D, L> predictions) {
@@ -71,9 +80,10 @@ public class SupervisedModelEvaluationPrecision<D extends Datum<L>, L> extends S
 			weights.put(actual, weights.get(actual) + 1.0);
 		}
 		
+		L filterLabelTyped = data.getDatumTools().labelFromString(this.filterLabel);
 		for (Entry<L, Double> entry : weights.entrySet()) {
-			if (this.filterLabel != null) {
-				if (entry.getKey().equals(this.filterLabel))
+			if (filterLabelTyped != null) {
+				if (entry.getKey().equals(filterLabelTyped))
 					entry.setValue(1.0);
 				else
 					entry.setValue(0.0);
@@ -121,29 +131,28 @@ public class SupervisedModelEvaluationPrecision<D extends Datum<L>, L> extends S
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("weighted"))
-			return String.valueOf(this.weighted);
+			return Obj.stringValue(String.valueOf(this.weighted));
 		else if (parameter.equals("filterLabel"))
-			return (this.filterLabel == null) ? "" : this.filterLabel.toString();
+			return Obj.stringValue((this.filterLabel == null) ? "" : this.filterLabel);
 		else
 			return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("weighted"))
-			this.weighted = Boolean.valueOf(parameterValue);
+			this.weighted = Boolean.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("filterLabel"))
-			this.filterLabel = datumTools.labelFromString(parameterValue);
+			this.filterLabel = this.context.getMatchValue(parameterValue);
 		else
 			return false;
 		return true;
 	}
 
 	@Override
-	public SupervisedModelEvaluation<D, L> makeInstance() {
-		return new SupervisedModelEvaluationPrecision<D, L>();
+	public SupervisedModelEvaluation<D, L> makeInstance(Context<D, L> context) {
+		return new SupervisedModelEvaluationPrecision<D, L>(context);
 	}
 }

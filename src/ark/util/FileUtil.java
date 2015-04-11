@@ -1,7 +1,7 @@
 /**
  * Copyright 2014 Bill McDowell 
  *
- * This file is part of theMess (https://github.com/forkunited/theMess)
+ * This file is part of ARKWater (https://github.com/forkunited/ARKWater)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy 
@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import org.json.JSONException;
@@ -72,14 +73,21 @@ public class FileUtil {
 	}
 	
 	public static BufferedReader getFileReader(String path) {
-		File localFile = new File(path);
-		try {
-			if (localFile.exists())
-				return new BufferedReader(new FileReader(localFile));
-			else 
-				System.err.println("WARNING: FileUtil failed to read file at " + path); // Do something better later
+		InputStream resource = FileUtil.class.getClassLoader().getResourceAsStream(path);
+		try { 
+			if (resource != null)
+				return new BufferedReader(new InputStreamReader(resource));
+			File file = new File(path);
+			if (file.exists())
+				return new BufferedReader(new FileReader(file));
+			
+			System.err.println("WARNING: FileUtil failed to read file at " + path); // Do something better later
 		} catch (Exception e) { System.err.println("WARNING: FileUtil failed to read file at " + path); e.printStackTrace(); }
 		return HadoopUtil.getFileReader(path);
+	}
+	
+	public static boolean fileExists(String path) {
+		return FileUtil.class.getClassLoader().getResource(path) != null || (new File(path)).exists();
 	}
 	
 	public static BufferedReader getFileReader(String path, String encoding) {

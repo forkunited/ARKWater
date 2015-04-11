@@ -18,19 +18,20 @@
 
 package ark.data.feature;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Writer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.parse.Assignment;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.CounterTable;
-import ark.util.Pair;
-import ark.util.SerializationUtil;
 import ark.util.ThreadMapper;
+import ark.data.Context;
 import ark.data.DataTools;
 import ark.data.annotation.Datum;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.util.BidirectionalLookupTable;
 
 /**
@@ -79,9 +80,14 @@ public abstract class FeatureGram<D extends Datum<L>, L> extends Feature<D, L> {
 	protected abstract Map<String, Integer> getGramsForDatum(D datum);
 	
 	public FeatureGram() {
+		
+	}
+	
+	public FeatureGram(Context<D, L> context) {
 		this.vocabulary = new BidirectionalLookupTable<String, Integer>();
 		this.idfs = new HashMap<Integer, Double>();
 		this.scale = Scale.INDICATOR;
+		this.context = context;
 	}
 	
 	@Override
@@ -180,74 +186,74 @@ public abstract class FeatureGram<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("minFeatureOccurrence")) 
-			return String.valueOf(this.minFeatureOccurrence);
+			return Obj.stringValue(String.valueOf(this.minFeatureOccurrence));
 		else if (parameter.equals("cleanFn"))
-			return (this.cleanFn == null) ? null : this.cleanFn.toString();
+			return Obj.stringValue((this.cleanFn == null) ? "" : this.cleanFn.toString());
 		else if (parameter.equals("tokenExtractor"))
-			return (this.tokenExtractor == null) ? null : this.tokenExtractor.toString();
+			return Obj.stringValue((this.tokenExtractor == null) ? "" : this.tokenExtractor.toString());
 		else if (parameter.equals("scale"))
-			return this.scale.toString();
+			return Obj.stringValue(this.scale.toString());
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("minFeatureOccurrence")) 
-			this.minFeatureOccurrence = Integer.valueOf(parameterValue);
+			this.minFeatureOccurrence = Integer.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("cleanFn"))
-			this.cleanFn = datumTools.getDataTools().getCleanFn(parameterValue);
+			this.cleanFn = this.context.getDatumTools().getDataTools().getCleanFn(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("tokenExtractor"))
-			this.tokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
+			this.tokenExtractor = this.context.getDatumTools().getTokenSpanExtractor(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("scale"))
-			this.scale = Scale.valueOf(parameterValue);
+			this.scale = Scale.valueOf(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		return true;
 	}
 	
 	@Override
-	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
-		FeatureGram<D1,L1> cloneFeature = (FeatureGram<D1, L1>)clone;
-		if (!newObjects) {
-			cloneFeature.vocabulary = this.vocabulary;
-			cloneFeature.idfs = this.idfs;
-		} else {
-			cloneFeature.idfs = new HashMap<Integer, Double>();
-			for (Entry<Integer, Double> entry : this.idfs.entrySet())
-				cloneFeature.idfs.put(entry.getKey(), entry.getValue());
-		}
+	protected <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			Feature<T, Boolean> binaryFeature) {
+		FeatureGram<T, Boolean> binaryFeatureGram = (FeatureGram<T, Boolean>)binaryFeature;
 		
-		return true;
-	}
-	
-	@Override
-	protected boolean serializeHelper(Writer writer) throws IOException {
-		int i = 0;
-		for (Entry<Integer, Double> idf : this.idfs.entrySet()) {
-			Pair<String, Double> assign = new Pair<String, Double>(idf.getKey().toString(), idf.getValue());
-			if (!SerializationUtil.serializeAssignment(assign, writer))
-				return false;
-			if (i != this.idfs.size() - 1)
-				writer.write(",");
-			i++;
-		}
+		binaryFeatureGram.vocabulary = this.vocabulary;
+		binaryFeatureGram.idfs = this.idfs;
 		
-		return true;
+		return binaryFeatureGram;
 	}
-	
+
 	@Override
-	protected boolean deserializeHelper(BufferedReader reader) throws IOException {
-		Map<String,String> idfStrs = SerializationUtil.deserializeArguments(reader);
-		if (idfStrs == null)
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
+		if (internalAssignments == null)
+			return true;
+		if (!internalAssignments.contains("idf"))
 			return false;
 		
-		this.idfs = new HashMap<Integer,Double>();
-		for (Entry<String, String> entry : idfStrs.entrySet()) {
-			this.idfs.put(Integer.valueOf(entry.getKey()), Double.valueOf(entry.getValue()));
-		}
+		this.idfs = new HashMap<Integer, Double>();
+		
+		Obj.Array idfs = (Obj.Array)internalAssignments.get("idfs").getValue();
+		for (int i = 0; i < idfs.size(); i++)
+			this.idfs.put(i, Double.valueOf(idfs.get(i).getStr()));
 		
 		return true;
+	}
+
+	@Override
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		Obj.Array idfs = Obj.array();
+		for (int i = 0; i < this.vocabulary.size(); i++) {
+			if (this.idfs.containsKey(i))
+				idfs.add(Obj.stringValue(String.valueOf(this.idfs.get(i))));
+			else
+				idfs.add(Obj.stringValue("0.0"));
+		}
+		
+		internalAssignments.add(Assignment.assignmentTyped(new ArrayList<String>(), Context.ARRAY_STR, "idfs", idfs));
+		
+		return internalAssignments;
 	}
 }

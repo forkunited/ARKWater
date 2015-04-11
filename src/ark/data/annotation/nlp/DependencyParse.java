@@ -230,7 +230,7 @@ public class DependencyParse {
 	public DependencyParse(Document document, int sentenceIndex, Node root, Node[] tokenNodes) {
 		this.document = document;
 		this.sentenceIndex = sentenceIndex;
-		this.root = root;
+		this.root = (root != null) ? root : new Node(-1, new Dependency[0], new Dependency[0]);
 		this.tokenNodes = tokenNodes; 
 	}
 	
@@ -239,7 +239,9 @@ public class DependencyParse {
 	}
 	
 	private Node getNode(int tokenIndex) {
-		if (tokenIndex < 0)
+		if (tokenIndex >= this.tokenNodes.length)
+			return null;
+		if (tokenIndex < 0 || this.tokenNodes.length == 0)
 			return this.root;
 		return this.tokenNodes[tokenIndex];
 	}
@@ -314,7 +316,12 @@ public class DependencyParse {
 	
 	public List<Dependency> getGoverningDependencies(int index) {
 		Node node = getNode(index);
-		List<Dependency> governors = new ArrayList<Dependency>();
+		List<Dependency> governors = new ArrayList<Dependency>();		
+		// FIXME: Temporary fix... node should never be null but it is when the dependency 
+		// parse is empty sometimes for unknown reasons
+		if (node == null)
+			return governors;
+
 		for (int i = 0; i < node.getGovernors().length; i ++)
 			governors.add(node.getGovernors()[i]);
 			
@@ -324,6 +331,11 @@ public class DependencyParse {
 	public List<Dependency> getGovernedDependencies(int index) {
 		Node node = getNode(index);
 		List<Dependency> dependencies = new ArrayList<Dependency>();
+		// FIXME: Temporary fix... node should never be null but it is when the dependency 
+		// parse is empty sometimes for unknown reasons
+		if (node == null)
+			return dependencies;
+		
 		for (int i = 0; i < node.getDependents().length; i ++)
 			dependencies.add(node.getDependents()[i]);
 			

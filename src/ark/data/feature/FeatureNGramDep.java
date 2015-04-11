@@ -23,10 +23,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Document;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.data.annotation.nlp.DependencyParse;
+import ark.parse.Obj;
 
 /**
  * For each datum d FeatureNGramDep computes a
@@ -65,7 +67,11 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	private boolean useRelationTypes; // include dependency relation types
 	
 	public FeatureNGramDep() {
-		super();
+		
+	}
+	
+	public FeatureNGramDep(Context<D, L> context) {
+		super(context);
 		
 		this.mode = Mode.ParentsAndChildren;
 		this.useRelationTypes = true;
@@ -142,32 +148,35 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureNGramDep<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureNGramDep<D, L>(context);
 	}
 	
 	@Override
-	public String getParameterValue(String parameter) {
-		String parameterValue = super.getParameterValue(parameter);
+	public Obj getParameterValue(String parameter) {
+		Obj parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
 		else if (parameter.equals("mode"))
-			return this.mode == null ? null : this.mode.toString();
+			return Obj.stringValue(this.mode == null ? "" : this.mode.toString());
 		else if (parameter.equals("useRelationTypes"))
-			return String.valueOf(this.useRelationTypes);
+			return Obj.stringValue(String.valueOf(this.useRelationTypes));
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, datumTools))
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (super.setParameterValue(parameter, parameterValue))
 			return true;
-		else if (parameter.equals("mode"))
-			this.mode = Mode.valueOf(parameterValue);
-		else if (parameter.equals("useRelationTypes"))
-			this.useRelationTypes = Boolean.valueOf(parameterValue);
-		else
-			return false;
+		else {
+			String value = this.context.getMatchValue(parameterValue);
+			if (parameter.equals("mode"))
+				this.mode = (value.length() == 0) ? null : Mode.valueOf(value);
+			else if (parameter.equals("useRelationTypes"))
+				this.useRelationTypes = Boolean.valueOf(this.context.getMatchValue(parameterValue));
+			else
+				return false;
+		}
 		
 		return true;
 	}

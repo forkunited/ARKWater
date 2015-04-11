@@ -64,6 +64,15 @@ public class TokenSpan {
 				&& this.endTokenIndex > tokenIndex;
 	}
 	
+	public boolean containsTokenSpan(TokenSpan tokenSpan) {
+		if (tokenSpan.sentenceIndex != this.sentenceIndex)
+			return false;
+		for (int i = tokenSpan.getStartTokenIndex(); i < tokenSpan.getEndTokenIndex(); i++)
+			if (!containsToken(tokenSpan.sentenceIndex, i))
+				return false;
+		return true;
+	}
+	
 	public Document getDocument() {
 		return this.document;
 	}

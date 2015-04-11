@@ -23,9 +23,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Document;
 import ark.data.annotation.nlp.TokenSpan;
+import ark.parse.Obj;
 
 /**
  * For each datum d FeatureNGramSentence computes a
@@ -50,7 +52,11 @@ public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D,
 	private boolean noTokenSpan;
 	
 	public FeatureNGramSentence() {
-		super();
+		
+	}
+	
+	public FeatureNGramSentence(Context<D, L> context) {
+		super(context);
 		
 		this.noTokenSpan = false;
 		this.parameterNames = Arrays.copyOf(this.parameterNames, this.parameterNames.length + 1);
@@ -113,26 +119,26 @@ public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D,
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureNGramSentence<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureNGramSentence<D, L>(context);
 	} 
 	
 	@Override
-	public String getParameterValue(String parameter) {
-		String parameterValue = super.getParameterValue(parameter);
+	public Obj getParameterValue(String parameter) {
+		Obj parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
 		else if (parameter.equals("noTokenSpan"))
-			return String.valueOf(this.noTokenSpan);
+			return Obj.stringValue(String.valueOf(this.noTokenSpan));
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, datumTools))
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (super.setParameterValue(parameter, parameterValue))
 			return true;
 		else if (parameter.equals("noTokenSpan"))
-			this.noTokenSpan = Boolean.valueOf(parameterValue);
+			this.noTokenSpan = Boolean.valueOf(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		

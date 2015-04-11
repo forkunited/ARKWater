@@ -39,6 +39,7 @@ import java.util.TreeMap;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import ark.data.Context;
 import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.util.MathUtil;
 import ark.util.Pair;
@@ -463,16 +464,15 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		return true;
 	}
 	
-	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinaryDataSet(Datum.Tools<T, Boolean> datumTools) {
-		return makeBinaryDataSet(null, datumTools);
+	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinary(Context<T, Boolean> context) {
+		return makeBinary(null, context);
 	}
 	
-	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinaryDataSet(String labelIndicator, Datum.Tools<T, Boolean> datumTools) {
-		DataSet<T, Boolean> dataSet = new DataSet<T, Boolean>(datumTools, null);
-		LabelIndicator<L> indicator = (labelIndicator == null) ? null : this.datumTools.getLabelIndicator(labelIndicator);
+	public <T extends Datum<Boolean>> DataSet<T, Boolean> makeBinary(LabelIndicator<L> labelIndicator, Context<T, Boolean> context) {
+		DataSet<T, Boolean> dataSet = new DataSet<T, Boolean>(context.getDatumTools(), null);
 		
 		for (D datum : this) {
-			dataSet.add(this.datumTools.<T>makeBinaryDatum(datum, indicator));
+			dataSet.add(this.datumTools.<T>makeBinaryDatum(datum, labelIndicator));
 		}
 		
 		return dataSet;

@@ -23,9 +23,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import ark.cluster.Clusterer;
+import ark.data.Context;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Document;
 import ark.data.annotation.nlp.TokenSpan;
+import ark.parse.Obj;
 
 /**
  * 
@@ -67,7 +69,11 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 	protected Clusterer<TokenSpan> clusterer;
 	
 	public FeatureNGram() {
-		super();
+		
+	}
+	
+	public FeatureNGram(Context<D, L> context) {
+		super(context);
 		
 		this.n = 1;
 		this.clusterer = null;
@@ -86,15 +92,16 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 				return clusters;
 		} 
 		
+		List<String> ngrams = new ArrayList<String>();
 		StringBuilder ngram = new StringBuilder();		
 		for (int i = startTokenIndex; i < startTokenIndex + this.n; i++) {
 			String cleanGram = this.cleanFn.transform(document.getToken(sentenceIndex, i));
 			if (cleanGram.length() == 0)
-				continue;
+				return ngrams;
 			ngram.append(cleanGram).append("_");
 		}
 		
-		List<String> ngrams = new ArrayList<String>();
+		
 		if (ngram.length() == 0)
 			return ngrams;
 		
@@ -105,25 +112,25 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
-		String parameterValue = super.getParameterValue(parameter);
+	public Obj getParameterValue(String parameter) {
+		Obj parameterValue = super.getParameterValue(parameter);
 		if (parameterValue != null)
 			return parameterValue;
 		else if (parameter.equals("clusterer"))
-			return (this.clusterer == null) ? "None" : this.clusterer.getName();
+			return Obj.stringValue((this.clusterer == null) ? "None" : this.clusterer.getName());
 		else if (parameter.equals("n"))
-			return String.valueOf(this.n);
+			return Obj.stringValue(String.valueOf(this.n));
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
-		if (super.setParameterValue(parameter, parameterValue, datumTools))
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (super.setParameterValue(parameter, parameterValue))
 			return true;
 		else if (parameter.equals("clusterer"))
-			this.clusterer = datumTools.getDataTools().getTokenSpanClusterer(parameterValue);
+			this.clusterer = this.context.getDatumTools().getDataTools().getTokenSpanClusterer(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("n"))
-			this.n = Integer.valueOf(parameterValue);
+			this.n = Integer.valueOf(this.context.getMatchValue(parameterValue));
 		else
 			return false;
 		

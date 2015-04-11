@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,11 +34,15 @@ import java.util.Map.Entry;
 
 import org.json.JSONObject;
 
+import ark.data.Context;
 import ark.data.DataTools;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
+import ark.parse.Assignment;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.CommandRunner;
 import ark.util.OutputWriter;
 
@@ -66,6 +69,14 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	private boolean warmRestart;
 	private String[] hyperParameterNames = { "cmdPath", "modelPath", "l1", "l2", "warmRestart" };
 
+	public SupervisedModelCreg() {
+		
+	}
+	
+	public SupervisedModelCreg(Context<D, L> context) {
+		this.context = context;
+	}
+	
 	@Override
 	public boolean train(FeaturizedDataSet<D, L> data, FeaturizedDataSet<D, L> testData, List<SupervisedModelEvaluation<D, L>> evaluations) {
 		OutputWriter output = data.getDatumTools().getDataTools().getOutputWriter();
@@ -242,19 +253,67 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 		
 		return predictOutPath;
 	}
+
+	@Override
+	public String getGenericName() {
+		return "Creg";
+	}
 	
 	@Override
-	protected boolean deserializeParameters(BufferedReader reader, Tools<D, L> datumTools) {
+	public Obj getParameterValue(String parameter) {
+		if (parameter.equals("cmdPath"))
+			return Obj.stringValue(((this.cmdPath == null) ? "" : this.cmdPath.getName()));
+		else if (parameter.equals("modelPath"))
+			return Obj.stringValue((this.modelPath == null) ? "" : this.modelPath.getName());
+		else if (parameter.equals("l1"))
+			return Obj.stringValue(String.valueOf(this.l1));
+		else if (parameter.equals("l2"))
+			return Obj.stringValue(String.valueOf(this.l2));
+		else if (parameter.equals("warmRestart"))
+			return Obj.stringValue(String.valueOf(this.warmRestart));
+		return null;
+	}
+
+	@Override
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
+		if (parameter.equals("cmdPath"))
+			this.cmdPath = this.context.getDatumTools().getDataTools().getPath(this.context.getMatchValue(parameterValue));
+		else if (parameter.equals("modelPath"))
+			this.modelPath = this.context.getDatumTools().getDataTools().getPath(this.context.getMatchValue(parameterValue));
+		else if (parameter.equals("l1"))
+			this.l1 = Double.valueOf(this.context.getMatchValue(parameterValue));
+		else if (parameter.equals("l2"))
+			this.l2 = Double.valueOf(this.context.getMatchValue(parameterValue));
+		else if (parameter.equals("warmRestart"))
+			this.warmRestart = Boolean.valueOf(this.context.getMatchValue(parameterValue));
+		else
+			return false;
+		return true;
+	}
+	
+	@Override
+	public String[] getParameterNames() {
+		return this.hyperParameterNames;
+	}
+
+	@Override
+	public SupervisedModel<D, L> makeInstance(Context<D, L> context) {
+		return new SupervisedModelCreg<D, L>(context);
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
 		return true;
 	}
 
 	@Override
-	protected boolean serializeParameters(Writer writer) throws IOException {
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
 		TreeMap<Double, List<String>> sortedWeights = new TreeMap<Double, List<String>>();
 		File modelFile = new File(this.modelPath.getValue());
 		
 		if (!modelFile.exists())
-			return true;
+			return internalAssignments;
 		
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(modelFile));
@@ -282,69 +341,24 @@ public class SupervisedModelCreg<D extends Datum<L>, L> extends SupervisedModel<
 	    }
 		
 		NavigableMap<Double, List<String>> descendingWeights = sortedWeights.descendingMap();
-		for (List<String> lines : descendingWeights.values())
-			for (String line : lines)
-				writer.write(line + "\n");
+		int i = 0;
+		for (List<String> lines : descendingWeights.values()) {
+			for (String line : lines) {
+				internalAssignments.add(
+					Assignment.assignmentTyped(null, Context.ARRAY_STR, "w-" + i, Obj.stringValue(line))
+				);
+				
+				i++;
+			}
+		}
 		
-		return true;
+		return internalAssignments;
 	}
 
 	@Override
-	protected boolean serializeExtraInfo(Writer writer) {
-		return true;
+	protected <T extends Datum<Boolean>> SupervisedModel<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			SupervisedModel<T, Boolean> binaryModel) {
+		return binaryModel;
 	}
-
-	@Override
-	public String getGenericName() {
-		return "Creg";
-	}
-	
-	@Override
-	public String getParameterValue(String parameter) {
-		if (parameter.equals("cmdPath"))
-			return (this.cmdPath == null) ? null : this.cmdPath.getName();
-		else if (parameter.equals("modelPath"))
-			return (this.modelPath == null) ? null : this.modelPath.getName();
-		else if (parameter.equals("l1"))
-			return String.valueOf(this.l1);
-		else if (parameter.equals("l2"))
-			return String.valueOf(this.l2);
-		else if (parameter.equals("warmRestart"))
-			return String.valueOf(this.warmRestart);
-		return null;
-	}
-
-	@Override
-	public boolean setParameterValue(String parameter,
-			String parameterValue, Tools<D, L> datumTools) {
-		if (parameter.equals("cmdPath"))
-			this.cmdPath = datumTools.getDataTools().getPath(parameterValue);
-		else if (parameter.equals("modelPath"))
-			this.modelPath = datumTools.getDataTools().getPath(parameterValue);
-		else if (parameter.equals("l1"))
-			this.l1 = Double.valueOf(parameterValue);
-		else if (parameter.equals("l2"))
-			this.l2 = Double.valueOf(parameterValue);
-		else if (parameter.equals("warmRestart"))
-			this.warmRestart = Boolean.valueOf(parameterValue);
-		else
-			return false;
-		return true;
-	}
-	
-	@Override
-	public String[] getParameterNames() {
-		return this.hyperParameterNames;
-	}
-
-	@Override
-	protected SupervisedModel<D, L> makeInstance() {
-		return new SupervisedModelCreg<D, L>();
-	}
-
-	@Override
-	protected boolean deserializeExtraInfo(String name, BufferedReader reader, Tools<D, L> datumTools) {
-		return true;
-	}
-
 }

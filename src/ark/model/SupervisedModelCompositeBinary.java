@@ -1,19 +1,17 @@
 package ark.model;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
 import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.ThreadMapper;
 import ark.util.ThreadMapper.Fn;
 
@@ -21,12 +19,12 @@ public class SupervisedModelCompositeBinary<T extends Datum<Boolean>, D extends 
 	private List<SupervisedModel<T, Boolean>> binaryModels;
 	private List<LabelIndicator<L>> labelIndicators;
 	private Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator;
-	private Datum.Tools<T, Boolean> binaryTools;
+	private Context<T, Boolean> binaryContext;
 	
-	public SupervisedModelCompositeBinary(List<SupervisedModel<T, Boolean>> binaryModels, List<LabelIndicator<L>> labelIndicators, Datum.Tools<T, Boolean> binaryTools, Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
+	public SupervisedModelCompositeBinary(List<SupervisedModel<T, Boolean>> binaryModels, List<LabelIndicator<L>> labelIndicators, Context<T, Boolean> binaryContext, Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
 		this.binaryModels = binaryModels;
 		this.labelIndicators = labelIndicators;
-		this.binaryTools = binaryTools;
+		this.binaryContext = binaryContext;
 		this.inverseLabelIndicator = inverseLabelIndicator;
 	}
 	
@@ -47,10 +45,74 @@ public class SupervisedModelCompositeBinary<T extends Datum<Boolean>, D extends 
 	}
 
 	@Override
-	public Map<D, Map<L, Double>> posterior(final FeaturizedDataSet<D, L> data) {
+	public Map<D, Map<L, Double>> posterior(FeaturizedDataSet<D, L> data) {
 		Map<D, Map<L, Double>> p = new HashMap<D, Map<L, Double>>();
-		final FeaturizedDataSet<T, Boolean> binaryData = (FeaturizedDataSet<T, Boolean>)data.makeBinaryDataSet(this.binaryTools);
+		final FeaturizedDataSet<T, Boolean> binaryData = (FeaturizedDataSet<T, Boolean>)data.makeBinary(this.binaryContext);
+		List<Map<T, Map<Boolean, Double>>> binaryP = computeBinaryModelPosteriors(binaryData, data.getMaxThreads());
 		
+		// Generate label for each datum (in parallel)
+		binaryData.map(new Fn<T, T>() {
+			@Override
+			public T apply(T datum) {
+				L label = computeLabel(binaryP, datum);
+				D unlabeledDatum = data.getDatumById(datum.getId());
+				Map<L, Double> datumP = new HashMap<L, Double>();
+				datumP.put(label, 1.0);
+				synchronized (p) {
+					p.put(unlabeledDatum, datumP);
+				}
+				
+				return datum;
+			}
+		}, data.getMaxThreads());
+		
+		return p;
+	}
+	
+	@Override
+	public Map<D, L> classify(FeaturizedDataSet<D, L> data) {
+		data.getDatumTools().getDataTools().getOutputWriter().debugWriteln("Composite model running binary classifiers...");
+		Map<D, L> classifications = new HashMap<D, L>();
+		final FeaturizedDataSet<T, Boolean> binaryData = (FeaturizedDataSet<T, Boolean>)data.makeBinary(this.binaryContext);
+		List<Map<T, Map<Boolean, Double>>> binaryP = computeBinaryModelPosteriors(binaryData, data.getMaxThreads());
+		data.getDatumTools().getDataTools().getOutputWriter().debugWriteln("Finished composite model running binary classifier.");
+		
+		// Generate label for each datum (in parallel)
+		data.getDatumTools().getDataTools().getOutputWriter().debugWriteln("Composite model constructing composite labels...");
+		binaryData.map(new Fn<T, T>() {
+			@Override
+			public T apply(T datum) {
+				L label = computeLabel(binaryP, datum);
+				D unlabeledDatum = data.getDatumById(datum.getId());
+				
+				synchronized (classifications) {
+					classifications.put(unlabeledDatum, label);
+				}
+				
+				return datum;
+			}
+		}, data.getMaxThreads());
+		
+		data.getDatumTools().getDataTools().getOutputWriter().debugWriteln("Finished composite model constructing composite labels.");
+		
+		return classifications;
+	}
+	
+	private L computeLabel(List<Map<T, Map<Boolean, Double>>> binaryP, T datum) {
+		Map<String, Double> indicatorWeights = new HashMap<String, Double>();
+		List<String> positiveIndicators = new ArrayList<String>();
+		for (int i = 0; i < binaryP.size(); i++) { // For each label indicator
+			String label = this.labelIndicators.get(i).toString();
+			double weight = binaryP.get(i).get(datum).get(true);
+			indicatorWeights.put(label, weight);
+			if (weight >= 0.5)
+				positiveIndicators.add(label);
+		}
+		
+		return this.inverseLabelIndicator.label(indicatorWeights, positiveIndicators);
+	}
+	
+	private List<Map<T, Map<Boolean, Double>>> computeBinaryModelPosteriors(FeaturizedDataSet<T, Boolean> binaryData, int maxThreads) {
 		ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Map<Boolean, Double>>> pThreads 
 		= new ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Map<Boolean, Double>>>(
 				new Fn<SupervisedModel<T, Boolean>, Map<T, Map<Boolean, Double>>>() {
@@ -62,38 +124,7 @@ public class SupervisedModelCompositeBinary<T extends Datum<Boolean>, D extends 
 				}
 			);
 		
-		ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Boolean>> cThreads 
-		= new ThreadMapper<SupervisedModel<T, Boolean>, Map<T, Boolean>>(
-				new Fn<SupervisedModel<T, Boolean>, Map<T, Boolean>>() {
-					@Override
-					public Map<T, Boolean> apply(
-							SupervisedModel<T, Boolean> model) {
-						return model.classify(binaryData);
-					}
-				}
-			);
-		
-		List<Map<T, Map<Boolean, Double>>> binaryP = pThreads.run(this.binaryModels, data.getMaxThreads());
-		List<Map<T, Boolean>> binaryC = cThreads.run(this.binaryModels, data.getMaxThreads());
-		
-		for (Entry<T, Map<Boolean, Double>> entry : binaryP.get(0).entrySet()) { // For each datum
-			Map<String, Double> indicatorWeights = new HashMap<String, Double>();
-			List<String> positiveIndicators = new ArrayList<String>();
-			for (int i = 0; i < binaryP.size(); i++) { // For each label indicator
-				indicatorWeights.put(this.labelIndicators.get(i).toString(), binaryP.get(i).get(entry.getKey()).get(true));
-				if (binaryC.get(i).get(entry.getKey()))
-					positiveIndicators.add(this.labelIndicators.get(i).toString());
-			}
-			
-			L label = this.inverseLabelIndicator.label(indicatorWeights, positiveIndicators);
-			D datum = data.getDatumById(entry.getKey().getId());
-			
-			Map<L, Double> datumP = new HashMap<L, Double>();
-			datumP.put(label, 1.0);
-			p.put(datum, datumP);
-		}
-		
-		return p;
+		return pThreads.run(this.binaryModels, maxThreads);
 	}
 	
 	@Override
@@ -102,45 +133,40 @@ public class SupervisedModelCompositeBinary<T extends Datum<Boolean>, D extends 
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue,
-			Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		return true;
 	}
 
 	@Override
-	protected SupervisedModel<D, L> makeInstance() {
+	public SupervisedModel<D, L> makeInstance(Context<D, L> context) {
 		return null;
-	}
-
-	@Override
-	protected boolean deserializeExtraInfo(String name, BufferedReader reader,
-			Tools<D, L> datumTools) throws IOException {
-		return true;
-	}
-
-	@Override
-	protected boolean deserializeParameters(BufferedReader reader,
-			Tools<D, L> datumTools) throws IOException {
-		return true;
-	}
-
-	@Override
-	protected boolean serializeParameters(Writer writer) throws IOException {
-		return true;
-	}
-
-	@Override
-	protected boolean serializeExtraInfo(Writer writer) throws IOException {
-		return true;
 	}
 
 	@Override
 	public String getGenericName() {
 		return "CompositeBinary";
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
+		return true; // TODO Implement later if necessary
+	}
+
+	@Override
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		return internalAssignments; // TODO Implement later if necessary
+	}
+
+	@Override
+	protected <U extends Datum<Boolean>> SupervisedModel<U, Boolean> makeBinaryHelper(
+			Context<U, Boolean> context, LabelIndicator<L> labelIndicator,
+			SupervisedModel<U, Boolean> binaryModel) {
+		return binaryModel; // TODO Implement later if necessary
 	}
 }

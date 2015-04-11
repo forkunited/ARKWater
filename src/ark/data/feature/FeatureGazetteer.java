@@ -17,14 +17,16 @@ package ark.data.feature;
  * under the License.
  */
 
-import java.io.BufferedReader;
-import java.io.Writer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ark.data.Context;
 import ark.data.Gazetteer;
 import ark.data.annotation.Datum;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 import ark.util.Pair;
@@ -68,6 +70,15 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	protected String[] parameterNames = {"gazetteer", "stringExtractor", "includeIds", "includeWeights", "weightThreshold"};
 	
 	protected abstract Pair<List<Pair<String,Double>>, Double> computeExtremum(String str);
+	
+	public FeatureGazetteer() {
+		
+	}
+	
+	public FeatureGazetteer(Context<D, L> context) {
+		this.vocabulary = new BidirectionalLookupTable<String, Integer>(); 
+		this.context = context;
+	}
 	
 	@Override
 	public boolean init(FeaturizedDataSet<D, L> dataSet) {
@@ -143,32 +154,32 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("gazetteer"))
-			return (this.gazetteer == null) ? "" : this.gazetteer.getName();
+			return Obj.stringValue((this.gazetteer == null) ? "" : this.gazetteer.getName());
 		else if (parameter.equals("stringExtractor"))
-			return (this.stringExtractor == null) ? "" : this.stringExtractor.toString();
+			return Obj.stringValue((this.stringExtractor == null) ? "" : this.stringExtractor.toString());
 		else if (parameter.equals("includeIds"))
-			return String.valueOf(this.includeIds);
+			return Obj.stringValue(String.valueOf(this.includeIds));
 		else if (parameter.equals("includeWeights"))
-			return String.valueOf(this.includeWeights);
+			return Obj.stringValue(String.valueOf(this.includeWeights));
 		else if (parameter.equals("weightThreshold"))
-			return String.valueOf(this.weightThreshold);
+			return Obj.stringValue(String.valueOf(this.weightThreshold));
 		return null;
 	}
 
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("gazetteer"))
-			this.gazetteer = datumTools.getDataTools().getGazetteer(parameterValue);
+			this.gazetteer = this.context.getDatumTools().getDataTools().getGazetteer(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("stringExtractor"))
-			this.stringExtractor = datumTools.getStringExtractor(parameterValue);
+			this.stringExtractor = this.context.getDatumTools().getStringExtractor(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("includeIds"))
-			this.includeIds = Boolean.valueOf(parameterValue);
+			this.includeIds = Boolean.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("includeWeights"))
-			this.includeWeights = Boolean.valueOf(parameterValue);
+			this.includeWeights = Boolean.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("weightThreshold"))
-			this.weightThreshold = Double.valueOf(parameterValue);
+			this.weightThreshold = Double.valueOf(this.context.getMatchValue(parameterValue));
 		else 
 			return false;
 		return true;
@@ -197,22 +208,24 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	}
 	
 	@Override
-	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
-		if (!newObjects) {
-			FeatureGazetteer<D1,L1> cloneFeature = (FeatureGazetteer<D1, L1>)clone;
-			cloneFeature.vocabulary = this.vocabulary;
-		}
+	protected <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			Feature<T, Boolean> binaryFeature) {
+		FeatureGazetteer<T, Boolean> binaryFeatureGaz = (FeatureGazetteer<T, Boolean>)binaryFeature;
 		
+		binaryFeatureGaz.vocabulary = this.vocabulary;
+		
+		return binaryFeatureGaz;
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
 		return true;
 	}
-	
+
 	@Override
-	protected boolean serializeHelper(Writer writer) {
-		return true;
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		return internalAssignments;
 	}
-	
-	@Override
-	protected boolean deserializeHelper(BufferedReader writer) {
-		return true;
-	}	
 }

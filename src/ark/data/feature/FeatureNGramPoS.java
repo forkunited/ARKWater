@@ -18,15 +18,17 @@
 
 package ark.data.feature;
 
-import java.io.BufferedReader;
-import java.io.Writer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import ark.data.Context;
 import ark.data.annotation.Datum;
+import ark.data.annotation.Datum.Tools.LabelIndicator;
 import ark.data.annotation.nlp.TokenSpan;
+import ark.parse.AssignmentList;
+import ark.parse.Obj;
 import ark.util.BidirectionalLookupTable;
 import ark.util.CounterTable;
 
@@ -53,8 +55,13 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	protected int tokensAfterTokenSpan;
 	protected String[] parameterNames = {"minFeatureOccurrence", "tokenExtractor", "PoS", "tokensBeforeTokenSpan", "tokensAfterTokenSpan"};
 	
-	public FeatureNGramPoS(){
-		vocabulary = new BidirectionalLookupTable<String, Integer>();
+	public FeatureNGramPoS() {
+		
+	}
+	
+	public FeatureNGramPoS(Context<D, L> context) {
+		this.context = context;
+		this.vocabulary = new BidirectionalLookupTable<String, Integer>();
 	}
 	
 	@Override
@@ -147,52 +154,52 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public String getParameterValue(String parameter) {
+	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("minFeatureOccurrence")) 
-			return String.valueOf(this.minFeatureOccurrence);
+			return Obj.stringValue(String.valueOf(this.minFeatureOccurrence));
 		else if (parameter.equals("tokenExtractor"))
-			return (this.tokenExtractor == null) ? null : this.tokenExtractor.toString();
+			return Obj.stringValue((this.tokenExtractor == null) ? "" : this.tokenExtractor.toString());
 		else if (parameter.equals("PoS"))
-			return this.PoS;
+			return Obj.stringValue(this.PoS);
 		return null;
 	}
 	
-	// note these will be called by TLinkDatum.Tools, and in that class TargetTokenSpan exists, for example.
 	@Override
-	public boolean setParameterValue(String parameter, String parameterValue, Datum.Tools<D, L> datumTools) {
+	public boolean setParameterValue(String parameter, Obj parameterValue) {
 		if (parameter.equals("minFeatureOccurrence")) 
-			this.minFeatureOccurrence = Integer.valueOf(parameterValue);
+			this.minFeatureOccurrence = Integer.valueOf(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("tokenExtractor"))
-			this.tokenExtractor = datumTools.getTokenSpanExtractor(parameterValue);
+			this.tokenExtractor = this.context.getDatumTools().getTokenSpanExtractor(this.context.getMatchValue(parameterValue));
 		else if (parameter.equals("PoS"))
-			this.PoS = parameterValue;
+			this.PoS = this.context.getMatchValue(parameterValue);
 		else
 			return false;
 		return true;
 	}
 
 	@Override
-	public Feature<D, L> makeInstance() {
-		return new FeatureNGramPoS<D, L>();
+	public Feature<D, L> makeInstance(Context<D, L> context) {
+		return new FeatureNGramPoS<D, L>(context);
 	}
 
 	@Override
-	protected <D1 extends Datum<L1>, L1> boolean cloneHelper(Feature<D1, L1> clone, boolean newObjects) {
-		if (!newObjects) {
-			FeatureNGramPoS<D1,L1> cloneFeature = (FeatureNGramPoS<D1, L1>)clone;
-			cloneFeature.vocabulary = this.vocabulary;
-		}
+	protected <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(
+			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
+			Feature<T, Boolean> binaryFeature) {
+		FeatureNGramPoS<T, Boolean> binaryFeaturePoS = (FeatureNGramPoS<T, Boolean>)binaryFeature;
+		binaryFeaturePoS.vocabulary = this.vocabulary;
 		
+		return binaryFeaturePoS;
+	}
+
+	@Override
+	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
 		return true;
 	}
-	
+
 	@Override
-	protected boolean serializeHelper(Writer writer) {
-		return true;
-	}
-	
-	@Override
-	protected boolean deserializeHelper(BufferedReader writer) {
-		return true;
+	protected AssignmentList toParseInternalHelper(
+			AssignmentList internalAssignments) {
+		return internalAssignments;
 	}
 }

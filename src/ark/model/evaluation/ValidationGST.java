@@ -1,21 +1,19 @@
 package ark.model.evaluation;
 
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import ark.data.Context;
 import ark.data.annotation.DataSet;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Datum.Tools;
 import ark.data.annotation.Datum.Tools.TokenSpanExtractor;
 import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
-import ark.model.SupervisedModel;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
+import ark.parse.Obj;
 import ark.util.OutputWriter;
 import ark.util.Timer;
 
@@ -35,52 +33,45 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 	protected FeaturizedDataSet<D, L> trainData;
 	protected FeaturizedDataSet<D, L> devData;
 	protected FeaturizedDataSet<D, L> testData;
-	protected List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation;
-	protected GridSearch<D, L>.EvaluatedGridPosition bestGridPosition;
-	protected List<GridSearch.GridDimension> gridDimensions; 
-	
+	protected GridSearch<D, L> gridSearch;
 	protected boolean trainOnDev;
-	protected String[] parameters = new String[] { "trainOnDev" };
 	
 	public ValidationGST(String name,
 						  int maxThreads,
-						  SupervisedModel<D, L> model, 
 						  FeaturizedDataSet<D, L> trainData,
 						  FeaturizedDataSet<D, L> devData,
 						  FeaturizedDataSet<D, L> testData,
 						  List<SupervisedModelEvaluation<D, L>> evaluations,
 						  TokenSpanExtractor<D, L> errorExampleExtractor,
-						  List<GridSearch.GridDimension> gridDimensions,
+						  GridSearch<D, L> gridSearch,
 						  boolean trainOnDev) {
-		super(name, trainData.getDatumTools(), maxThreads, model, evaluations, errorExampleExtractor);
+		super(name, trainData.getDatumTools(), maxThreads, null, evaluations, errorExampleExtractor);
 		this.trainData = trainData;
 		this.devData = devData;
 		this.testData = testData;
-		this.gridDimensions = gridDimensions;
+		this.gridSearch = gridSearch;
 		this.trainOnDev = trainOnDev;
-		this.gridEvaluation = new ArrayList<GridSearch<D, L>.EvaluatedGridPosition>();
+		this.gridSearch.init(trainData, devData);
 	}
 	
 	public ValidationGST(String name,
 			  int maxThreads,
-			  SupervisedModel<D, L> model, 
 			  List<Feature<D, L>> features,
 			  DataSet<D, L> trainData,
 			  DataSet<D, L> devData,
 			  DataSet<D, L> testData,
 			  List<SupervisedModelEvaluation<D, L>> evaluations,
 			  TokenSpanExtractor<D, L> errorExampleExtractor,
-			  List<GridSearch.GridDimension> gridDimensions,
+			  GridSearch<D, L> gridSearch,
 			  boolean trainOnDev) {
 		this(name, 
 			 maxThreads, 
-			 model,
 			 new FeaturizedDataSet<D, L>(name + " Training", maxThreads, trainData.getDatumTools(), trainData.getLabelMapping()), 
 			 new FeaturizedDataSet<D, L>(name + " Dev", maxThreads, devData.getDatumTools(), devData.getLabelMapping()), 
 			 (testData == null) ? null : new FeaturizedDataSet<D, L>(name + " Test", maxThreads, testData.getDatumTools(), testData.getLabelMapping()), 
 			 evaluations,
 			 errorExampleExtractor,
-			 gridDimensions,
+			 gridSearch,
 			 trainOnDev);
 		
 		this.trainData.addAll(trainData);
@@ -90,54 +81,54 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 		
 		for (Feature<D, L> feature : features)
 			addFeature(feature);
+		
+		OutputWriter output = this.datumTools.getDataTools().getOutputWriter();
+		Context<D, L> featureContext = new Context<D, L>(this.datumTools, features);
+		output.debugWriteln(this.name + " serializing features");
+		output.modelWriteln(featureContext.toString()); 
+		output.debugWriteln(this.name + " finished serializing features");
 	}
 	
 	public ValidationGST(String name, 
-						 Datum.Tools<D, L> datumTools, 
+						 Context<D, L> context, 
 						 DataSet<D, L> trainData, 
 						 DataSet<D, L> devData, 
 						 DataSet<D, L> testData) {
 		this(name, 
-				1, 
-				null, 
-				new ArrayList<Feature<D, L>>(),
+				context.getIntValue("maxThreads"), 
+				context.getFeatures(),
 				trainData, 
 				devData, 
 				testData, 
-				new ArrayList<SupervisedModelEvaluation<D, L>>(), 
-				null, 
-				new ArrayList<GridSearch.GridDimension>(),
+				context.getEvaluations(), 
+				context.getDatumTools().getTokenSpanExtractor("errorExampleExtractor"), 
+				context.getGridSearches().get(0),
 				false);
 		
 	}
 	
 	public ValidationGST(String name, 
-			 Datum.Tools<D, L> datumTools, 
+			 Context<D, L> context, 
 			 FeaturizedDataSet<D, L> trainData, 
 			 FeaturizedDataSet<D, L> devData, 
 			 FeaturizedDataSet<D, L> testData) {
 		this(name, 
-			1, 
-			null, 
+			context.getIntValue("maxThreads"), 
 			trainData, 
 			devData, 
 			testData, 
-			new ArrayList<SupervisedModelEvaluation<D, L>>(), 
-			null, 
-			new ArrayList<GridSearch.GridDimension>(), 
+			context.getEvaluations(), 
+			context.getDatumTools().getTokenSpanExtractor("errorExampleExtractor"), 
+			context.getGridSearches().get(0), 
 			false);	
 	}
 	
-	public ValidationGST(String name, Datum.Tools<D, L> datumTools) {
-		super(name, datumTools);
-	}
-	
 	public List<GridSearch<D, L>.EvaluatedGridPosition> getGridEvaluation() {
-		return this.gridEvaluation;
+		return this.gridSearch.getGridEvaluation();
 	}
 	
 	public GridSearch<D, L>.EvaluatedGridPosition getBestGridPosition() {
-		return this.bestGridPosition;
+		return this.gridSearch.getBestPosition(this.maxThreads);
 	}
 	
 	public boolean reset(FeaturizedDataSet<D, L> trainData, FeaturizedDataSet<D, L> devData, FeaturizedDataSet<D, L> testData) {
@@ -147,8 +138,7 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 		
 		this.evaluationValues = new ArrayList<Double>();
 		this.confusionMatrix = null;
-		this.gridEvaluation = null;
-		this.bestGridPosition = null;
+		this.gridSearch.init(trainData, devData);
 		
 		return true;
 	}
@@ -158,28 +148,23 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 		Timer timer = this.datumTools.getDataTools().getTimer();
 		OutputWriter output = this.trainData.getDatumTools().getDataTools().getOutputWriter();
 		DecimalFormat cleanDouble = new DecimalFormat("0.00000");
+		GridSearch<D,L>.EvaluatedGridPosition bestGridPosition = null;
 		
 		timer.startClock(this.name + " GST (Total)");
 		timer.startClock(this.name + " Grid Search");
 		
-		if (this.gridDimensions.size() > 0) {
-			GridSearch<D, L> gridSearch = new GridSearch<D,L>(this.name,
-										this.model,
-						 				this.trainData, 
-						 				this.devData,
-						 				this.gridDimensions,
-						 				this.evaluations.get(0)); 
-			this.bestGridPosition = gridSearch.getBestPosition(this.maxThreads);
-			this.gridEvaluation = gridSearch.getGridEvaluation(this.maxThreads);
+		if (this.gridSearch.getDimensions().size() > 0) {
+			bestGridPosition = this.gridSearch.getBestPosition(this.maxThreads);
 				
-			output.debugWriteln("Grid search (" + this.name + "): \n" + gridSearch.toString());
+			output.debugWriteln("Grid search (" + this.name + "): \n" + this.gridSearch.toString());
 				
-			if (this.bestGridPosition != null) {
+			if (bestGridPosition != null) {
 				if (!this.trainOnDev) 
-					this.model = this.bestGridPosition.getValidation().getModel();
+					this.model = bestGridPosition.getValidation().getModel();
 				else {
-					this.model.setHyperParameterValues(this.bestGridPosition.getCoordinates(), this.trainData.getDatumTools());
-					this.model = this.model.clone(this.trainData.getDatumTools());
+					this.model = this.model.clone();
+					this.model.setParameterValues(bestGridPosition.getCoordinates());
+					
 				}
 			}
 		}
@@ -205,10 +190,10 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 			output.debugWriteln("Test " + this.evaluations.get(0).toString() + " (" + this.name + "): " + cleanDouble.format(this.evaluationValues.get(0)));
 			
 		} else {
-			this.evaluationValues = this.bestGridPosition.getValidation().getEvaluationValues();
-			this.confusionMatrix = this.bestGridPosition.getValidation().getConfusionMatrix();
+			this.evaluationValues = bestGridPosition.getValidation().getEvaluationValues();
+			this.confusionMatrix = bestGridPosition.getValidation().getConfusionMatrix();
 			output.debugWriteln("Dev best " + this.evaluations.get(0).toString() + " (" + this.name + "): " + cleanDouble.format(this.evaluationValues.get(0)));
-			this.model = this.bestGridPosition.getValidation().getModel();
+			this.model = bestGridPosition.getValidation().getModel();
 		}
 		
 		timer.stopClock(this.name + " GST (Total)");
@@ -219,10 +204,13 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 	public boolean outputResults() {
 		OutputWriter output = this.datumTools.getDataTools().getOutputWriter();
 		
-		if (this.bestGridPosition != null) {
-			Map<String, String> parameters = this.bestGridPosition.getCoordinates();
+		GridSearch<D,L>.EvaluatedGridPosition bestGridPosition = (this.gridSearch.getDimensions().size() > 0) ? this.gridSearch.getBestPosition(this.maxThreads) : null;
+		List<GridSearch<D, L>.EvaluatedGridPosition> gridEvaluation = (this.gridSearch.getDimensions().size() > 0) ? this.gridSearch.getGridEvaluation(this.maxThreads) : null;
+		
+		if (bestGridPosition != null) {
+			Map<String, Obj> parameters = bestGridPosition.getCoordinates();
 			output.resultsWriteln("Best parameters from grid search:");
-			for (Entry<String, String> entry : parameters.entrySet())
+			for (Entry<String, Obj> entry : parameters.entrySet())
 				output.resultsWriteln(entry.getKey() + ": " + entry.getValue());
 		}
 		
@@ -237,10 +225,10 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 		
 		output.resultsWriteln("\nConfusion matrix:\n" + this.confusionMatrix.toString());
 		
-		if (this.gridEvaluation != null && this.gridEvaluation.size() > 0) {
+		if (gridEvaluation != null && gridEvaluation.size() > 0) {
 			output.resultsWriteln("\nGrid search on " + this.evaluations.get(0).toString() + ":");
-			output.resultsWriteln(this.gridEvaluation.get(0).toKeyString("\t") + "\t" + this.evaluations.get(0).toString());
-			for (GridSearch<D, L>.EvaluatedGridPosition gridPosition : this.gridEvaluation) {
+			output.resultsWriteln(gridEvaluation.get(0).toKeyString("\t") + "\t" + this.evaluations.get(0).toString());
+			for (GridSearch<D, L>.EvaluatedGridPosition gridPosition : gridEvaluation) {
 				output.resultsWriteln(gridPosition.toValueString("\t") + "\t" + gridPosition.getPositionValue());
 			}
 		}		
@@ -248,19 +236,6 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 		return true;
 	}
 	
-	@Override
-	protected boolean setMaxThreads(int maxThreads) {
-		this.maxThreads = maxThreads;
-		if (this.trainData != null)
-			this.trainData.setMaxThreads(maxThreads);
-		if (this.trainData != null)
-			this.devData.setMaxThreads(maxThreads);
-		if (this.testData != null)
-			this.testData.setMaxThreads(maxThreads);
-		return true;
-	}
-	
-	@Override
 	protected boolean addFeature(Feature<D, L> feature) {
 		OutputWriter output = this.datumTools.getDataTools().getOutputWriter();
 		Timer timer = this.datumTools.getDataTools().getTimer();
@@ -275,49 +250,6 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 	
 		if (!this.devData.addFeature(feature, false) || (this.testData != null && !this.testData.addFeature(feature, false)))
 			return false;
-		
-		output.debugWriteln(this.name + " serializing feature (" + featureStr + ")...");
-		output.modelWriteln(feature.toString(true));
-		output.debugWriteln(this.name + " finished serializing feature (" + featureStr + ").");
-		
-		return true;
-	}
-
-	@Override
-	public String[] getParameterNames() {
-		return this.parameters;
-	}
-
-	@Override
-	public String getParameterValue(String parameter) {
-		if (parameter.equals("trainOnDev"))
-			return String.valueOf(this.trainOnDev);
-		
-		return null;
-	}
-
-	@Override
-	public boolean setParameterValue(String parameter, String parameterValue,
-			Tools<D, L> datumTools) {
-		if (parameter.equals("trainOnDev")) {
-			this.trainOnDev = Boolean.valueOf(parameterValue);
-		} else
-			return false;
-		
-		return true;
-	}
-	
-	@Override
-	public boolean deserializeNext(BufferedReader reader, String nextName) throws IOException {
-		if (nextName.equals("gridDimension")) {
-			GridSearch.GridDimension gridDimension = new GridSearch.GridDimension();
-			if (!gridDimension.deserialize(reader))
-				return false;
-			
-			this.gridDimensions.add(gridDimension);
-		} else {
-			return super.deserializeNext(reader, nextName);
-		}
 		
 		return true;
 	}

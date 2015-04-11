@@ -1,7 +1,7 @@
 /**
  * Copyright 2014 Bill McDowell 
  *
- * This file is part of theMess (https://github.com/forkunited/theMess)
+ * This file is part of ARKWater (https://github.com/forkunited/ARKWater)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy 

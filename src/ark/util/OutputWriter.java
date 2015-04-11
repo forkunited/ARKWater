@@ -1,7 +1,7 @@
 /**
  * Copyright 2014 Bill McDowell 
  *
- * This file is part of theMess (https://github.com/forkunited/theMess)
+ * This file is part of ARKWater (https://github.com/forkunited/ARKWater)
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy 
@@ -58,10 +58,14 @@ public class OutputWriter {
 			this.dataFile = dataFile;
 			this.modelFile = modelFile;
 			
-			this.debugWriter = new BufferedWriter(new FileWriter(debugFile.getAbsolutePath()));
-			this.resultsWriter = new BufferedWriter(new FileWriter(resultsFile.getAbsolutePath()));
-			this.dataWriter = new BufferedWriter(new FileWriter(dataFile.getAbsolutePath()));
-			this.modelWriter = new BufferedWriter(new FileWriter(modelFile.getAbsolutePath()));
+			if (debugFile != null)
+				this.debugWriter = new BufferedWriter(new FileWriter(debugFile.getAbsolutePath()));
+			if (resultsFile != null)
+				this.resultsWriter = new BufferedWriter(new FileWriter(resultsFile.getAbsolutePath()));
+			if (dataFile != null)
+				this.dataWriter = new BufferedWriter(new FileWriter(dataFile.getAbsolutePath()));
+			if (modelFile != null)
+				this.modelWriter = new BufferedWriter(new FileWriter(modelFile.getAbsolutePath()));
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException();
@@ -70,7 +74,8 @@ public class OutputWriter {
 	
 	public boolean setDebugFile(File debugFile, boolean append) {
 		try {
-			this.debugWriter.close();
+			if (this.debugWriter != null)
+				this.debugWriter.close();
 			this.debugFile = debugFile;
 			this.debugWriter = new BufferedWriter(new FileWriter(debugFile.getAbsolutePath(), append));
 		} catch (IOException e) {
@@ -82,7 +87,8 @@ public class OutputWriter {
 	
 	public boolean setResultsFile(File resultsFile, boolean append) {
 		try {
-			this.resultsWriter.close();
+			if (this.resultsWriter != null)
+				this.resultsWriter.close();
 			this.resultsFile = resultsFile;
 			this.resultsWriter = new BufferedWriter(new FileWriter(resultsFile.getAbsolutePath(), append));
 		} catch (IOException e) {
@@ -94,7 +100,8 @@ public class OutputWriter {
 	
 	public boolean setDataFile(File dataFile, boolean append) {
 		try {
-			this.dataWriter.close();
+			if (this.dataWriter != null)
+				this.dataWriter.close();
 			this.dataFile = dataFile;
 			this.dataWriter = new BufferedWriter(new FileWriter(dataFile.getAbsolutePath(), append));
 		} catch (IOException e) {
@@ -106,7 +113,8 @@ public class OutputWriter {
 	
 	public boolean setModelFile(File modelFile, boolean append) {
 		try {
-			this.modelWriter.close();
+			if (this.modelWriter != null)
+				this.modelWriter.close();
 			this.modelFile = modelFile;
 			this.modelWriter = new BufferedWriter(new FileWriter(modelFile.getAbsolutePath(), append));
 		} catch (IOException e) {
@@ -117,19 +125,19 @@ public class OutputWriter {
 	}
 	
 	public String getDebugFilePath() {
-		return this.debugFile.getAbsolutePath();
+		return (this.debugFile == null) ? null : this.debugFile.getAbsolutePath();
 	}
 	
 	public String getResultsFilePath() {
-		return this.resultsFile.getAbsolutePath();
+		return (this.resultsFile == null) ? null : this.resultsFile.getAbsolutePath();
 	}
 	
 	public String getDataFilePath() {
-		return this.dataFile.getAbsolutePath();
+		return (this.dataFile == null) ? null : this.dataFile.getAbsolutePath();
 	}
 	
 	public String getModelFilePath() {
-		return this.modelFile.getAbsolutePath();
+		return (this.modelFile == null) ? null : this.modelFile.getAbsolutePath();
 	}
 	
 	public void debugWriteln(String str) {

@@ -128,4 +128,28 @@ public class StringUtil {
 		}
 		return prefixes;
 	}
+	
+	public static String join(String[] strParts, String glue) {
+		StringBuilder str = new StringBuilder();
+		for (int i = 0; i < strParts.length; i++) {
+			str.append(strParts[i]).append(glue);
+		}
+		
+		if (str.length() > 0)
+			str.delete(str.length() - glue.length(), str.length());
+		
+		return str.toString();
+	}
+	
+	public static String join(List<String> strParts, String glue) {
+		StringBuilder str = new StringBuilder();
+		for (int i = 0; i < strParts.size(); i++) {
+			str.append(strParts.get(i)).append(glue);
+		}
+		
+		if (str.length() > 0)
+			str.delete(str.length() - glue.length(), str.length());
+		
+		return str.toString();
+	}
 }
