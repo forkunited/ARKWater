@@ -184,6 +184,7 @@ public abstract class SupervisedModel<D extends Datum<L>, L> extends ARKParsable
 		
 		this.validLabels = new HashSet<L>();
 		List<String> validLabels = this.context.getMatchArray(internalAssignments.get("validLabels").getValue());
+		
 		for (int i = 0; i < validLabels.size(); i++) {
 			this.validLabels.add(this.context.getDatumTools().labelFromString(validLabels.get(i)));
 		}

@@ -36,6 +36,13 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 	protected GridSearch<D, L> gridSearch;
 	protected boolean trainOnDev;
 	
+	public ValidationGST(String name, Context<D, L> context) {
+		super(name, context);
+		
+		this.gridSearch = context.getGridSearches().get(0);
+		this.trainOnDev = context.getBooleanValue("trainOnDev");
+	}
+	
 	public ValidationGST(String name,
 						  int maxThreads,
 						  FeaturizedDataSet<D, L> trainData,
@@ -103,7 +110,7 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 				context.getEvaluations(), 
 				context.getDatumTools().getTokenSpanExtractor("errorExampleExtractor"), 
 				context.getGridSearches().get(0),
-				false);
+				context.getBooleanValue("trainOnDev"));
 		
 	}
 	
@@ -120,7 +127,7 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 			context.getEvaluations(), 
 			context.getDatumTools().getTokenSpanExtractor("errorExampleExtractor"), 
 			context.getGridSearches().get(0), 
-			false);	
+			context.getBooleanValue("trainOnDev"));	
 	}
 	
 	public List<GridSearch<D, L>.EvaluatedGridPosition> getGridEvaluation() {

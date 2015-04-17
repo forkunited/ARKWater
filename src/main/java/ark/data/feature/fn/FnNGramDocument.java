@@ -28,7 +28,7 @@ public class FnNGramDocument extends FnNGram {
 		for (int i = 0; i < sentenceCount; i++) {
 			if (!this.noSentence || i != tokenSpan.getSentenceIndex()) {
 				int tokenCount = tokenSpan.getDocument().getSentenceTokenCount(i);
-				for (int j = 0; j < tokenCount; j++) {
+				for (int j = 0; j < tokenCount - this.n + 1; j++) {
 					ngrams.add(new TokenSpan(tokenSpan.getDocument(), i, j, j + this.n));
 				}
 			}
@@ -40,7 +40,7 @@ public class FnNGramDocument extends FnNGram {
 	@Override
 	public Fn<List<TokenSpan>, List<TokenSpan>> makeInstance(
 			Context<?, ?> context) {
-		return new FnNGramDocument();
+		return new FnNGramDocument(context);
 	}
 	
 	@Override

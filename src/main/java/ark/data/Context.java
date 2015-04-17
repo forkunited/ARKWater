@@ -1,5 +1,7 @@
 package ark.data;
 
+import java.io.Reader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +17,8 @@ import ark.data.feature.rule.RuleSet;
 import ark.model.SupervisedModel;
 import ark.model.evaluation.GridSearch;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
+import ark.parse.ARKScanner;
+import ark.parse.ARKParser;
 import ark.parse.ARKParsable;
 import ark.parse.ARKParsableFunction;
 import ark.parse.Assignment;
@@ -130,45 +134,45 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 		for (int i = 0; i < assignmentList.size(); i++) {
 			Assignment.AssignmentTyped assignment = (Assignment.AssignmentTyped)assignmentList.get(i);
 			if (assignment.getType().equals(MODEL_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.MODEL, assignment.getName()));
 				if (constructFromParseModel(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
 					return false;
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.MODEL, assignment.getName()));
 			} else if (assignment.getType().equals(FEATURE_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.FEATURE, assignment.getName()));
 				if (constructFromParseFeature(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
 					return false;
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.FEATURE, assignment.getName()));
 			} else if (assignment.getType().equals(GRID_SEARCH_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.GRID_SEARCH, assignment.getName()));
 				if (constructFromParseGridSearch(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
 					return false;
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.GRID_SEARCH, assignment.getName()));
 			} else if (assignment.getType().equals(EVALUATION_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.EVALUATION, assignment.getName()));
 				if (constructFromParseEvaluation(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
 					return false;
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.EVALUATION, assignment.getName()));
 			} else if (assignment.getType().equals(RULE_SET_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.RULE_SET, assignment.getName()));
 				if (constructFromParseRuleSet(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
 					return false;
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.RULE_SET, assignment.getName()));
 			} else if (assignment.getType().equals(TOKEN_SPAN_FN_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.TOKEN_SPAN_FN, assignment.getName()));
-				if (getMatchOrConstructTokenSpanFn(assignment.getName(), assignment.getValue()) == null)
+				if (constructFromParseTokenSpanFn(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
 					return false;				
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.TOKEN_SPAN_FN, assignment.getName()));
 			} else if (assignment.getType().equals(STR_FN_STR)) {
+				if (constructFromParseStrFn(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
+					return false;
 				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.STR_FN, assignment.getName()));
-				if (getMatchOrConstructStrFn(assignment.getName(), assignment.getValue()) == null)
-					return false;
 			} else if (assignment.getType().equals(TOKEN_SPAN_STR_FN_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.TOKEN_SPAN_STR_FN, assignment.getName()));
-				if (getMatchOrConstructTokenSpanStrFn(assignment.getName(), assignment.getValue()) == null)
+				if (constructFromParseTokenSpanStrFn(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
 					return false;
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.TOKEN_SPAN_STR_FN, assignment.getName()));
 			} else if (assignment.getType().equals(ARRAY_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.ARRAY, assignment.getName()));
 				if (constructFromParseArray(assignment.getName(), assignment.getValue()) == null)
 					return false;
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.ARRAY, assignment.getName()));
 			} else if (assignment.getType().equals(VALUE_STR)) {
-				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.VALUE, assignment.getName()));
 				if (constructFromParseValue(assignment.getName(), assignment.getValue()) == null)
 					return false;
+				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.VALUE, assignment.getName()));
 			} else {
 				this.datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Invalid object type in context '" + assignment.getType() + "'.");
 				return false;
@@ -185,10 +189,8 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 	
 	private <T extends ARKParsableFunction> T constructFromParse(List<String> modifiers, String referenceName, Obj obj, Map<String, T> storageMap, GenericFunctionRetriever<T> retriever) {
-		if (obj.getObjType() != Obj.Type.FUNCTION) {
-			this.datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Invalid object type for function construction (" + obj.getObjType() + ").");
+		if (obj.getObjType() != Obj.Type.FUNCTION)
 			return null;
-		}
 		
 		Obj.Function fnObj = (Obj.Function)obj;
 		
@@ -220,7 +222,6 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 					matches.add(storageMap.get(vObj.getStr()));
 					return matches;
 				} else {
-					this.datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Failed to resolve reference variable '" + vObj.getStr() + "'.");
 					return null;
 				}
 			}
@@ -238,10 +239,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	private <T extends ARKParsableFunction> T getMatch(Obj obj, Map<String, T> storageMap) {
 		List<T> matches = getMatches(obj, storageMap);
 		
-		if (matches.size() > 1) {
-			this.datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Expected single match but got " + matches.size() + ".");
-			return null;
-		} else if (matches.size() == 1) {
+		if (matches.size() >= 1) {
 			return matches.get(0);
 		} else
 			return null;
@@ -253,10 +251,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	
 	private <T extends ARKParsableFunction> T getMatchOrConstruct(List<String> modifiers, String referenceName, Obj obj, Map<String, T> storageMap, GenericFunctionRetriever<T> retriever) {
 		List<T> matches = getMatches(obj, storageMap);
-		if (matches.size() > 1) {
-			this.datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Context expected single match but got " + matches.size() + ".");
-			return null;
-		} else if (matches.size() == 1) {
+		if (matches != null && matches.size() >= 1) {
 			return matches.get(0);
 		} else {
 			return constructFromParse(modifiers, referenceName, obj, storageMap, retriever);
@@ -288,6 +283,10 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 		return getMatchOrConstruct(obj, this.tokenSpanFns, this.tokenSpanFnRetriever);
 	}
 	
+	private Fn<List<TokenSpan>, List<TokenSpan>> constructFromParseTokenSpanFn(String referenceName, Obj obj, List<String> modifiers) {
+		return constructFromParse(modifiers, referenceName, obj, this.tokenSpanFns, this.tokenSpanFnRetriever);
+	}
+	
 	/* Match and construct str fns */
 	
 	private GenericFunctionRetriever<Fn<List<String>, List<String>>> strFnRetriever = new GenericFunctionRetriever<Fn<List<String>, List<String>>>() {
@@ -313,7 +312,11 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 		return getMatchOrConstruct(obj, this.strFns, this.strFnRetriever);
 	}
 	
-	/* Match and construct str fns */
+	private Fn<List<String>, List<String>> constructFromParseStrFn(String referenceName, Obj obj, List<String> modifiers) {
+		return constructFromParse(modifiers, referenceName, obj, this.strFns, this.strFnRetriever);
+	}
+	
+	/* Match and construct token span str fns */
 	
 	private GenericFunctionRetriever<Fn<List<TokenSpan>, List<String>>> tokenSpanStrFnRetriever = new GenericFunctionRetriever<Fn<List<TokenSpan>, List<String>>>() {
 		@Override
@@ -336,6 +339,10 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	
 	public Fn<List<TokenSpan>, List<String>> getMatchOrConstructTokenSpanStrFn(Obj obj) {
 		return getMatchOrConstruct(obj, this.tokenSpanStrFns, this.tokenSpanStrFnRetriever);
+	}
+	
+	private Fn<List<TokenSpan>, List<String>> constructFromParseTokenSpanStrFn(String referenceName, Obj obj, List<String> modifiers) {
+		return constructFromParse(modifiers, referenceName, obj, this.tokenSpanStrFns, this.tokenSpanStrFnRetriever);
 	}
 	
 	/* Match and construct models */
@@ -609,6 +616,10 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	public int getIntValue(String name) {
 		return Integer.valueOf(this.values.get(name));
 	}
+	
+	public boolean getBooleanValue(String name) {
+		return Boolean.valueOf(this.values.get(name));
+	}
 
 	public double getDoubleValue(String name) {
 		return Double.valueOf(this.values.get(name));
@@ -616,6 +627,10 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	
 	public String getStringValue(String name) {
 		return this.values.get(name);
+	}
+	
+	public List<String> getStringArray(String name) {
+		return this.arrays.get(name);
 	}
 	
 	/* Other stuff */
@@ -683,5 +698,25 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 			onlyFeatures.features.put(entry.getKey(), entry.getValue());
 		
 		return onlyFeatures;
+	}
+
+	public static <D extends Datum<L>, L> Context<D, L> deserialize(Datum.Tools<D, L> datumTools, String str) {
+		return deserialize(datumTools, new StringReader(str));
+	}
+	
+	public static <D extends Datum<L>, L> Context<D, L> deserialize(Datum.Tools<D, L> datumTools, Reader reader) {
+		ARKScanner scanner = new ARKScanner(reader);
+		ARKParser parser = new ARKParser(scanner);
+		AssignmentList parse = null;
+		try {
+			parse = (AssignmentList)parser.parse().value;
+		} catch (Exception e) {
+			return null;
+		}
+		
+		Context<D, L> context = new Context<D, L>(datumTools);
+		if (!context.fromParse(parse))
+			return null;
+		return context;
 	}
 }

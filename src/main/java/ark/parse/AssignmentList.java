@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import ark.parse.Assignment.AssignmentTyped;
+import ark.parse.Assignment.AssignmentUntyped;
 
 
 public class AssignmentList extends Obj {
@@ -18,6 +19,20 @@ public class AssignmentList extends Obj {
 	public AssignmentList() {
 		this.assignments = new ArrayList<Assignment>();
 		this.assignmentMap = new HashMap<String, Assignment>();
+	}
+	
+	public boolean push(Assignment assignment) {
+		if ((assignment.getName() == null && hasNames())
+				|| (assignment.getName() != null && !hasNames() && size() > 0)) {
+			// Must be either all named or all not-named assignments
+			return false;
+		}
+		
+		this.assignments.add(0, assignment);
+		if (assignment.getName() != null)
+			this.assignmentMap.put(assignment.getName(), assignment);
+		
+		return true;
 	}
 	
 	public boolean add(Assignment assignment) {
@@ -61,7 +76,7 @@ public class AssignmentList extends Obj {
 			if (!assignment.serialize(writer))
 				return false;
 			
-			if (!assignment.isTyped())
+			if (assignment.isTyped())
 				writer.write(";\n");
 			else if (i != this.assignments.size() - 1)
 				writer.write(", ");
@@ -89,10 +104,10 @@ public class AssignmentList extends Obj {
 		
 		AssignmentList aList = (AssignmentList)obj;
 		
-		if (aList.size() > this.size() || hasNames() != aList.hasNames())
+		if (aList.size() > this.size() || (!hasNames() && aList.hasNames()))
 			return matches;
 		
-		if (hasNames()) {
+		if (aList.hasNames()) {
 			for (int i = 0; i < aList.size(); i++) {
 				String name = aList.get(i).getName();
 				if (!contains(name))
@@ -119,9 +134,30 @@ public class AssignmentList extends Obj {
 	@Override
 	public boolean resolveValues(Map<String, Obj> context) {
 		boolean resolved = true;
+		List<Assignment> oldAssignments = this.assignments;
+		this.assignmentMap = new HashMap<String, Assignment>();
+		this.assignments = new ArrayList<Assignment>();
 		
-		for (Assignment assignment : this.assignments) {
-			resolved = resolved && assignment.getValue().resolveValues(context);
+		for (Assignment assignment : oldAssignments) {
+			Obj obj = assignment.getValue();
+			
+			if (obj.getObjType() != Obj.Type.VALUE || ((Obj.Value)obj).getType() != Obj.Value.Type.CURLY_BRACED) {
+				resolved = resolved && obj.resolveValues(context);
+				add(assignment);
+				continue;
+			}
+			
+			Obj.Value valueObj = (Obj.Value)obj;
+			if (!context.containsKey(valueObj.getStr())) {
+				add(assignment);
+				resolved = false;
+			} else if (assignment.isTyped()) {
+				AssignmentTyped assignmentTyped = (AssignmentTyped)assignment;
+				add(AssignmentTyped.assignmentTyped(assignmentTyped.getModifiers(), assignmentTyped.getType(), assignmentTyped.getName(), context.get(valueObj.getStr())));
+			} else {
+				AssignmentUntyped assignmentUntyped = (AssignmentUntyped)assignment;
+				add(AssignmentTyped.assignmentUntyped(assignmentUntyped.getName(), context.get(valueObj.getStr())));
+			}
 		}
 		
 		return resolved;

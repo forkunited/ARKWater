@@ -53,7 +53,7 @@ import ark.util.OutputWriter;
  * @param <L> datum label type
  */
 public class GridSearch<D extends Datum<L>, L> extends ARKParsableFunction {
-	private static final String DIMENSION_STR = "DIMENSION";
+	private static final String DIMENSION_STR = "dimension";
 	
 	public static class GridDimension extends ARKParsableFunction {
 		private String name = "";
@@ -273,6 +273,7 @@ public class GridSearch<D extends Datum<L>, L> extends ARKParsableFunction {
 	
 	public GridSearch(Context<D, L> context) {
 		this.context = context;
+		this.dimensions = new ArrayList<GridDimension>();
 		this.cleanDouble = new DecimalFormat("0.00000");
 	}
 	
@@ -486,6 +487,8 @@ public class GridSearch<D extends Datum<L>, L> extends ARKParsableFunction {
 				this.dimensions.add(dimension);
 			} else if (assignment.getType().equals(Context.MODEL_STR)) {
 				this.modelObj = assignment.getValue();
+			} else if (assignment.getType().equals(Context.EVALUATION_STR)) {
+				this.evaluationObj = assignment.getValue();
 			}
 		}
 		
@@ -503,6 +506,7 @@ public class GridSearch<D extends Datum<L>, L> extends ARKParsableFunction {
 		}
 		
 		assignmentList.add(Assignment.assignmentTyped(null, Context.MODEL_STR, Context.MODEL_STR, this.modelObj));
+		assignmentList.add(Assignment.assignmentTyped(null, Context.EVALUATION_STR, Context.EVALUATION_STR, this.evaluationObj));
 		
 		return assignmentList;
 	}

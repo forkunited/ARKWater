@@ -46,7 +46,7 @@ public class FnNGramSentence extends FnNGram {
 	@Override
 	public Fn<List<TokenSpan>, List<TokenSpan>> makeInstance(
 			Context<?, ?> context) {
-		return new FnNGramSentence();
+		return new FnNGramSentence(context);
 	}
 	
 	@Override

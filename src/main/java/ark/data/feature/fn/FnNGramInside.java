@@ -35,7 +35,7 @@ public class FnNGramInside extends FnNGram {
 	@Override
 	public Fn<List<TokenSpan>, List<TokenSpan>> makeInstance(
 			Context<?, ?> context) {
-		return new FnNGramInside();
+		return new FnNGramInside(context);
 	}
 	
 	@Override

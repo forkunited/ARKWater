@@ -54,7 +54,7 @@ public class FnString extends Fn<List<TokenSpan>, List<String>> {
 			StringBuilder str = new StringBuilder();
 			int s = tokenSpan.getSentenceIndex();
 			for (int i = 0; i < tokenSpan.getLength(); i++) {
-				String tStr = tokenSpan.getDocument().getToken(s, i);
+				String tStr = tokenSpan.getDocument().getToken(s, i + tokenSpan.getStartTokenIndex());
 				if (this.cleanFn != null)
 					tStr = this.cleanFn.transform(tStr);
 				

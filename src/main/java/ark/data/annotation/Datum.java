@@ -46,6 +46,7 @@ import ark.data.feature.FeatureNGramSentence;
 import ark.data.feature.FeatureNGramPoS;
 import ark.data.feature.FeatureStringForm;
 import ark.data.feature.FeatureTokenCount;
+import ark.data.feature.FeatureTokenSpanFnDataVocab;
 import ark.data.feature.fn.Fn;
 import ark.data.feature.fn.FnAffix;
 import ark.data.feature.fn.FnComposite;
@@ -61,6 +62,7 @@ import ark.model.SupervisedModel;
 import ark.model.SupervisedModelAreg;
 import ark.model.SupervisedModelCreg;
 import ark.model.SupervisedModelLabelDistribution;
+import ark.model.SupervisedModelLogistmarGramression;
 import ark.model.SupervisedModelPartition;
 import ark.model.SupervisedModelSVM;
 import ark.model.SupervisedModelSVMStructured;
@@ -263,6 +265,7 @@ public abstract class Datum<L> {
 			addGenericFeature(new FeatureTokenCount<D, L>());
 			addGenericFeature(new FeatureStringForm<D, L>());
 			addGenericFeature(new FeatureGramCluster<D, L>());
+			addGenericFeature(new FeatureTokenSpanFnDataVocab<D, L>());
 			
 			addGenericModel(new SupervisedModelCreg<D, L>());
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());
@@ -270,6 +273,7 @@ public abstract class Datum<L> {
 			addGenericModel(new SupervisedModelSVMStructured<D, L>());
 			addGenericModel(new SupervisedModelPartition<D, L>());
 			addGenericModel(new SupervisedModelAreg<D, L>());
+			addGenericModel(new SupervisedModelLogistmarGramression<D, L>());
 			
 			addGenericEvaluation(new SupervisedModelEvaluationAccuracy<D, L>());
 			addGenericEvaluation(new SupervisedModelEvaluationPrecision<D, L>());

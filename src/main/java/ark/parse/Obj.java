@@ -60,7 +60,7 @@ public abstract class Obj extends Serializable {
 		public Function(String name, AssignmentList parameters) {
 			this.name = name;
 			this.parameters = parameters;
-			this.internalAssignments = new AssignmentList();
+			this.internalAssignments = null;
 		}
 		
 		public Function(String name, AssignmentList parameters, AssignmentList internalAssignments) {
@@ -309,6 +309,7 @@ public abstract class Obj extends Serializable {
 				String valueStr = value.getValueStr(valueContext);
 				if (valueStr == null)
 					return null;
+				list.add(valueStr);
 			}
 			
 			return list;

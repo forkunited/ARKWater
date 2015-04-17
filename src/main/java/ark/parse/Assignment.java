@@ -67,11 +67,14 @@ public abstract class Assignment extends Serializable {
 	
 		@Override
 		public boolean serialize(Writer writer) throws IOException {
-			if (this.modifiers != null) {
-				for (String modifier : this.modifiers) {
-					writer.write(modifier);
-					writer.write(" ");
+			if (this.modifiers != null && this.modifiers.size() > 0) {
+				writer.write("(");
+				for (int i = 0; i < this.modifiers.size(); i++) {
+					writer.write(this.modifiers.get(i));
+					if (i < this.modifiers.size() - 1)
+						writer.write(", ");
 				}
+				writer.write(") ");
 			}
 			
 			writer.write(this.type);

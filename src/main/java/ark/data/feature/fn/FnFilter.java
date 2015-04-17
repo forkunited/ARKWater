@@ -10,7 +10,8 @@ import ark.parse.Obj;
 public class FnFilter extends Fn<List<String>, List<String>> {
 	public enum Type {
 		SUFFIX,
-		PREFIX
+		PREFIX,
+		SUBSTRING
 	}
 	
 	private String[] parameterNames = { "filter", "type" };
@@ -70,8 +71,10 @@ public class FnFilter extends Fn<List<String>, List<String>> {
 	private boolean matchesFilter(String str) {
 		if (this.type == Type.SUFFIX)
 			return str.endsWith(this.filter);
-		else
+		else if (this.type == Type.PREFIX)
 			return str.startsWith(this.filter);
+		else 
+			return str.contains(this.filter) && !str.equals(this.filter);
 	}
 
 	@Override

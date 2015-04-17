@@ -48,6 +48,15 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 	private Map<String, FeaturizedDataSet<D, L>> compositeTestSets;
 	private Map<String, List<Double>> compositeTestSetEvaluationValues;
 	
+	public ValidationGSTBinary(String name, Context<D, L> context, Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
+		super(name, context);
+		this.inverseLabelIndicator = inverseLabelIndicator;
+		this.evaluations = context.getEvaluationsWithoutModifier("composite");
+		this.compositeEvaluations =  context.getEvaluationsWithModifier("composite");
+		this.compositeEvaluationValues = new ArrayList<Double>();
+		initCompositeFeaturizedTestSets(new HashMap<String, DataSet<D, L>>());
+	}
+	
 	public ValidationGSTBinary(String name,
 			  int maxThreads,
 			  FeaturizedDataSet<D, L> trainData,

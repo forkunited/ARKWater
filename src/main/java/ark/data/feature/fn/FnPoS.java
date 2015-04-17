@@ -48,7 +48,7 @@ public class FnPoS extends Fn<List<TokenSpan>, List<String>> {
 
 	@Override
 	public Fn<List<TokenSpan>, List<String>> makeInstance(Context<?, ?> context) {
-		return new FnPoS();
+		return new FnPoS(context);
 	}
 
 	@Override

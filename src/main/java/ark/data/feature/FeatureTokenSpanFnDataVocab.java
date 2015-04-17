@@ -228,6 +228,9 @@ public class FeatureTokenSpanFnDataVocab<D extends Datum<L>, L> extends Feature<
 	@Override
 	protected AssignmentList toParseInternalHelper(
 			AssignmentList internalAssignments) {
+		if (this.vocabulary.size() == 0)
+			return internalAssignments;
+		
 		Obj.Array idfs = Obj.array();
 		for (int i = 0; i < this.vocabulary.size(); i++) {
 			if (this.idfs.containsKey(i))

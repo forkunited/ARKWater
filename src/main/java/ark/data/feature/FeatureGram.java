@@ -244,6 +244,9 @@ public abstract class FeatureGram<D extends Datum<L>, L> extends Feature<D, L> {
 	@Override
 	protected AssignmentList toParseInternalHelper(
 			AssignmentList internalAssignments) {
+		if (this.vocabulary.size() == 0)
+			return internalAssignments;
+		
 		Obj.Array idfs = Obj.array();
 		for (int i = 0; i < this.vocabulary.size(); i++) {
 			if (this.idfs.containsKey(i))

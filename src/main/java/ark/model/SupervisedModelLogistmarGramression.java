@@ -27,6 +27,7 @@ import org.platanios.learn.math.matrix.Vector.VectorElement;
 import org.platanios.learn.math.matrix.VectorNorm;
 import org.platanios.learn.optimization.AdaptiveGradientSolver;
 import org.platanios.learn.optimization.StochasticSolverStepSize;
+import org.platanios.learn.optimization.function.AbstractStochasticFunction;
 import org.platanios.learn.optimization.function.AbstractStochasticFunctionUsingDataSet;
 
 import ark.data.Context;
@@ -62,6 +63,46 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 	private Map<Integer, Integer> childToParentFeatureMap; // FIXME This should map to a list of integers to make it so that child can have multiple parents
 	private FeaturizedDataSet<D, L> constructedFeatures; // Features constructed through heuristic rules
 	private int sizeF_0;
+
+	protected static class NonNegativeAdaptiveGradientSolver extends AdaptiveGradientSolver {
+		protected static abstract class AbstractBuilder<T extends AbstractBuilder<T>> extends AdaptiveGradientSolver.AbstractBuilder<T> {
+			public AbstractBuilder(AbstractStochasticFunction objective, Vector initialPoint) {
+				super(objective, initialPoint);
+			}
+
+			public NonNegativeAdaptiveGradientSolver build() {
+				return new NonNegativeAdaptiveGradientSolver(this);
+			}
+		}
+	
+		public static class Builder extends AbstractBuilder<Builder> {
+			public Builder(AbstractStochasticFunction objective, Vector initialPoint) {
+				super(objective, initialPoint);
+			}
+	
+			 @Override
+			 protected Builder self() {
+				 return this;
+			 }
+		}
+	
+		private NonNegativeAdaptiveGradientSolver(AbstractBuilder<?> builder) {
+			super(builder);
+		}
+		
+		@Override
+		public void updatePoint() {
+			super.updatePoint();
+			List<Integer> negativeIndices = new ArrayList<Integer>();
+			for (VectorElement element : currentPoint) {
+				if (Double.compare(element.value(), 0.0) < 0)
+					negativeIndices.add(element.index());
+			}
+			
+			for (Integer negativeIndex : negativeIndices)
+				currentPoint.set(negativeIndex, 0.0);
+		}
+	}
 	
 	protected class Likelihood extends AbstractStochasticFunctionUsingDataSet<LabeledDataInstance<Vector, Double>> {
 		// FIXME this will need to map to a list instead of a range when
@@ -276,7 +317,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				for (Entry<String, Obj> entry : featureChildObjs.entrySet()) {
 					Obj.Function featureChildFunction = (Obj.Function)entry.getValue();
 					Feature<D, L> featureChild = this.arkDataSet.getDatumTools().makeFeatureInstance(featureChildFunction.getName(), SupervisedModelLogistmarGramression.this.context);
-					featureChild.fromParse(null, featureObj.getReferenceName() + "_" + entry.getKey(), featureChildFunction); // FIXME Throw exception on return false
+					featureChild.fromParse(null, featureObj.getReferenceName() + "_" + featureVocabStr + "_" + entry.getKey(), featureChildFunction); // FIXME Throw exception on return false
 					featureChild.init(this.arkDataSet); // FIXME Throw exception on false
 					
 					endVocabularyIndex += featureChild.getVocabularySize();
@@ -358,9 +399,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				" iterations (maximum " + this.maxTrainingExamples + " examples over size " + this.batchSize + " batches."/*from " + plataniosData.size() + " examples)"*/);
 				
 		SupervisedModel<D, L> thisModel = this;
-
-		// FIXME May need to apply non-negativity constraint
-		this.u = new AdaptiveGradientSolver.Builder(new Likelihood(data.getDatumTools().getDataTools().makeLocalRandom(), data), this.u)
+		this.u = new NonNegativeAdaptiveGradientSolver.Builder(new Likelihood(data.getDatumTools().getDataTools().makeLocalRandom(), data), this.u)
 						.sampleWithReplacement(false)
 						.maximumNumberOfIterations(maximumIterations)
 						.maximumNumberOfIterationsWithNoPointChange(5)

@@ -11,6 +11,7 @@ import ark.data.Context;
 import ark.data.annotation.DataSet;
 import ark.data.annotation.DataSet.DataFilter;
 import ark.data.annotation.Datum;
+import ark.data.feature.Feature;
 import ark.data.feature.FeaturizedDataSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.util.OutputWriter;
@@ -49,6 +50,13 @@ public class ValidationEMGST<D extends Datum<L>, L> extends Validation<D, L> {
 		this.trainData.addAll(trainData);
 		this.devData.addAll(devData);
 		this.testData.addAll(testData);
+	
+		for (Feature<D, L> feature : context.getFeatures()) {
+			context.getDatumTools().getDataTools().getOutputWriter().debugWriteln("Initializing feature " + feature.toString() + "...");
+			this.trainData.addFeature(feature, true);
+			this.devData.addFeature(feature, false);
+			this.testData.addFeature(feature, false);
+		}
 	}
 
 	@Override

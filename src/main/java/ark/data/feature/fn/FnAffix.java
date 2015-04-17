@@ -71,7 +71,7 @@ public class FnAffix extends Fn<List<String>, List<String>> {
 
 	@Override
 	public Fn<List<String>, List<String>> makeInstance(Context<?, ?> context) {
-		return new FnAffix();
+		return new FnAffix(context);
 	}
 
 	@Override

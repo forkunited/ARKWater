@@ -7,7 +7,11 @@ import java.io.StringReader;
 import java_cup.runtime.*;
 
 public class ARKScanner implements Scanner {
-	private static final char[] SPECIAL_CHARACTERS = { ',', '=', ';', 'o', '[', ']', '{', '}', '$', '-', '>' };
+	private static final char[] SPECIAL_CHARACTERS = { ',', '=', ';', 'o', '[', ']', '{', '}', '(', ')', '$', '-', '>' };
+	private static final int[] SPECIAL_CHARACTER_SYMBOLS = { ARKSymbol.COMMA, ARKSymbol.EQUALS, ARKSymbol.SEMI,
+		ARKSymbol.COMP, ARKSymbol.LSQUARE_BRACKET, ARKSymbol.RSQUARE_BRACKET, ARKSymbol.LCURLY_BRACE, 
+		ARKSymbol.RCURLY_BRACE, ARKSymbol.LPAREN, ARKSymbol.RPAREN, ARKSymbol.DOLLAR, 
+		ARKSymbol.RIGHT_ARROW, ARKSymbol.RIGHT_ARROW};
 	private Reader reader;
 	private SymbolFactory symbolFactory;
 	private int nextChar;
@@ -56,6 +60,12 @@ public class ARKScanner implements Scanner {
 			} else if (nextChar == '}') {
 				advance();
 				return this.symbolFactory.newSymbol("RCURLY_BRACE", ARKSymbol.RCURLY_BRACE);
+			} else if (nextChar == '(') {
+				advance();
+				return this.symbolFactory.newSymbol("LPAREN", ARKSymbol.LPAREN);
+			} else if (nextChar == ')') {
+				advance();
+				return this.symbolFactory.newSymbol("RPAREN", ARKSymbol.RPAREN);
 			} else if (nextChar == '$') {
 				advance();
 				return this.symbolFactory.newSymbol("DOLLAR", ARKSymbol.DOLLAR);
@@ -71,14 +81,6 @@ public class ARKScanner implements Scanner {
 		
 		return this.symbolFactory.newSymbol("EOF", ARKSymbol.EOF);
     }
-    
-	private boolean isSpecialCharacter(char c) {
-		for (int i = 0; i < SPECIAL_CHARACTERS.length; i++) {
-			if (SPECIAL_CHARACTERS[i] == c)
-				return true;
-		}
-		return false;
-	}
 	
 	private Symbol nextString() throws IOException {
 		StringBuilder str = new StringBuilder();
@@ -106,18 +108,45 @@ public class ARKScanner implements Scanner {
 				if (str.length() == 0 && nextChar == '"')
 					inQuotes = true;
 				else if (Character.isWhitespace(nextChar)
-						  || isSpecialCharacter(nextChar))
+						  || (isSpecialCharacter(nextChar)) && nextChar != 'o') // FIXME: This is a hack
 					break;
 				else
 					str.append(nextChar);
 			}
+			advance();
 		} while (true);
 		
-		return this.symbolFactory.newSymbol(str.toString(), ARKSymbol.STRING);
+		return this.symbolFactory.newSymbol("STRING", ARKSymbol.STRING, str.toString());
 	}
 	
     private int advance() throws IOException  {
     	this.nextChar = this.reader.read();
     	return this.nextChar;
     }
+    
+    public static int getStringSymbol(String str) {
+		for (int i = 0; i < SPECIAL_CHARACTERS.length; i++) {
+			if (str.equals("->"))
+				return ARKSymbol.RIGHT_ARROW;
+			else if (String.valueOf(SPECIAL_CHARACTERS[i]).equals(str))
+				return SPECIAL_CHARACTER_SYMBOLS[i];
+		}
+		return -1;
+	}
+	
+	private static boolean isSpecialCharacter(char c) {
+		for (int i = 0; i < SPECIAL_CHARACTERS.length; i++) {
+			if (SPECIAL_CHARACTERS[i] == c)
+				return true;
+		}
+		return false;
+	}
+	
+	public static boolean isQuotedString(String str) {
+		return str.startsWith("\"") && str.endsWith("\"");
+	}
+	
+	public static String unescapeQuotedString(String str) {
+		return str.substring(1, str.length() - 1).replaceAll("\\\\", "");
+	}
 }

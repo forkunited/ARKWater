@@ -110,7 +110,7 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 						Obj.Value vObj = (Obj.Value)entry.getValue();
 						if (vObj.getType() == Obj.Value.Type.STRING
 								&& vObj.getStr().matches("[0-9]+")) {
-							incrementedObjs.put(entry.getKey() + "++", Obj.stringValue(Integer.valueOf(vObj.getStr()).toString()));
+							incrementedObjs.put(entry.getKey() + "++", Obj.stringValue(String.valueOf(Integer.valueOf(vObj.getStr()) + 1)));
 						}
 					}
 				}
