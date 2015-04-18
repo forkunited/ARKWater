@@ -143,8 +143,10 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 					return false;
 				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.MODEL, assignment.getName()));
 			} else if (assignment.getType().equals(FEATURE_STR)) {
-				if (constructFromParseFeature(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
+				if (constructFromParseFeature(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null) {
+					System.out.println("Failed to construct feature " + assignment.getName());
 					return false;
+				}
 				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.FEATURE, assignment.getName()));
 			} else if (assignment.getType().equals(GRID_SEARCH_STR)) {
 				if (constructFromParseGridSearch(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
@@ -659,8 +661,11 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 				binaryContext.gridSearches.put(objName.getSecond(), this.gridSearches.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator));
 			} else if (objName.getFirst() == ObjectType.EVALUATION) {
 				SupervisedModelEvaluation<T, Boolean> evaluation = this.evaluations.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator);
-				if (evaluation != null)
+				if (evaluation != null) { // FIXME: This is a hack to make composite evaluations work with GSTBinary validation
 					binaryContext.evaluations.put(objName.getSecond(), evaluation);
+				} else {
+					binaryContext.objNameOrdering.remove(binaryContext.objNameOrdering.size() - 1);
+				}
 			} else if (objName.getFirst() == ObjectType.RULE_SET) {
 				binaryContext.ruleSets.put(objName.getSecond(), this.ruleSets.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator));
 			} else if (objName.getFirst() == ObjectType.TOKEN_SPAN_FN) {

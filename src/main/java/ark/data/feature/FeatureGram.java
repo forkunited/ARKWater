@@ -229,7 +229,7 @@ public abstract class FeatureGram<D extends Datum<L>, L> extends Feature<D, L> {
 	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
 		if (internalAssignments == null)
 			return true;
-		if (!internalAssignments.contains("idf"))
+		if (!internalAssignments.contains("idfs"))
 			return false;
 		
 		this.idfs = new HashMap<Integer, Double>();
