@@ -54,7 +54,7 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		this.evaluations = context.getEvaluationsWithoutModifier("composite");
 		this.compositeEvaluations =  context.getEvaluationsWithModifier("composite");
 		this.compositeEvaluationValues = new ArrayList<Double>();
-		initCompositeFeaturizedTestSets(new HashMap<String, DataSet<D, L>>());
+		initCompositeFeaturizedTestSets(new HashMap<String, DataSet<D, L>>(), context.getFeatures());
 	}
 	
 	public ValidationGSTBinary(String name,
@@ -82,7 +82,7 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		this.inverseLabelIndicator = inverseLabelIndicator;
 		this.compositeEvaluations = compositeEvaluations;
 		this.compositeEvaluationValues = new ArrayList<Double>();
-		initCompositeFeaturizedTestSets(compositeTestSets);
+		initCompositeFeaturizedTestSets(compositeTestSets, trainData.getFeatures());
 	}
 
 	public ValidationGSTBinary(String name,
@@ -112,7 +112,7 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		this.inverseLabelIndicator = inverseLabelIndicator;
 		this.compositeEvaluations = compositeEvaluations;
 		this.compositeEvaluationValues = new ArrayList<Double>();
-		initCompositeFeaturizedTestSets(compositeTestSets);
+		initCompositeFeaturizedTestSets(compositeTestSets, features);
 	}
 
 	public ValidationGSTBinary(String name, 
@@ -127,7 +127,7 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		this.evaluations = context.getEvaluationsWithoutModifier("composite");
 		this.compositeEvaluations =  context.getEvaluationsWithModifier("composite");
 		this.compositeEvaluationValues = new ArrayList<Double>();
-		initCompositeFeaturizedTestSets(compositeTestSets);
+		initCompositeFeaturizedTestSets(compositeTestSets, context.getFeatures());
 	}
 	
 	public ValidationGSTBinary(String name, 
@@ -138,6 +138,7 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 			 Datum.Tools.InverseLabelIndicator<L> inverseLabelIndicator) {
 		this(name, context, trainData, devData, testData, inverseLabelIndicator, null);
 		this.evaluations = context.getEvaluationsWithoutModifier("composite");
+		initCompositeFeaturizedTestSets(new HashMap<String, DataSet<D, L>>(), context.getFeatures());
 	}
 
 	public ValidationGSTBinary(String name, 
@@ -152,10 +153,10 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		this.evaluations = context.getEvaluationsWithoutModifier("composite");
 		this.compositeEvaluations = context.getEvaluationsWithModifier("composite");
 		this.compositeEvaluationValues = new ArrayList<Double>();
-		initCompositeFeaturizedTestSets(compositeTestSets);
+		initCompositeFeaturizedTestSets(compositeTestSets, context.getFeatures());
 	}
 	
-	private boolean initCompositeFeaturizedTestSets(Map<String, DataSet<D, L>> compositeTestSets) {
+	private boolean initCompositeFeaturizedTestSets(Map<String, DataSet<D, L>> compositeTestSets, List<Feature<D, L>> features) {
 		this.compositeTestSets = new HashMap<String, FeaturizedDataSet<D, L>>();
 		this.compositeTestSetEvaluationValues = new HashMap<String, List<Double>>();
 		if (compositeTestSets == null) {
@@ -167,6 +168,10 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 			featurizedData.addAll(entry.getValue());
 			this.compositeTestSets.put(entry.getKey(), featurizedData);
 			this.compositeTestSetEvaluationValues.put(entry.getKey(), new ArrayList<Double>());
+		
+			for (Feature<D, L> feature : features) {
+				featurizedData.addFeature(feature, false);
+			}
 		}
 		
 		return true;
@@ -404,18 +409,6 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		}
 		
 		output.resultsWriteln("\nTime:\n" + this.datumTools.getDataTools().getTimer().toString());
-	
-		return true;
-	}
-	
-	@Override
-	protected boolean addFeature(Feature<D, L> feature) {
-		if (!super.addFeature(feature))
-			return false;
-		
-		for (FeaturizedDataSet<D, L> compositeTestSet : this.compositeTestSets.values()) {
-			compositeTestSet.addFeature(feature, false);
-		}
 	
 		return true;
 	}

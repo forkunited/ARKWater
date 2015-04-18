@@ -134,6 +134,9 @@ public abstract class SupervisedModelEvaluation<D extends Datum<L>, L> extends A
 	public <T extends Datum<Boolean>> SupervisedModelEvaluation<T, Boolean> makeBinary(Context<T, Boolean> context, LabelIndicator<L> labelIndicator) {
 		SupervisedModelEvaluation<T, Boolean> binaryEvaluation = context.getDatumTools().makeEvaluationInstance(getGenericName(), context);
 		
+		if (binaryEvaluation == null)
+			return null;
+		
 		binaryEvaluation.referenceName = this.referenceName;
 		binaryEvaluation.modifiers = this.modifiers;
 		binaryEvaluation.labelMapping = null;

@@ -24,7 +24,7 @@ public abstract class Validation<D extends Datum<L>, L> {
 		this.datumTools = context.getDatumTools();
 		this.maxThreads = context.getIntValue("maxThreads");
 		this.model = context.getModels().get(0);
-		this.errorExampleExtractor = context.getDatumTools().getTokenSpanExtractor("errorExampleExtractor");
+		this.errorExampleExtractor = context.getDatumTools().getTokenSpanExtractor(context.getStringValue("errorExampleExtractor"));
 		this.evaluations = context.getEvaluations();
 	}
 	

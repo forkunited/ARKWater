@@ -334,6 +334,8 @@ public abstract class Datum<L> {
 		}
 		
 		public SupervisedModelEvaluation<D, L> makeEvaluationInstance(String genericEvaluationName, Context<D, L> context) {
+			if (!this.genericEvaluations.containsKey(genericEvaluationName))
+				return null;
 			return this.genericEvaluations.get(genericEvaluationName).makeInstance(context); 
 		}
 		

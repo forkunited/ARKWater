@@ -108,7 +108,7 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 				devData, 
 				testData, 
 				context.getEvaluations(), 
-				context.getDatumTools().getTokenSpanExtractor("errorExampleExtractor"), 
+				context.getDatumTools().getTokenSpanExtractor(context.getStringValue("errorExampleExtractor")), 
 				context.getGridSearches().get(0),
 				context.getBooleanValue("trainOnDev"));
 		
@@ -125,7 +125,7 @@ public class ValidationGST<D extends Datum<L>, L> extends Validation<D, L> {
 			devData, 
 			testData, 
 			context.getEvaluations(), 
-			context.getDatumTools().getTokenSpanExtractor("errorExampleExtractor"), 
+			context.getDatumTools().getTokenSpanExtractor(context.getStringValue("errorExampleExtractor")), 
 			context.getGridSearches().get(0), 
 			context.getBooleanValue("trainOnDev"));	
 	}

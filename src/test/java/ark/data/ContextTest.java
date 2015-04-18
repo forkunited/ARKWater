@@ -101,7 +101,6 @@ public class ContextTest {
 		inputContextStr +=             "array VALID_LABELS=" + variableMap.get("VALID_LABELS") + ";\n";
 		inputContextStr +=             "evaluation accuracy=Accuracy(computeBaseline=\"false\");\n";
 
-		
 		inputContextStr +=             "model lg=LogistmarGramression(t=\"0.5\", rules=${rules}, weightedLabels=\"false\", l2=\"0.0\", convergenceEpsilon=\"0.001\", maxEvaluationConstantIterations=\"500\", maxTrainingExamples=\"260001.0\", batchSize=\"100\", evaluationIterations=\"200\", classificationThreshold=\"0.5\", computeTestEvaluations=\"false\") {\n";
 		inputContextStr +=             "array validLabels=${VALID_LABELS};\n";
 		inputContextStr +=             "};\n";
@@ -124,47 +123,6 @@ public class ContextTest {
 		}
 		
 		testContextSerialization(inputContextStr, outputContextStr);
-		
-		/*
-		inputContextStr +=             "rule sentInc= (TokenSpanFnDataVocab(fn=(Filter() o ${strBoW} o NGramSentence(n=[n],noSpan=true)))) ";
-		inputContextStr +=             "->"; 
-		inputContextStr +=             "(TokenSpanFnDataVocab(scale=NORMALIZED_TFIDF, minFeatureOccurrence=2, n=1,  tokenExtractor=TokenSpan, ";
-		inputContextStr +=             "fn=(Filter(type=SUBSTRING, filter=${FEATURE_STR}) o ${strBoW} o NGramSentence(n=${n++}, noSpan=true))));\n";
-
-		
-		rs rules=RuleSet() {
-			rule sentInc= (TokenSpanFnDataVocab(fn=(Filter() o ${strBoW} o NGramSentence(n=[n],noSpan=true)))) 
-								-> 
-								 (TokenSpanFnDataVocab(scale=NORMALIZED_TFIDF, minFeatureOccurrence=2, n=1,  tokenExtractor=AllTokenSpans,
-									fn=(Filter(type=SUB_SPAN, filter=${FEATURE_STR}) o ${strBoW} o NGramSentence(n=${n++},noSpan=true))));
-
-
-			rule sentDoc= (TokenSpanFnDataVocab(fn=(Filter() o ${strBoW} o NGramSentence(n=[n],noSpan=true)))) 
-								-> 
-								 (TokenSpanFnDataVocab(scale=NORMALIZED_TFIDF, minFeatureOccurrence=2, n=1, tokenExtractor=AllTokenSpans,
-									fn=(Filter(type=SUB_SPAN, filter=${FEATURE_STR}) o ${strBoW} o NGramDocument(n=${n},noSentence=true))));
-							
-
-			rule docInc= (TokenSpanFnDataVocab(fn=(Filter() o ${strBoW} o NGramDocument(n=[n],includeSentence=false)))) 
-								-> 
-								 (TokenSpanFnDataVocab(scale=NORMALIZED_TFIDF, minFeatureOccurrence=2, n=1,  
-									fn=(Filter(type=SUB_SPAN, filter=${FEATURE_STR}) o ${strBoW} o NGramDocument(n=${n++},noSentence=true))));
-
-
-			rule posbInc= (TokenSpanFnDataVocab(fn=(Filter() o ${pos} o NGramContext(n=[n], type=BEFORE))))
-								->
-								(TokenSpanFnDataVocab(scale=INDICATOR, minFeatureOccurrence=2, tokenExtractor=AllTokenSpans, 
-									fn=(Filter(type=SUFFIX, filter=${FEATURE_STR}) o ${pos} o NGramContext(n=${n++}, type=BEFORE))));
-									
-
-			rule posaInc= (TokenSpanFnDataVocab(fn=(Filter() o ${pos} o NGramContext(n=[n], type=AFTER))))
-								->
-								(TokenSpanFnDataVocab(scale=INDICATOR, minFeatureOccurrence=2, tokenExtractor=AllTokenSpans, 
-									fn=(Filter(type=PREFIX, filter=${FEATURE_STR}) o ${pos} o NGramContext(n=${n++}, type=AFTER))));
-		};
-
-		
-			 */
 	}
 	
 	private void testContextSerializationSelf(String contextStr) {

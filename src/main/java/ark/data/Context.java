@@ -99,6 +99,11 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	public Obj toParse() {
 		AssignmentList assignmentList = new AssignmentList();
 		for (Pair<ObjectType, String> obj : this.objNameOrdering) {
+			if (obj.getSecond().matches("[0-9]+")) {
+				// Skip objects that were only implicitly referenced by the user during construction
+				continue;
+			}
+			
 			if (obj.getFirst() == ObjectType.MODEL) {
 				assignmentList.add(Assignment.assignmentTyped(this.models.get(obj.getSecond()).getModifiers(), MODEL_STR, obj.getSecond(), this.models.get(obj.getSecond()).toParse()));
 			} else if (obj.getFirst() == ObjectType.FEATURE) {
@@ -188,7 +193,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 		List<T> retrieve(String name);
 	}
 	
-	private <T extends ARKParsableFunction> T constructFromParse(List<String> modifiers, String referenceName, Obj obj, Map<String, T> storageMap, GenericFunctionRetriever<T> retriever) {
+	private <T extends ARKParsableFunction> T constructFromParse(ObjectType objectType, List<String> modifiers, String referenceName, Obj obj, Map<String, T> storageMap, GenericFunctionRetriever<T> retriever) {
 		if (obj.getObjType() != Obj.Type.FUNCTION)
 			return null;
 		
@@ -197,8 +202,11 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 		List<T> possibleGenerics = retriever.retrieve(fnObj.getName());
 		for (T possibleGeneric : possibleGenerics) {
 			if (possibleGeneric.fromParse(modifiers, referenceName, fnObj)) {
-				if (referenceName == null) {				
-					storageMap.put(String.valueOf(this.currentReferenceId), possibleGeneric);
+				if (referenceName == null) {
+					// FIXME This works for now, but probably should disallow user-declared names that start with numbers to avoid conflicts
+					String currentReferenceIdStr = String.valueOf(this.currentReferenceId);
+					storageMap.put(currentReferenceIdStr, possibleGeneric);
+					this.objNameOrdering.add(new Pair<ObjectType, String>(objectType, currentReferenceIdStr));
 					this.currentReferenceId++;
 				} else {
 					storageMap.put(referenceName, possibleGeneric);
@@ -207,8 +215,6 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 			}
 		}
 	
-		this.datumTools.getDataTools().getOutputWriter().debugWriteln("ERROR: Failed to construct function (" + fnObj.getName() + ").");
-		
 		return null;
 	}
 	
@@ -245,16 +251,16 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 			return null;
 	}
 	
-	public <T extends ARKParsableFunction> T getMatchOrConstruct(Obj obj, Map<String, T> storageMap, GenericFunctionRetriever<T> retriever) {
-		return getMatchOrConstruct(null, null, obj, storageMap, retriever);
+	public <T extends ARKParsableFunction> T getMatchOrConstruct(ObjectType objectType, Obj obj, Map<String, T> storageMap, GenericFunctionRetriever<T> retriever) {
+		return getMatchOrConstruct(objectType, null, null, obj, storageMap, retriever);
 	}
 	
-	private <T extends ARKParsableFunction> T getMatchOrConstruct(List<String> modifiers, String referenceName, Obj obj, Map<String, T> storageMap, GenericFunctionRetriever<T> retriever) {
+	private <T extends ARKParsableFunction> T getMatchOrConstruct(ObjectType objectType, List<String> modifiers, String referenceName, Obj obj, Map<String, T> storageMap, GenericFunctionRetriever<T> retriever) {
 		List<T> matches = getMatches(obj, storageMap);
 		if (matches != null && matches.size() >= 1) {
 			return matches.get(0);
 		} else {
-			return constructFromParse(modifiers, referenceName, obj, storageMap, retriever);
+			return constructFromParse(objectType, modifiers, referenceName, obj, storageMap, retriever);
 		}
 	}
 	
@@ -276,15 +282,15 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 	
 	public Fn<List<TokenSpan>, List<TokenSpan>> getMatchOrConstructTokenSpanFn(String referenceName, Obj obj) {
-		return getMatchOrConstruct(null, referenceName, obj, this.tokenSpanFns, this.tokenSpanFnRetriever);
+		return getMatchOrConstruct(ObjectType.TOKEN_SPAN_FN, null, referenceName, obj, this.tokenSpanFns, this.tokenSpanFnRetriever);
 	}
 	
 	public Fn<List<TokenSpan>, List<TokenSpan>> getMatchOrConstructTokenSpanFn(Obj obj) {
-		return getMatchOrConstruct(obj, this.tokenSpanFns, this.tokenSpanFnRetriever);
+		return getMatchOrConstruct(ObjectType.TOKEN_SPAN_FN, obj, this.tokenSpanFns, this.tokenSpanFnRetriever);
 	}
 	
 	private Fn<List<TokenSpan>, List<TokenSpan>> constructFromParseTokenSpanFn(String referenceName, Obj obj, List<String> modifiers) {
-		return constructFromParse(modifiers, referenceName, obj, this.tokenSpanFns, this.tokenSpanFnRetriever);
+		return constructFromParse(ObjectType.TOKEN_SPAN_FN, modifiers, referenceName, obj, this.tokenSpanFns, this.tokenSpanFnRetriever);
 	}
 	
 	/* Match and construct str fns */
@@ -305,15 +311,15 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 
 	public Fn<List<String>, List<String>> getMatchOrConstructStrFn(String referenceName, Obj obj) {
-		return getMatchOrConstruct(null, referenceName, obj, this.strFns, this.strFnRetriever);
+		return getMatchOrConstruct(ObjectType.STR_FN, null, referenceName, obj, this.strFns, this.strFnRetriever);
 	}
 	
 	public Fn<List<String>, List<String>> getMatchOrConstructStrFn(Obj obj) {
-		return getMatchOrConstruct(obj, this.strFns, this.strFnRetriever);
+		return getMatchOrConstruct(ObjectType.STR_FN, obj, this.strFns, this.strFnRetriever);
 	}
 	
 	private Fn<List<String>, List<String>> constructFromParseStrFn(String referenceName, Obj obj, List<String> modifiers) {
-		return constructFromParse(modifiers, referenceName, obj, this.strFns, this.strFnRetriever);
+		return constructFromParse(ObjectType.STR_FN, modifiers, referenceName, obj, this.strFns, this.strFnRetriever);
 	}
 	
 	/* Match and construct token span str fns */
@@ -334,15 +340,15 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 
 	public Fn<List<TokenSpan>, List<String>> getMatchOrConstructTokenSpanStrFn(String referenceName, Obj obj) {
-		return getMatchOrConstruct(null, referenceName, obj, this.tokenSpanStrFns, this.tokenSpanStrFnRetriever);
+		return getMatchOrConstruct(ObjectType.TOKEN_SPAN_STR_FN, null, referenceName, obj, this.tokenSpanStrFns, this.tokenSpanStrFnRetriever);
 	}
 	
 	public Fn<List<TokenSpan>, List<String>> getMatchOrConstructTokenSpanStrFn(Obj obj) {
-		return getMatchOrConstruct(obj, this.tokenSpanStrFns, this.tokenSpanStrFnRetriever);
+		return getMatchOrConstruct(ObjectType.TOKEN_SPAN_STR_FN, obj, this.tokenSpanStrFns, this.tokenSpanStrFnRetriever);
 	}
 	
 	private Fn<List<TokenSpan>, List<String>> constructFromParseTokenSpanStrFn(String referenceName, Obj obj, List<String> modifiers) {
-		return constructFromParse(modifiers, referenceName, obj, this.tokenSpanStrFns, this.tokenSpanStrFnRetriever);
+		return constructFromParse(ObjectType.TOKEN_SPAN_STR_FN, modifiers, referenceName, obj, this.tokenSpanStrFns, this.tokenSpanStrFnRetriever);
 	}
 	
 	/* Match and construct models */
@@ -366,7 +372,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 	
 	private SupervisedModel<D, L> constructFromParseModel(String referenceName, Obj obj, List<String> modifiers) {
-		return constructFromParse(modifiers, referenceName, obj, this.models, this.modelRetriever);
+		return constructFromParse(ObjectType.MODEL, modifiers, referenceName, obj, this.models, this.modelRetriever);
 	}
 	
 	/* Match and construct evaluations */
@@ -390,7 +396,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 	
 	private SupervisedModelEvaluation<D, L> constructFromParseEvaluation(String referenceName, Obj obj, List<String> modifiers) {
-		return constructFromParse(modifiers, referenceName, obj, this.evaluations, this.evaluationRetriever);
+		return constructFromParse(ObjectType.EVALUATION, modifiers, referenceName, obj, this.evaluations, this.evaluationRetriever);
 	}
 	
 	/* Match and construct features */
@@ -406,7 +412,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	};
 	
 	private Feature<D, L> constructFromParseFeature(String referenceName, Obj obj, List<String> modifiers) {
-		return constructFromParse(modifiers, referenceName, obj, this.features, this.featureRetriever);
+		return constructFromParse(ObjectType.FEATURE, modifiers, referenceName, obj, this.features, this.featureRetriever);
 	}
 	
 	public Feature<D, L> getMatchFeature(Obj obj) {
@@ -418,7 +424,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 	
 	public Feature<D, L> getMatchOrConstructFeature(String referenceName, Obj obj) {
-		return getMatchOrConstruct(null, referenceName, obj, this.features, this.featureRetriever);
+		return getMatchOrConstruct(ObjectType.FEATURE, null, referenceName, obj, this.features, this.featureRetriever);
 	}
 	
 	/* Match and construct rule sets */
@@ -438,7 +444,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 	
 	private RuleSet<D, L> constructFromParseRuleSet(String referenceName, Obj obj, List<String> modifiers) {
-		return constructFromParse(modifiers, referenceName, obj, this.ruleSets, this.ruleSetRetriever);
+		return constructFromParse(ObjectType.RULE_SET, modifiers, referenceName, obj, this.ruleSets, this.ruleSetRetriever);
 	}
 	
 	/* Match and construct grid searches */
@@ -458,7 +464,7 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	}
 	
 	private GridSearch<D, L> constructFromParseGridSearch(String referenceName, Obj obj, List<String> modifiers) {
-		return constructFromParse(modifiers, referenceName, obj, this.gridSearches, this.gridSearchRetriever);
+		return constructFromParse(ObjectType.GRID_SEARCH, modifiers, referenceName, obj, this.gridSearches, this.gridSearchRetriever);
 	}
 	
 	/* Match and construct arrays */
@@ -642,38 +648,35 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	public <T extends Datum<Boolean>> Context<T, Boolean> makeBinary(Datum.Tools<T, Boolean> binaryTools, LabelIndicator<L> labelIndicator) {
 		Context<T, Boolean> binaryContext = new Context<T, Boolean>(binaryTools);
 
-		for (Pair<ObjectType, String> objName : this.objNameOrdering)
+		for (Pair<ObjectType, String> objName : this.objNameOrdering) {
 			binaryContext.objNameOrdering.add(objName);
-		
-		for (Entry<String, List<String>> entry : this.arrays.entrySet())
-			binaryContext.arrays.put(entry.getKey(), entry.getValue());
-	
-		for (Entry<String, String> entry : this.values.entrySet())
-			binaryContext.values.put(entry.getKey(), entry.getValue());
-		
-		for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet())
-			binaryContext.models.put(entry.getKey(), entry.getValue().makeBinary(binaryContext, labelIndicator));
-		
-		for (Entry<String, Feature<D, L>> entry : this.features.entrySet())
-			binaryContext.features.put(entry.getKey(), entry.getValue().makeBinary(binaryContext, labelIndicator));
-		
-		for (Entry<String, GridSearch<D, L>> entry : this.gridSearches.entrySet())
-			binaryContext.gridSearches.put(entry.getKey(), entry.getValue().makeBinary(binaryContext, labelIndicator));
-		
-		for (Entry<String, SupervisedModelEvaluation<D, L>> entry : this.evaluations.entrySet())
-			binaryContext.evaluations.put(entry.getKey(), entry.getValue().makeBinary(binaryContext, labelIndicator));
-		
-		for (Entry<String, RuleSet<D, L>> entry : this.ruleSets.entrySet())
-			binaryContext.ruleSets.put(entry.getKey(), entry.getValue().makeBinary(binaryContext, labelIndicator));
-		
-		for (Entry<String, Fn<List<TokenSpan>, List<TokenSpan>>> entry : this.tokenSpanFns.entrySet())
-			binaryContext.tokenSpanFns.put(entry.getKey(), entry.getValue());
-	
-		for (Entry<String, Fn<List<String>, List<String>>> entry : this.strFns.entrySet())
-			binaryContext.strFns.put(entry.getKey(), entry.getValue());
-		
-		for (Entry<String, Fn<List<TokenSpan>, List<String>>> entry : this.tokenSpanStrFns.entrySet())
-			binaryContext.tokenSpanStrFns.put(entry.getKey(), entry.getValue());
+			
+			if (objName.getFirst() == ObjectType.MODEL) {
+				binaryContext.models.put(objName.getSecond(), this.models.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator));
+			} else if (objName.getFirst() == ObjectType.FEATURE) {
+				binaryContext.features.put(objName.getSecond(), this.features.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator));
+			} else if (objName.getFirst() == ObjectType.GRID_SEARCH) {
+				binaryContext.gridSearches.put(objName.getSecond(), this.gridSearches.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator));
+			} else if (objName.getFirst() == ObjectType.EVALUATION) {
+				SupervisedModelEvaluation<T, Boolean> evaluation = this.evaluations.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator);
+				if (evaluation != null)
+					binaryContext.evaluations.put(objName.getSecond(), evaluation);
+			} else if (objName.getFirst() == ObjectType.RULE_SET) {
+				binaryContext.ruleSets.put(objName.getSecond(), this.ruleSets.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator));
+			} else if (objName.getFirst() == ObjectType.TOKEN_SPAN_FN) {
+				binaryContext.tokenSpanFns.put(objName.getSecond(), this.tokenSpanFns.get(objName.getSecond()));
+			} else if (objName.getFirst() == ObjectType.STR_FN) {
+				binaryContext.strFns.put(objName.getSecond(), this.strFns.get(objName.getSecond()));
+			} else if (objName.getFirst() == ObjectType.TOKEN_SPAN_STR_FN) {
+				binaryContext.tokenSpanStrFns.put(objName.getSecond(), this.tokenSpanStrFns.get(objName.getSecond()));
+			} else if (objName.getFirst() == ObjectType.ARRAY) {
+				binaryContext.arrays.put(objName.getSecond(), this.arrays.get(objName.getSecond()));
+			} else if (objName.getFirst() == ObjectType.VALUE) {
+				binaryContext.values.put(objName.getSecond(), this.values.get(objName.getSecond()));
+			} else {
+				return null;
+			}
+		}
 			
 		binaryContext.currentReferenceId = this.currentReferenceId;
 		

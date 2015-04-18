@@ -201,12 +201,12 @@ public class FeatureTokenSpanFnDataVocab<D extends Datum<L>, L> extends Feature<
 	protected <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(
 			Context<T, Boolean> context, LabelIndicator<L> labelIndicator,
 			Feature<T, Boolean> binaryFeature) {
-		FeatureGram<T, Boolean> binaryFeatureGram = (FeatureGram<T, Boolean>)binaryFeature;
+		FeatureTokenSpanFnDataVocab<T, Boolean> binaryFeatureTokenSpanFnDataVocab = (FeatureTokenSpanFnDataVocab<T, Boolean>)binaryFeature;
 		
-		binaryFeatureGram.vocabulary = this.vocabulary;
-		binaryFeatureGram.idfs = this.idfs;
+		binaryFeatureTokenSpanFnDataVocab.vocabulary = this.vocabulary;
+		binaryFeatureTokenSpanFnDataVocab.idfs = this.idfs;
 		
-		return binaryFeatureGram;
+		return binaryFeatureTokenSpanFnDataVocab;
 	}
 
 	@Override

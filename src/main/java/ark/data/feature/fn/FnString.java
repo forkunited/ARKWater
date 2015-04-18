@@ -31,7 +31,7 @@ public class FnString extends Fn<List<TokenSpan>, List<String>> {
 	@Override
 	public Obj getParameterValue(String parameter) {
 		if (parameter.equals("cleanFn"))
-			return Obj.stringValue(this.cleanFn.toString());
+			return Obj.stringValue((this.cleanFn == null) ? "" : this.cleanFn.toString());
 		else
 			return null;
 	}

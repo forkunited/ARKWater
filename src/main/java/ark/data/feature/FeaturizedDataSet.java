@@ -190,6 +190,10 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		return this.features.get(index);
 	}
 	
+	public List<Feature<D, L>> getFeatures() {
+		return this.featureList;
+	}
+	
 	public Feature<D, L> getFeatureByVocabularyIndex(int index) {
 		return this.features.get(this.features.floorKey(index));
 	}
