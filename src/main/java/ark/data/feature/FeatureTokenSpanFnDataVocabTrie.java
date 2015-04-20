@@ -109,4 +109,11 @@ public class FeatureTokenSpanFnDataVocabTrie<D extends Datum<L>, L> extends Feat
 	public Map<String, Double> getVocabularyTermsSuffixedBy(String suffix) {
 		return this.backwardTrie.prefixMap(suffix);
 	}	
+	
+	public double getVocabularyTermIdf(String term) {
+		if (this.vocabulary.containsKey(term))
+			return this.idfs.get(this.vocabulary.get(term));
+		else
+			return -1.0;
+	}
 }

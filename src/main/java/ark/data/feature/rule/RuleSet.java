@@ -113,10 +113,23 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 						Obj.Value vObj = (Obj.Value)entry.getValue();
 						if (vObj.getType() == Obj.Value.Type.STRING
 								&& vObj.getStr().matches("[0-9]+")) {
-							incrementedObjs.put(entry.getKey() + "++", Obj.stringValue(String.valueOf(Integer.valueOf(vObj.getStr()) + 1)));
+							int matchValue = Integer.valueOf(vObj.getStr());
+							// FIXME This is a hack to allow checking that the mached number is less than some specified number
+							if (entry.getKey().contains("<")) { 
+								String[] keyParts = entry.getKey().split("<");
+								if (matchValue >= Integer.valueOf(keyParts[1].trim())) {
+									matches = new HashMap<String, Obj>();
+									break;
+								}
+							}
+							
+							incrementedObjs.put(entry.getKey() + "++", Obj.stringValue(String.valueOf(matchValue + 1)));
 						}
 					}
 				}
+				
+				if (matches.size() == 0) // FIXME This happens when n<k match failed above (it's a hack)
+					continue;
 				
 				matches.putAll(incrementedObjs);
 		
@@ -126,12 +139,6 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 				Obj target = rule.getTarget().clone();
 				
 				if (!target.resolveValues(matches)) {
-					System.out.println("ERROR ON TARGET: " + target);
-					System.out.println("SOURCE: " + rule.getSource());
-					System.out.println("OBJECT: " + sourceObj);
-					System.out.println("RULE: " + e.getKey() + " " + e.getValue());
-					for (Entry<String, Obj> entry : matches.entrySet())
-						System.out.println("MATCH KEY VALUE: " + entry.getKey() + " " + entry.getValue());
 					return null; // FIXME throw exception.
 				}
 			

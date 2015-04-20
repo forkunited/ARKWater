@@ -20,7 +20,9 @@ public class FeatureTokenSpanFnDataFilteredVocab<D extends Datum<L>, L> extends 
 
 	public enum Type {
 		SUFFIX,
-		PREFIX
+		PREFIX,
+		SUFFIX_OR_PREFIX,
+		EQUAL
 	}
 	
 	protected FeatureTokenSpanFnDataVocabTrie<D, L> vocabFeature;
@@ -71,8 +73,20 @@ public class FeatureTokenSpanFnDataFilteredVocab<D extends Datum<L>, L> extends 
 
 	@Override
 	public boolean init(FeaturizedDataSet<D, L> dataSet) {
-		Map<String, Double> vocab = (this.type == Type.SUFFIX) ? this.vocabFeature.getVocabularyTermsSuffixedBy(this.filter)
-															   : this.vocabFeature.getVocabularyTermsPrefixedBy(this.filter);
+		Map<String, Double> vocab = null;
+		if (this.type == Type.SUFFIX) {
+			vocab = this.vocabFeature.getVocabularyTermsSuffixedBy(this.filter);
+		} else if (this.type == Type.PREFIX) {
+			vocab = this.vocabFeature.getVocabularyTermsPrefixedBy(this.filter);
+		} else if (this.type == Type.SUFFIX_OR_PREFIX) {
+			vocab = this.vocabFeature.getVocabularyTermsSuffixedBy(this.filter);
+			vocab.putAll(this.vocabFeature.getVocabularyTermsPrefixedBy(this.filter));
+		} else {
+			vocab = new HashMap<String, Double>();
+			double idf = this.vocabFeature.getVocabularyTermIdf(this.filter);
+			if (Double.compare(idf, 0.0) >= 0)
+				vocab.put(this.filter, idf);
+		}
 		
 		int i = 0;
 		for (Entry<String, Double> entry : vocab.entrySet()) {

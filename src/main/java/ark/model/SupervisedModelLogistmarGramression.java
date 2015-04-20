@@ -316,6 +316,8 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 					Feature<D, L> featureChild = this.arkDataSet.getDatumTools().makeFeatureInstance(featureChildFunction.getName(), SupervisedModelLogistmarGramression.this.context);
 					featureChild.fromParse(new ArrayList<String>(), featureObj.getReferenceName() + "_" + featureVocabStr + "_" + entry.getKey(), featureChildFunction); // FIXME Throw exception on return false
 					featureChild.init(this.arkDataSet); // FIXME Throw exception on false
+					if (featureChild.getVocabularySize() == 0)
+						continue;
 					
 					endVocabularyIndex += featureChild.getVocabularySize();
 					
