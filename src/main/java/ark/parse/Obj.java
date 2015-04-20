@@ -110,8 +110,9 @@ public abstract class Obj extends Serializable {
 			
 			if (obj.getObjType() == Obj.Type.VALUE) {
 				Obj.Value vObj = (Obj.Value)obj;
-				if (vObj.getType() == Value.Type.SQUARE_BRACKETED)
+				if (vObj.getType() == Value.Type.SQUARE_BRACKETED) {
 					matches.put(vObj.getStr(), this);
+				}
 				return matches;
 			} else if (obj.getObjType() != Obj.Type.FUNCTION)
 				return matches;
@@ -236,9 +237,9 @@ public abstract class Obj extends Serializable {
 				return matches;
 			
 			Obj.Value vObj = (Obj.Value)obj;
-			if (vObj.getType() == Value.Type.SQUARE_BRACKETED)
+			if (vObj.getType() == Value.Type.SQUARE_BRACKETED) {
 				matches.put(vObj.getStr(), this);
-			else if (vObj.getType() == Value.Type.STRING && this.str.equals(vObj.str))
+			} else if (vObj.getType() == Value.Type.STRING && this.str.equals(vObj.str))
 				matches.put("", this);
 				
 			return matches;
@@ -340,8 +341,9 @@ public abstract class Obj extends Serializable {
 			
 			if (obj.getObjType() == Obj.Type.VALUE) {
 				Obj.Value vObj = (Obj.Value)obj;
-				if (vObj.getType() == Value.Type.SQUARE_BRACKETED)
+				if (vObj.getType() == Value.Type.SQUARE_BRACKETED) {
 					matches.put(vObj.getStr(), this);
+				}
 				return matches;
 			} else if (obj.getObjType() != Obj.Type.ARRAY)
 				return matches;
@@ -425,7 +427,13 @@ public abstract class Obj extends Serializable {
 
 		@Override
 		public Map<String, Obj> match(Obj obj) {
-			return new HashMap<String, Obj>(); // No use trying to match rules for now
+			Map<String, Obj> matches = new HashMap<String, Obj>(); 
+			if (obj.getObjType() != Obj.Type.RULE)
+				return matches;
+			
+			matches.put("", this); // TODO: Eventually do something about matching rules... but this is good for now
+			
+			return matches;
 		}
 
 		@Override

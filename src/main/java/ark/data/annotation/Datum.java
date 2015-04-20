@@ -46,7 +46,9 @@ import ark.data.feature.FeatureNGramSentence;
 import ark.data.feature.FeatureNGramPoS;
 import ark.data.feature.FeatureStringForm;
 import ark.data.feature.FeatureTokenCount;
+import ark.data.feature.FeatureTokenSpanFnDataFilteredVocab;
 import ark.data.feature.FeatureTokenSpanFnDataVocab;
+import ark.data.feature.FeatureTokenSpanFnDataVocabTrie;
 import ark.data.feature.fn.Fn;
 import ark.data.feature.fn.FnAffix;
 import ark.data.feature.fn.FnComposite;
@@ -266,6 +268,8 @@ public abstract class Datum<L> {
 			addGenericFeature(new FeatureStringForm<D, L>());
 			addGenericFeature(new FeatureGramCluster<D, L>());
 			addGenericFeature(new FeatureTokenSpanFnDataVocab<D, L>());
+			addGenericFeature(new FeatureTokenSpanFnDataFilteredVocab<D, L>());
+			addGenericFeature(new FeatureTokenSpanFnDataVocabTrie<D, L>());
 			
 			addGenericModel(new SupervisedModelCreg<D, L>());
 			addGenericModel(new SupervisedModelLabelDistribution<D, L>());
@@ -344,6 +348,8 @@ public abstract class Datum<L> {
 		}
 		
 		public List<Fn<List<String>, List<String>>> makeStrFns(String genericStrFnName, Context<D, L> context) {
+			if (!this.genericStrFns.containsKey(genericStrFnName))
+				return new ArrayList<Fn<List<String>, List<String>>>();
 			List<Fn<List<String>, List<String>>> genericStrFns = this.genericStrFns.get(genericStrFnName);
 			List<Fn<List<String>, List<String>>> strFns = new ArrayList<Fn<List<String>, List<String>>>(genericStrFns.size());
 			
@@ -354,6 +360,9 @@ public abstract class Datum<L> {
 		}
 		
 		public List<Fn<List<TokenSpan>, List<TokenSpan>>> makeTokenSpanFns(String genericTokenSpanFnName, Context<D, L> context) {
+			if (!this.genericTokenSpanFns.containsKey(genericTokenSpanFnName))
+				return new ArrayList<Fn<List<TokenSpan>, List<TokenSpan>>>();
+			
 			List<Fn<List<TokenSpan>, List<TokenSpan>>> genericTokenSpanFns = this.genericTokenSpanFns.get(genericTokenSpanFnName);
 			List<Fn<List<TokenSpan>, List<TokenSpan>>> tokenSpanFns = new ArrayList<Fn<List<TokenSpan>, List<TokenSpan>>>(genericTokenSpanFns.size());
 			
@@ -364,6 +373,8 @@ public abstract class Datum<L> {
 		}
 		
 		public List<Fn<List<TokenSpan>, List<String>>> makeTokenSpanStrFns(String genericTokenSpanStrFnName, Context<D, L> context) {
+			if (!this.genericTokenSpanStrFns.containsKey(genericTokenSpanStrFnName))
+				return new ArrayList<Fn<List<TokenSpan>, List<String>>>();
 			List<Fn<List<TokenSpan>, List<String>>> genericTokenSpanStrFns = this.genericTokenSpanStrFns.get(genericTokenSpanStrFnName);
 			List<Fn<List<TokenSpan>, List<String>>> tokenSpanStrFns = new ArrayList<Fn<List<TokenSpan>, List<String>>>(genericTokenSpanStrFns.size());
 			

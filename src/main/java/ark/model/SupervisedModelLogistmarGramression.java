@@ -297,7 +297,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		private void extendDataSet(Vector c_p, Vector c_n) {
 			Set<Integer> featuresToExpand = getFeaturesToExpand(c_p, c_n);
 			RuleSet<D, L> rules = SupervisedModelLogistmarGramression.this.rules;
-			
+
 			for (Integer featureToExpand : featuresToExpand) {
 				FeaturizedDataSet<D, L> dataSet = (featureToExpand < SupervisedModelLogistmarGramression.this.sizeF_0) ? this.arkDataSet : SupervisedModelLogistmarGramression.this.constructedFeatures;
 				// Subtract 1 because bias entry
@@ -308,21 +308,21 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				Map<String, Obj> featureStrAssignment = new TreeMap<String, Obj>();
 				featureStrAssignment.put("FEATURE_STR", Obj.stringValue(featureVocabStr));
 				
-				SupervisedModelLogistmarGramression.this.context.getDatumTools().getDataTools().getOutputWriter()
-				.debugWriteln("Expanding feature " + featureToExpand + " (" + featureObj.getReferenceName() + "-" + featureVocabStr + ") c=(" + c_p.get(featureToExpand) + "," + c_n.get(featureToExpand) + ")...");
-				
 				Map<String, Obj> featureChildObjs = rules.applyRules(featureObj, featureStrAssignment);
 				int startVocabularyIndex = SupervisedModelLogistmarGramression.this.sizeF_0 + SupervisedModelLogistmarGramression.this.constructedFeatures.getFeatureVocabularySize();
 				int endVocabularyIndex = startVocabularyIndex;
 				for (Entry<String, Obj> entry : featureChildObjs.entrySet()) {
 					Obj.Function featureChildFunction = (Obj.Function)entry.getValue();
 					Feature<D, L> featureChild = this.arkDataSet.getDatumTools().makeFeatureInstance(featureChildFunction.getName(), SupervisedModelLogistmarGramression.this.context);
-					featureChild.fromParse(null, featureObj.getReferenceName() + "_" + featureVocabStr + "_" + entry.getKey(), featureChildFunction); // FIXME Throw exception on return false
+					featureChild.fromParse(new ArrayList<String>(), featureObj.getReferenceName() + "_" + featureVocabStr + "_" + entry.getKey(), featureChildFunction); // FIXME Throw exception on return false
 					featureChild.init(this.arkDataSet); // FIXME Throw exception on false
 					
 					endVocabularyIndex += featureChild.getVocabularySize();
 					
 					SupervisedModelLogistmarGramression.this.constructedFeatures.addFeature(featureChild, false); // FIXME Throw exception on false
+				
+					SupervisedModelLogistmarGramression.this.context.getDatumTools().getDataTools().getOutputWriter()
+					.debugWriteln("(" + this.arkDataSet.getName() + ") Feature " + featureToExpand + " (" + featureObj.getReferenceName() + "-" + featureVocabStr + ") c=(" + c_p.get(featureToExpand) + "," + c_n.get(featureToExpand) + ") expanded with rule " + entry.getKey() + "...");
 				}
 				
 				for (int i = startVocabularyIndex; i < endVocabularyIndex; i++) {
@@ -821,9 +821,11 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			if (next_p) {
 				indices[i] = e_p.index()*2;
 				values[i] = e_p.value();
+				e_p = null;
 			} else {
 				indices[i] = e_n.index()*2+1;
 				values[i] = e_n.value();
+				e_n = null;
 			}		
 		}
 
@@ -884,6 +886,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 					
 					c_p.put(index, e_p.value()*maxValue);
 				}
+				e_p = null;
 			} else {
 				int index = e_n.index();
 				if (index < this.sizeF_0)
@@ -899,6 +902,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 					
 					c_n.put(index, e_n.value()*maxValue);
 				}
+				e_n = null;
 			}
 		}
 	

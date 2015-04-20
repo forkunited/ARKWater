@@ -99,11 +99,6 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 	public Obj toParse() {
 		AssignmentList assignmentList = new AssignmentList();
 		for (Pair<ObjectType, String> obj : this.objNameOrdering) {
-			if (obj.getSecond().matches("[0-9]+")) {
-				// Skip objects that were only implicitly referenced by the user during construction
-				continue;
-			}
-			
 			if (obj.getFirst() == ObjectType.MODEL) {
 				assignmentList.add(Assignment.assignmentTyped(this.models.get(obj.getSecond()).getModifiers(), MODEL_STR, obj.getSecond(), this.models.get(obj.getSecond()).toParse()));
 			} else if (obj.getFirst() == ObjectType.FEATURE) {
@@ -143,10 +138,8 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 					return false;
 				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.MODEL, assignment.getName()));
 			} else if (assignment.getType().equals(FEATURE_STR)) {
-				if (constructFromParseFeature(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null) {
-					System.out.println("Failed to construct feature " + assignment.getName());
+				if (constructFromParseFeature(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)
 					return false;
-				}
 				this.objNameOrdering.add(new Pair<ObjectType, String>(ObjectType.FEATURE, assignment.getName()));
 			} else if (assignment.getType().equals(GRID_SEARCH_STR)) {
 				if (constructFromParseGridSearch(assignment.getName(), assignment.getValue(), assignment.getModifiers()) == null)

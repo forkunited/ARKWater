@@ -85,7 +85,7 @@ public class FeatureTokenSpanFnDataVocab<D extends Datum<L>, L> extends Feature<
 		return true;
 	}
 
-	private Map<String, Integer> applyFnToDatum(D datum) {
+	public Map<String, Integer> applyFnToDatum(D datum) {
 		List<TokenSpan> spans = Arrays.asList(this.tokenExtractor.extract(datum));
 		List<String> strs = this.fn.compute(spans);
 
@@ -100,6 +100,9 @@ public class FeatureTokenSpanFnDataVocab<D extends Datum<L>, L> extends Feature<
 		return results;
 	}
 	
+	public Scale getScale() {
+		return this.scale;
+	}
 	
 	@Override
 	public Map<Integer, Double> computeVector(D datum) {

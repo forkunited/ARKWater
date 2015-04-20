@@ -48,7 +48,7 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 		for (int i = 0; i < internalAssignments.size(); i++) {
 			AssignmentTyped assignment = (AssignmentTyped)internalAssignments.get(i);
 			if (assignment.getType().equals(RULE_STR)) {
-				Obj.Rule rule = (Obj.Rule)assignment.getValue();
+				Obj.Rule rule = (Obj.Rule)assignment.getValue().clone();
 				rule.resolveValues(contextMap);
 				this.rules.put(assignment.getName(), rule);
 			}
@@ -63,7 +63,7 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 		
 		for (Entry<String, Obj.Rule> entry : this.rules.entrySet()) {
 			assignmentList.add(
-				Assignment.assignmentTyped(null, RULE_STR, entry.getKey(), entry.getValue())
+				Assignment.assignmentTyped(null, RULE_STR, entry.getKey(), entry.getValue().clone())
 			);
 		}
 
@@ -80,7 +80,10 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 		
 		binaryRuleSet.referenceName = this.referenceName;
 		binaryRuleSet.modifiers = this.modifiers;
-		binaryRuleSet.rules = this.rules;
+		binaryRuleSet.rules = new HashMap<String, Obj.Rule>();
+		for (Entry<String, Obj.Rule> entry : this.rules.entrySet()) {
+			binaryRuleSet.rules.put(entry.getKey(), (Obj.Rule)entry.getValue().clone());
+		}
 		
 		return binaryRuleSet;
 	}
@@ -122,8 +125,15 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 				
 				Obj target = rule.getTarget().clone();
 				
-				if (!target.resolveValues(matches))
+				if (!target.resolveValues(matches)) {
+					System.out.println("ERROR ON TARGET: " + target);
+					System.out.println("SOURCE: " + rule.getSource());
+					System.out.println("OBJECT: " + sourceObj);
+					System.out.println("RULE: " + e.getKey() + " " + e.getValue());
+					for (Entry<String, Obj> entry : matches.entrySet())
+						System.out.println("MATCH KEY VALUE: " + entry.getKey() + " " + entry.getValue());
 					return null; // FIXME throw exception.
+				}
 			
 				objs.put(ruleName, target);
 			}

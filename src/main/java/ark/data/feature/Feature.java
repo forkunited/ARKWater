@@ -118,7 +118,7 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 	}
 	
 	public Map<Integer, String> getSpecificShortNamesForIndices(Iterable<Integer> indices) {
-		String prefix = getReferenceName();
+		String prefix = getReferenceName() + "_";
 		Map<Integer, String> specificShortNames = new HashMap<Integer, String>();
 		for (Integer index : indices) {
 			specificShortNames.put(index, prefix + getVocabularyTerm(index));
@@ -137,7 +137,7 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 	}
 	
 	public List<String> getSpecificShortNames() {
-		String prefix = getReferenceName();
+		String prefix = getReferenceName() + "_";
 		int vocabularySize = getVocabularySize();
 		List<String> specificShortNames = new ArrayList<String>(vocabularySize);
 		for (int i = 0; i < vocabularySize; i++) {

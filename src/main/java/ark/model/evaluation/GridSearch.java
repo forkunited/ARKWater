@@ -514,6 +514,7 @@ public class GridSearch<D extends Datum<L>, L> extends ARKParsableFunction {
 	public <T extends Datum<Boolean>> GridSearch<T, Boolean> makeBinary(Context<T, Boolean> binaryContext, LabelIndicator<L> labelIndicator) {
 		GridSearch<T, Boolean> gridSearch = new GridSearch<T, Boolean>(binaryContext);
 		
+		gridSearch.referenceName = this.referenceName;
 		gridSearch.modelObj = this.context.getMatchModel(this.modelObj).makeBinary(binaryContext, labelIndicator).toParse();
 		gridSearch.evaluationObj = this.context.getMatchEvaluation(this.evaluationObj).makeBinary(binaryContext, labelIndicator).toParse();
 		
