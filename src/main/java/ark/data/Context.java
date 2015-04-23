@@ -662,11 +662,14 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 			} else if (objName.getFirst() == ObjectType.RULE_SET) {
 				binaryContext.ruleSets.put(objName.getSecond(), this.ruleSets.get(objName.getSecond()).makeBinary(binaryContext, labelIndicator));
 			} else if (objName.getFirst() == ObjectType.TOKEN_SPAN_FN) {
-				binaryContext.tokenSpanFns.put(objName.getSecond(), this.tokenSpanFns.get(objName.getSecond()));
+				if (binaryContext.constructFromParseTokenSpanFn(objName.getSecond(), this.tokenSpanFns.get(objName.getSecond()).toParse(), this.tokenSpanFns.get(objName.getSecond()).getModifiers()) == null)
+					return null;
 			} else if (objName.getFirst() == ObjectType.STR_FN) {
-				binaryContext.strFns.put(objName.getSecond(), this.strFns.get(objName.getSecond()));
+				if (binaryContext.constructFromParseStrFn(objName.getSecond(), this.strFns.get(objName.getSecond()).toParse(), this.strFns.get(objName.getSecond()).getModifiers()) == null)
+					return null;
 			} else if (objName.getFirst() == ObjectType.TOKEN_SPAN_STR_FN) {
-				binaryContext.tokenSpanStrFns.put(objName.getSecond(), this.tokenSpanStrFns.get(objName.getSecond()));
+				if (binaryContext.constructFromParseTokenSpanStrFn(objName.getSecond(), this.tokenSpanStrFns.get(objName.getSecond()).toParse(), this.tokenSpanStrFns.get(objName.getSecond()).getModifiers()) == null)
+					return null;
 			} else if (objName.getFirst() == ObjectType.ARRAY) {
 				binaryContext.arrays.put(objName.getSecond(), this.arrays.get(objName.getSecond()));
 			} else if (objName.getFirst() == ObjectType.VALUE) {
@@ -681,26 +684,130 @@ public class Context<D extends Datum<L>, L> extends ARKParsable {
 		return binaryContext;
 	}
 	
-	public Context<D, L> clone() {
+	public Context<D, L> clone(boolean cloneFeatureInternal) {
 		Context<D, L> clone = new Context<D, L>(this.datumTools);
-		if (!clone.fromParse(getModifiers(), getReferenceName(), toParse()))
-			return null;
+		
+		if (cloneFeatureInternal) {
+			if (!clone.fromParse(getModifiers(), getReferenceName(), toParse()))
+				return null;
+		} else {
+			if (!clone.fromParse(getModifiers(), getReferenceName(), this.except(ObjectType.FEATURE).toParse()))
+				return null;
+			
+			for (Pair<ObjectType, String> objName : this.objNameOrdering)
+				if (objName.getFirst() == ObjectType.FEATURE)
+					clone.objNameOrdering.add(objName);
+			
+			for (Entry<String, Feature<D, L>> entry : this.features.entrySet())
+				clone.features.put(entry.getKey(), entry.getValue().clone(false));
+		}
+		
+		
 		return clone;
 	}
 	
-	public Context<D, L> onlyFeatures() {
-		Context<D, L> onlyFeatures = new Context<D, L>(this.datumTools);
+	public Context<D, L> only(ObjectType objectType) {
+		Context<D, L> only = new Context<D, L>(this.datumTools);
 		
 		for (Pair<ObjectType, String> objName : this.objNameOrdering)
-			if (objName.getFirst() == ObjectType.FEATURE)
-				onlyFeatures.objNameOrdering.add(objName);
+			if (objName.getFirst() == objectType)
+				only.objNameOrdering.add(objName);
 		
-		for (Entry<String, Feature<D, L>> entry : this.features.entrySet())
-			onlyFeatures.features.put(entry.getKey(), entry.getValue());
+		if (objectType == ObjectType.MODEL) {
+			for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet())
+				only.models.put(entry.getKey(), entry.getValue());
+		} else if (objectType == ObjectType.FEATURE) {
+			for (Entry<String, Feature<D, L>> entry : this.features.entrySet())
+				only.features.put(entry.getKey(), entry.getValue());
+		} else if (objectType == ObjectType.GRID_SEARCH) {
+			for (Entry<String, GridSearch<D, L>> entry : this.gridSearches.entrySet())
+				only.gridSearches.put(entry.getKey(), entry.getValue());
+		} else if (objectType == ObjectType.EVALUATION) {
+			for (Entry<String, SupervisedModelEvaluation<D, L>> entry : this.evaluations.entrySet())
+				only.evaluations.put(entry.getKey(), entry.getValue());
+		} else if (objectType == ObjectType.RULE_SET) {
+			for (Entry<String, RuleSet<D, L>> entry : this.ruleSets.entrySet())
+				only.ruleSets.put(entry.getKey(), entry.getValue());
+		} else if (objectType == ObjectType.TOKEN_SPAN_FN) {
+			for (Entry<String, Fn<List<TokenSpan>, List<TokenSpan>>> entry : this.tokenSpanFns.entrySet())
+				only.tokenSpanFns.put(entry.getKey(), entry.getValue());			
+		} else if (objectType == ObjectType.STR_FN) {
+			for (Entry<String, Fn<List<String>, List<String>>> entry : this.strFns.entrySet())
+				only.strFns.put(entry.getKey(), entry.getValue());	
+		} else if (objectType == ObjectType.TOKEN_SPAN_STR_FN) {
+			for (Entry<String, Fn<List<TokenSpan>, List<String>>> entry : this.tokenSpanStrFns.entrySet())
+				only.tokenSpanStrFns.put(entry.getKey(), entry.getValue());	
+		} else if (objectType == ObjectType.ARRAY) {
+			for (Entry<String, List<String>> entry : this.arrays.entrySet())
+				only.arrays.put(entry.getKey(), entry.getValue());	
+		} else if (objectType == ObjectType.VALUE) {
+			for (Entry<String, String> entry : this.values.entrySet())
+				only.values.put(entry.getKey(), entry.getValue());	
+		}
 		
-		return onlyFeatures;
+		return only;
 	}
 
+	public Context<D, L> except(ObjectType objectType) {
+		Context<D, L> except = new Context<D, L>(this.datumTools);
+		
+		for (Pair<ObjectType, String> objName : this.objNameOrdering)
+			if (objName.getFirst() != objectType)
+				except.objNameOrdering.add(objName);
+		
+		if (objectType != ObjectType.MODEL) {
+			for (Entry<String, SupervisedModel<D, L>> entry : this.models.entrySet())
+				except.models.put(entry.getKey(), entry.getValue());
+		} 
+		
+		if (objectType != ObjectType.FEATURE) {
+			for (Entry<String, Feature<D, L>> entry : this.features.entrySet())
+				except.features.put(entry.getKey(), entry.getValue());
+		} 
+		
+		if (objectType != ObjectType.GRID_SEARCH) {
+			for (Entry<String, GridSearch<D, L>> entry : this.gridSearches.entrySet())
+				except.gridSearches.put(entry.getKey(), entry.getValue());
+		} 
+		
+		if (objectType != ObjectType.EVALUATION) {
+			for (Entry<String, SupervisedModelEvaluation<D, L>> entry : this.evaluations.entrySet())
+				except.evaluations.put(entry.getKey(), entry.getValue());
+		} 
+		
+		if (objectType != ObjectType.RULE_SET) {
+			for (Entry<String, RuleSet<D, L>> entry : this.ruleSets.entrySet())
+				except.ruleSets.put(entry.getKey(), entry.getValue());
+		} 
+		
+		if (objectType != ObjectType.TOKEN_SPAN_FN) {
+			for (Entry<String, Fn<List<TokenSpan>, List<TokenSpan>>> entry : this.tokenSpanFns.entrySet())
+				except.tokenSpanFns.put(entry.getKey(), entry.getValue());			
+		} 
+		
+		if (objectType != ObjectType.STR_FN) {
+			for (Entry<String, Fn<List<String>, List<String>>> entry : this.strFns.entrySet())
+				except.strFns.put(entry.getKey(), entry.getValue());	
+		} 
+		
+		if (objectType != ObjectType.TOKEN_SPAN_STR_FN) {
+			for (Entry<String, Fn<List<TokenSpan>, List<String>>> entry : this.tokenSpanStrFns.entrySet())
+				except.tokenSpanStrFns.put(entry.getKey(), entry.getValue());	
+		} 
+		
+		if (objectType != ObjectType.ARRAY) {
+			for (Entry<String, List<String>> entry : this.arrays.entrySet())
+				except.arrays.put(entry.getKey(), entry.getValue());	
+		}
+		
+		if (objectType != ObjectType.VALUE) {
+			for (Entry<String, String> entry : this.values.entrySet())
+				except.values.put(entry.getKey(), entry.getValue());	
+		}
+		
+		return except;
+	}
+	
 	public static <D extends Datum<L>, L> Context<D, L> deserialize(Datum.Tools<D, L> datumTools, String str) {
 		return deserialize(datumTools, new StringReader(str));
 	}

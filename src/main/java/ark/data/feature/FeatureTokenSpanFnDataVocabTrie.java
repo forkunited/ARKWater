@@ -1,7 +1,9 @@
 package ark.data.feature;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.ardverk.collection.PatriciaTrie;
 import org.ardverk.collection.StringKeyAnalyzer;
@@ -74,6 +76,18 @@ public class FeatureTokenSpanFnDataVocabTrie<D extends Datum<L>, L> extends Feat
 	}
 
 	@Override
+	protected boolean cloneHelper(Feature<D, L> clone) {
+		if (!super.cloneHelper(clone))
+			return false;
+		
+		FeatureTokenSpanFnDataVocabTrie<D, L> cloneTrie = (FeatureTokenSpanFnDataVocabTrie<D, L>)clone;
+		cloneTrie.forwardTrie = this.forwardTrie;
+		cloneTrie.backwardTrie = this.backwardTrie;
+		
+		return true;
+	}
+	
+	@Override
 	protected boolean fromParseInternalHelper(AssignmentList internalAssignments) {
 		if (!super.fromParseInternalHelper(internalAssignments))
 			return false;
@@ -102,18 +116,21 @@ public class FeatureTokenSpanFnDataVocabTrie<D extends Datum<L>, L> extends Feat
 		return "TokenSpanFnDataVocabTrie";
 	}
 	
-	public Map<String, Double> getVocabularyTermsPrefixedBy(String prefix) {
-		return this.forwardTrie.prefixMap(prefix);
+	public Set<String> getVocabularyTermsPrefixedBy(String prefix) {
+		synchronized (this.forwardTrie) {
+			Map<String, Double> prefixed = this.forwardTrie.prefixMap(prefix);
+			Set<String> prefixedSet = new HashSet<String>();
+			prefixedSet.addAll(prefixed.keySet()); // Avoid race conditions
+			return prefixedSet;
+		}
 	}
 	
-	public Map<String, Double> getVocabularyTermsSuffixedBy(String suffix) {
-		return this.backwardTrie.prefixMap(suffix);
+	public Set<String> getVocabularyTermsSuffixedBy(String suffix) {
+		synchronized (this.backwardTrie) {
+			Map<String, Double> suffixed = this.backwardTrie.prefixMap(suffix);
+			Set<String> suffixedSet = new HashSet<String>();
+			suffixedSet.addAll(suffixed.keySet()); // Avoid race conditions
+			return suffixedSet;
+		}
 	}	
-	
-	public double getVocabularyTermIdf(String term) {
-		if (this.vocabulary.containsKey(term))
-			return this.idfs.get(this.vocabulary.get(term));
-		else
-			return -1.0;
-	}
 }

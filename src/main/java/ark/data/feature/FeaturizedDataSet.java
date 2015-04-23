@@ -230,9 +230,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		
 		for (Entry<Integer, List<Integer>> featureToIndices : featuresToIndices.entrySet()) {
 			Feature<D, L> feature = this.features.get(featureToIndices.getKey());
-			Map<Integer, String> featureSpecificNames = feature.getSpecificShortNamesForIndices(featureToIndices.getValue());
-			for (Entry<Integer, String> featureSpecificIndexToName : featureSpecificNames.entrySet())
-				names.put(featureSpecificIndexToName.getKey() + featureToIndices.getKey(), featureSpecificIndexToName.getValue());
+			names = feature.getSpecificShortNamesForIndices(featureToIndices.getValue(), featureToIndices.getKey(), names);
 		}
 		
 		this.featureVocabularyNames.putAll(names);
@@ -244,7 +242,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		List<String> featureVocabularyNames = new ArrayList<String>(this.featureVocabularySize);
 		
 		for (Feature<D, L> feature : this.features.values()) {
-			featureVocabularyNames.addAll(feature.getSpecificShortNames()); 
+			featureVocabularyNames = feature.getSpecificShortNames(featureVocabularyNames); 
 		}
 		
 		return featureVocabularyNames;
@@ -269,11 +267,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		
 		Map<Integer, Double> values = new HashMap<Integer, Double>();
 		for (Entry<Integer, Feature<D, L>> featureEntry : this.features.entrySet()) {
-			Map<Integer, Double> featureValues = featureEntry.getValue().computeVector(datum);
-			
-			for (Entry<Integer, Double> featureValueEntry : featureValues.entrySet()) {
-				values.put(featureValueEntry.getKey() + featureEntry.getKey(), featureValueEntry.getValue());
-			}
+			values = featureEntry.getValue().computeVector(datum, featureEntry.getKey(), values);
 		}
 		
 		Vector vector = new SparseVector(getFeatureVocabularySize(), values);
@@ -291,13 +285,17 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 			if (featureEntry.getKey() >= endIndex)
 				break;
 			
-			Map<Integer, Double> featureValues = featureEntry.getValue().computeVector(datum);
+			if (startIndex <= featureEntry.getKey() && endIndex >= featureEntry.getKey() + featureEntry.getValue().getVocabularySize()) {
+				values = featureEntry.getValue().computeVector(datum, featureEntry.getKey(), values);
+			} else {
+				Map<Integer, Double> featureValues = featureEntry.getValue().computeVector(datum);
 			
-			for (Entry<Integer, Double> featureValueEntry : featureValues.entrySet()) {
-				int index = featureValueEntry.getKey() + featureEntry.getKey();
-				if (index < startIndex || index >= endIndex)
-					continue;
-				values.put(index - startIndex, featureValueEntry.getValue());
+				for (Entry<Integer, Double> featureValueEntry : featureValues.entrySet()) {
+					int index = featureValueEntry.getKey() + featureEntry.getKey();
+					if (index < startIndex || index >= endIndex)
+						continue;
+					values.put(index - startIndex, featureValueEntry.getValue());
+				}
 			}
 		}
 		

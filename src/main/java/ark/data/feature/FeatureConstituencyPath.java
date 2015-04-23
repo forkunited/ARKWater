@@ -18,7 +18,6 @@
 
 package ark.data.feature;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -136,13 +135,12 @@ public class FeatureConstituencyPath<D extends Datum<L>, L> extends Feature<D, L
 	}
 	
 	@Override
-	public Map<Integer, Double> computeVector(D datum) {
+	public Map<Integer, Double> computeVector(D datum, int offset, Map<Integer, Double> vector) {
 		Set<String> pathsForDatum = getPathsForDatum(datum);
-		Map<Integer, Double> vector = new HashMap<Integer, Double>();
 		
 		for (String path : pathsForDatum) {
 			if (this.vocabulary.containsKey(path))
-				vector.put(this.vocabulary.get(path), 1.0);		
+				vector.put(this.vocabulary.get(path) + offset, 1.0);		
 		}
 
 		return vector;
@@ -228,6 +226,13 @@ public class FeatureConstituencyPath<D extends Datum<L>, L> extends Feature<D, L
 	protected AssignmentList toParseInternalHelper(
 			AssignmentList internalAssignments) {
 		return internalAssignments;
+	}
+	
+	@Override
+	protected boolean cloneHelper(Feature<D, L> clone) {
+		FeatureConstituencyPath<D, L> cloneConst = (FeatureConstituencyPath<D, L>)clone;
+		cloneConst.vocabulary = this.vocabulary;
+		return true;
 	}
 	
 }

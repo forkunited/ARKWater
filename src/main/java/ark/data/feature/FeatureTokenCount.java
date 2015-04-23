@@ -1,6 +1,5 @@
 package ark.data.feature;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import ark.data.Context;
@@ -29,15 +28,15 @@ public class FeatureTokenCount<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public Map<Integer, Double> computeVector(D datum) {
+	public Map<Integer, Double> computeVector(D datum, int offset, Map<Integer, Double> vector) {
 		TokenSpan[] tokenSpans = this.tokenExtractor.extract(datum);
-		Map<Integer, Double> vector = new HashMap<Integer, Double>();
+		
 		for (TokenSpan tokenSpan : tokenSpans) {
 			int tokenCount = tokenSpan.getLength();
 			if (tokenCount > this.maxCount)
 				tokenCount = this.maxCount;
 			
-			vector.put(tokenCount, 1.0);
+			vector.put(tokenCount + offset, 1.0);
 		}
 
 		return vector;
@@ -112,5 +111,10 @@ public class FeatureTokenCount<D extends Datum<L>, L> extends Feature<D, L> {
 	protected AssignmentList toParseInternalHelper(
 			AssignmentList internalAssignments) {
 		return internalAssignments;
+	}
+	
+	@Override
+	protected boolean cloneHelper(Feature<D, L> clone) {
+		return true;
 	}
 }

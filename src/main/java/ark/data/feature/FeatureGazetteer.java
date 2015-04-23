@@ -105,9 +105,8 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	
 	
 	@Override
-	public Map<Integer, Double> computeVector(D datum) {
+	public Map<Integer, Double> computeVector(D datum, int offset, Map<Integer, Double> vector) {
 		Pair<List<Pair<String,Double>>, Double> extremum = computeExtremum(datum);
-		Map<Integer, Double> vector = null;
 		if (this.includeIds) {
 			if (extremum.getFirst() == null) {
 				return new HashMap<Integer, Double>();
@@ -119,15 +118,15 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 					continue;
 				int index = this.vocabulary.get(id.getFirst());
 				if (this.includeWeights && id.getSecond() >= this.weightThreshold) {
-					vector.put(index, extremum.getSecond()*id.getSecond());
+					vector.put(index + offset, extremum.getSecond()*id.getSecond());
 				} else {
-					vector.put(index, extremum.getSecond());
+					vector.put(index + offset, extremum.getSecond());
 				}
 			}
 			
 		} else {
 			vector = new HashMap<Integer, Double>(1);
-			vector.put(0, extremum.getSecond());
+			vector.put(offset, extremum.getSecond());
 		}
 		
 		return vector;
@@ -227,5 +226,12 @@ public abstract class FeatureGazetteer<D extends Datum<L>, L> extends Feature<D,
 	protected AssignmentList toParseInternalHelper(
 			AssignmentList internalAssignments) {
 		return internalAssignments;
+	}
+	
+	@Override
+	protected boolean cloneHelper(Feature<D, L> clone) {
+		FeatureGazetteer<D, L> cloneGaz = (FeatureGazetteer<D, L>)clone;
+		cloneGaz.vocabulary = this.vocabulary;
+		return true;
 	}
 }

@@ -129,6 +129,41 @@ public abstract class FnComposite<S, T, U> extends Fn<S, T> {
 	}
 	
 	@Override
+	public T manyCachedCompute(S input, String id) {
+		initializeManyCache();
+		
+		T output = lookupManyCache(id);
+		if (output == null)
+			output = this.f.manyCachedCompute(this.g.manyCachedCompute(input, id), id);
+		
+		addToManyCache(id, output);
+		
+		return output;
+	}
+	
+	@Override
+	public T oneCachedCompute(S input) {
+		initializeOneCache();
+		
+		T output = lookupOneCache();
+		if (output != null)
+			return output;
+		
+		output =  this.f.oneCachedCompute(this.g.oneCachedCompute(input));
+		
+		addToOneCache(output);
+		
+		return output;
+	}
+	
+	@Override
+	public void clearCaches() {
+		super.clearCaches();
+		this.f.clearCaches();
+		this.g.clearCaches();
+	}
+	
+	@Override
 	public T compute(S input) {
 		return this.f.compute(this.g.compute(input));
 	}

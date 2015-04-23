@@ -33,8 +33,11 @@ import org.platanios.learn.optimization.function.AbstractStochasticFunctionUsing
 import ark.data.Context;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelIndicator;
+import ark.data.annotation.nlp.TokenSpan;
 import ark.data.feature.Feature;
+import ark.data.feature.FeatureTokenSpanFnFilteredVocab;
 import ark.data.feature.FeaturizedDataSet;
+import ark.data.feature.fn.Fn;
 import ark.data.feature.rule.RuleSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
 import ark.parse.Assignment;
@@ -109,6 +112,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		// things are reimplement to account for multiple parents for the same feature
 		private Map<Integer, Pair<Integer, Integer>> expandedFeatures; 
 		private FeaturizedDataSet<D, L> arkDataSet;
+		private Map<String, Integer> dataInstanceExtendedVectorSizes;
 		
 		@SuppressWarnings("unchecked")
 		public Likelihood(Random random, FeaturizedDataSet<D, L> arkDataSet) {
@@ -120,6 +124,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			this.random = random;
 			// Features that have had heuristic rules applied mapped to the range of children indices (start-inclusive, end-exclusive)
 			this.expandedFeatures = new HashMap<Integer, Pair<Integer, Integer>>();
+			this.dataInstanceExtendedVectorSizes = new HashMap<String, Integer>();
 		}
 
 		@Override
@@ -171,6 +176,8 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			}
 			
 			for (LabeledDataInstance<Vector, Double> dataInstance : dataBatch) {
+				extendDataInstance(dataInstance);
+				
 				Vector f = dataInstance.features();
 				double r = posteriorForDatum(dataInstance, c_p, c_n);
 				double y = dataInstance.label();
@@ -229,8 +236,10 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				// f in F_0
 				if (wrt_p) {
 					gC_p.put(wrt_fI, 1.0);
+					gC_n.put(wrt_fI, 0.0);
 				} else {
 					gC_n.put(wrt_fI, 1.0);
+					gC_p.put(wrt_fI, 0.0);
 				}
 			} else {
 				// f not in F_0
@@ -242,8 +251,10 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				if (Double.compare(maxValue, 0.0) != 0) {
 					if (wrt_p) {
 						gC_p.put(wrt_fI, maxValue);
+						gC_n.put(wrt_fI, 0.0);
 					} else {
 						gC_n.put(wrt_fI, maxValue);
+						gC_p.put(wrt_fI, 0.0);
 					}
 				}
 			}
@@ -298,6 +309,8 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			Set<Integer> featuresToExpand = getFeaturesToExpand(c_p, c_n);
 			RuleSet<D, L> rules = SupervisedModelLogistmarGramression.this.rules;
 
+			int startVocabularyIndexBeforeExpansion = SupervisedModelLogistmarGramression.this.sizeF_0 + SupervisedModelLogistmarGramression.this.constructedFeatures.getFeatureVocabularySize();
+			int endVocabularyIndex = startVocabularyIndexBeforeExpansion;
 			for (Integer featureToExpand : featuresToExpand) {
 				FeaturizedDataSet<D, L> dataSet = (featureToExpand < SupervisedModelLogistmarGramression.this.sizeF_0) ? this.arkDataSet : SupervisedModelLogistmarGramression.this.constructedFeatures;
 				// Subtract 1 because bias entry
@@ -310,12 +323,19 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				
 				Map<String, Obj> featureChildObjs = rules.applyRules(featureObj, featureStrAssignment);
 				int startVocabularyIndex = SupervisedModelLogistmarGramression.this.sizeF_0 + SupervisedModelLogistmarGramression.this.constructedFeatures.getFeatureVocabularySize();
-				int endVocabularyIndex = startVocabularyIndex;
+				endVocabularyIndex = startVocabularyIndex;
 				for (Entry<String, Obj> entry : featureChildObjs.entrySet()) {
 					Obj.Function featureChildFunction = (Obj.Function)entry.getValue();
-					Feature<D, L> featureChild = this.arkDataSet.getDatumTools().makeFeatureInstance(featureChildFunction.getName(), SupervisedModelLogistmarGramression.this.context);
-					featureChild.fromParse(new ArrayList<String>(), featureObj.getReferenceName() + "_" + featureVocabStr + "_" + entry.getKey(), featureChildFunction); // FIXME Throw exception on return false
-					featureChild.init(this.arkDataSet); // FIXME Throw exception on false
+					FeatureTokenSpanFnFilteredVocab<D, L> featureChild = (FeatureTokenSpanFnFilteredVocab<D, L>)this.arkDataSet.getDatumTools().makeFeatureInstance(featureChildFunction.getName(), SupervisedModelLogistmarGramression.this.context);
+					
+					if (!featureChild.fromParse(new ArrayList<String>(), featureObj.getReferenceName() + "_" + featureVocabStr + "_" + entry.getKey(), featureChildFunction))
+						throw new UnsupportedOperationException(); // FIXME Throw better exception on return false
+					
+					featureChild.setFnCacheMode(Fn.CacheMode.MANY); // Sets fn results to be cached for all training datums
+					
+					if (!featureChild.init(this.arkDataSet))
+						throw new UnsupportedOperationException(); // FIXME Throw better exception
+					
 					if (featureChild.getVocabularySize() == 0)
 						continue;
 					
@@ -332,21 +352,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				}
 				
 				this.expandedFeatures.put(featureToExpand, new Pair<Integer, Integer>(startVocabularyIndex, endVocabularyIndex));
-				
-				if (endVocabularyIndex != startVocabularyIndex) {
-					for (LabeledDataInstance<Vector, Double> datum : this.dataSet) {
-						D arkDatum = this.arkDataSet.getDatumById(Integer.valueOf(datum.name()));
-						
-						Vector extendedDatumValues = SupervisedModelLogistmarGramression.this.
-							constructedFeatures.computeFeatureVocabularyRange(arkDatum, 
-																			  startVocabularyIndex - SupervisedModelLogistmarGramression.this.sizeF_0, 
-																			  endVocabularyIndex - SupervisedModelLogistmarGramression.this.sizeF_0);
-						
-						datum.features().set(startVocabularyIndex, endVocabularyIndex - 1, extendedDatumValues);
-					}
-				}
 			}
-			
 		}
 		
 		private Set<Integer> getFeaturesToExpand(Vector c_p, Vector c_n) {
@@ -363,6 +369,30 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			}
 			
 			return featuresToExpand;
+		}
+		
+		private void extendDataInstance(LabeledDataInstance<Vector, Double> dataInstance) {
+			FeaturizedDataSet<D, L> constructedFeatures = SupervisedModelLogistmarGramression.this.constructedFeatures;
+			if (constructedFeatures.getFeatureVocabularySize() == 0)
+				return;
+			if (this.dataInstanceExtendedVectorSizes.containsKey(dataInstance.name()) &&
+					this.dataInstanceExtendedVectorSizes.get(dataInstance.name()) == constructedFeatures.getFeatureVocabularySize())
+				return;
+			
+			int dataInstanceExtendedVectorSize = (this.dataInstanceExtendedVectorSizes.containsKey(dataInstance.name())) ? 
+													this.dataInstanceExtendedVectorSizes.get(dataInstance.name()) : 0;
+													
+			int sizeF_0 = SupervisedModelLogistmarGramression.this.sizeF_0;
+			D arkDatum = this.arkDataSet.getDatumById(Integer.valueOf(dataInstance.name()));
+			
+			Vector extendedDatumValues = constructedFeatures.computeFeatureVocabularyRange(arkDatum, 
+					  dataInstanceExtendedVectorSize, 
+					  constructedFeatures.getFeatureVocabularySize());
+
+			dataInstance.features().set(sizeF_0 + dataInstanceExtendedVectorSize, 
+										sizeF_0 + constructedFeatures.getFeatureVocabularySize() - 1, extendedDatumValues);
+			
+			this.dataInstanceExtendedVectorSizes.put(dataInstance.name(), constructedFeatures.getFeatureVocabularySize());
 		}
 	}
 	
@@ -516,6 +546,12 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			nonZeroWeightIndices.add(e_n.index() - 1);
 		}
 		
+		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
+			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
+			feature.clearFnCaches();
+			feature.setFnCacheMode(Fn.CacheMode.NONE);
+		}
+		
 		this.nonZeroFeatureNamesF_0 = data.getFeatureVocabularyNamesForIndices(nonZeroWeightIndices);
 		
 		output.debugWriteln("Logistmar gramression (" + data.getName() + ") finished training."); 
@@ -539,7 +575,18 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		Pair<Vector, Vector> uPosNeg = splitPosNeg(this.u);
 		Pair<Vector, Vector> cPosNeg = c(uPosNeg.getFirst(), uPosNeg.getSecond());
 		
+		Set<Fn<List<TokenSpan>, List<String>>> fns = new HashSet<Fn<List<TokenSpan>, List<String>>>();
+		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
+			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
+			feature.clearFnCaches();
+			feature.setFnCacheMode(Fn.CacheMode.ONE);
+			fns.add(feature.getFn());
+		}
+		
 		for (PredictedDataInstance<Vector, Double> plataniosDatum : plataniosData) {
+			for (Fn<List<TokenSpan>, List<String>> fn : fns)
+				fn.clearCaches();
+			
 			int datumId = Integer.parseInt(plataniosDatum.name());
 			D datum = data.getDatumById(datumId);
 			Vector constructedF = this.constructedFeatures.computeFeatureVocabularyRange(datum, 0, this.constructedFeatures.getFeatureVocabularySize());
@@ -556,6 +603,12 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			posterior.put((L)(new Boolean(false)), 1.0-p);
 			
 			posteriors.put(datum, posterior);
+		}
+		
+		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
+			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
+			feature.clearFnCaches();
+			feature.setFnCacheMode(Fn.CacheMode.NONE);
 		}
 
 		return posteriors;
@@ -577,7 +630,18 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		Pair<Vector, Vector> uPosNeg = splitPosNeg(this.u);
 		Pair<Vector, Vector> cPosNeg = c(uPosNeg.getFirst(), uPosNeg.getSecond());
 		
+		Set<Fn<List<TokenSpan>, List<String>>> fns = new HashSet<Fn<List<TokenSpan>, List<String>>>();
+		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
+			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
+			feature.clearFnCaches();
+			feature.setFnCacheMode(Fn.CacheMode.ONE);
+			fns.add(feature.getFn());
+		}
+		
 		for (PredictedDataInstance<Vector, Double> plataniosDatum : plataniosData) {
+			for (Fn<List<TokenSpan>, List<String>> fn : fns)
+				fn.clearCaches();
+			
 			int datumId = Integer.parseInt(plataniosDatum.name());
 			D datum = data.getDatumById(datumId);
 			
@@ -587,7 +651,8 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			}
 			
 			Vector constructedF = this.constructedFeatures.computeFeatureVocabularyRange(datum, 0, this.constructedFeatures.getFeatureVocabularySize());
-			plataniosDatum.features().set(this.sizeF_0, this.sizeF_0 + this.constructedFeatures.getFeatureVocabularySize() - 1, constructedF);
+			if (this.constructedFeatures.getFeatureVocabularySize() != 0)
+				plataniosDatum.features().set(this.sizeF_0, this.sizeF_0 + this.constructedFeatures.getFeatureVocabularySize() - 1, constructedF);
 			double p = posteriorForDatum(plataniosDatum, cPosNeg.getFirst(), cPosNeg.getSecond());
 			
 			if (p >= this.classificationThreshold)
@@ -596,6 +661,11 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				predictions.put(datum, false);
 		}
 		
+		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
+			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
+			feature.clearFnCaches();
+			feature.setFnCacheMode(Fn.CacheMode.NONE);
+		}
 		
 		return (Map<D, L>)predictions;
 	}

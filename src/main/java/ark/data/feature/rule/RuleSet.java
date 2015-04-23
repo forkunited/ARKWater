@@ -49,7 +49,7 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 			AssignmentTyped assignment = (AssignmentTyped)internalAssignments.get(i);
 			if (assignment.getType().equals(RULE_STR)) {
 				Obj.Rule rule = (Obj.Rule)assignment.getValue().clone();
-				rule.resolveValues(contextMap);
+				rule.getSource().resolveValues(contextMap);
 				this.rules.put(assignment.getName(), rule);
 			}
 		}
@@ -138,9 +138,7 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 				
 				Obj target = rule.getTarget().clone();
 				
-				if (!target.resolveValues(matches)) {
-					return null; // FIXME throw exception.
-				}
+				target.resolveValues(matches);
 			
 				objs.put(ruleName, target);
 			}

@@ -416,7 +416,7 @@ public class GridSearch<D extends Datum<L>, L> extends ARKParsableFunction {
 		
 		public PositionThread(GridPosition position) {
 			this.position = position;
-			this.context = GridSearch.this.context.clone();
+			this.context = GridSearch.this.context.clone(false);
 			
 			for (Entry<String, Obj> entry : this.position.getCoordinates().entrySet())
 				this.context.addValue(entry.getKey(), this.context.getMatchValue(entry.getValue()));

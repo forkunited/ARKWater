@@ -69,7 +69,7 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 	 * @return a sparse mapping from vector indices to values of the feature
 	 * for the given datum.
 	 */
-	public abstract Map<Integer, Double> computeVector(D datum);
+	public abstract Map<Integer, Double> computeVector(D datum, int offset, Map<Integer, Double> vector);
 	
 	/**
 	 * @return the length of the vector computed by this feature for each
@@ -99,6 +99,8 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 	
 	protected abstract <T extends Datum<Boolean>> Feature<T, Boolean> makeBinaryHelper(Context<T, Boolean> context, LabelIndicator<L> labelIndicator, Feature<T, Boolean> binaryFeature);
 	
+	protected abstract boolean cloneHelper(Feature<D, L> clone);
+	
 	protected abstract boolean fromParseInternalHelper(AssignmentList internalAssignments);
 	
 	protected abstract AssignmentList toParseInternalHelper(AssignmentList internalAssignments);
@@ -109,6 +111,11 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 	 */
 	public abstract Feature<D, L> makeInstance(Context<D, L> context);
 	
+	
+	public Map<Integer, Double> computeVector(D datum) {
+		return computeVector(datum, 0, new HashMap<Integer, Double>());
+	}
+	
 	/**
 	 * @return true if this feature should be ignored by models (it is only used for the
 	 * computation of other features)
@@ -117,11 +124,11 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 		return this.getModifiers().contains("ignored");
 	}
 	
-	public Map<Integer, String> getSpecificShortNamesForIndices(Iterable<Integer> indices) {
+	public Map<Integer, String> getSpecificShortNamesForIndices(Iterable<Integer> indices, int offset, Map<Integer, String> specificShortNames) {
 		String prefix = getReferenceName() + "_";
-		Map<Integer, String> specificShortNames = new HashMap<Integer, String>();
+		
 		for (Integer index : indices) {
-			specificShortNames.put(index, prefix + getVocabularyTerm(index));
+			specificShortNames.put(index + offset, prefix + getVocabularyTerm(index));
 		}
 		
 		return specificShortNames;
@@ -136,10 +143,9 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 		return vocabulary;
 	}
 	
-	public List<String> getSpecificShortNames() {
+	public List<String> getSpecificShortNames(List<String> specificShortNames) {
 		String prefix = getReferenceName() + "_";
 		int vocabularySize = getVocabularySize();
-		List<String> specificShortNames = new ArrayList<String>(vocabularySize);
 		for (int i = 0; i < vocabularySize; i++) {
 			String vocabularyTerm = getVocabularyTerm(i);
 			specificShortNames.add(prefix + ((vocabularyTerm == null) ? "" : vocabularyTerm));
@@ -148,10 +154,24 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 		return specificShortNames;
 	}
 	
-	public Feature<D, L> clone() {
+	public Feature<D, L> clone(boolean cloneInternal) {
 		Feature<D, L> clone = this.context.getDatumTools().makeFeatureInstance(getGenericName(), this.context);
-		if (!clone.fromParse(getModifiers(), getReferenceName(), toParse()))
-			return null;
+		
+		if (cloneInternal) {
+			if (!clone.fromParse(getModifiers(), getReferenceName(), toParse()))
+				return null;
+		} else {
+			clone.referenceName = this.referenceName;
+			clone.modifiers = this.modifiers;
+			
+			String[] parameterNames = getParameterNames();
+			for (int i = 0; i < parameterNames.length; i++)
+				clone.setParameterValue(parameterNames[i], getParameterValue(parameterNames[i]));
+			
+			if (!cloneHelper(clone))
+				return null;
+		}
+		
 		return clone;
 	}
 	

@@ -13,10 +13,10 @@ public class FnAffix extends Fn<List<String>, List<String>> {
 		PREFIX
 	}
 	
+	private Context<?, ?> context;
 	private Type type = Type.SUFFIX;
 	private int n = 3;
 	private String[] parameterNames = { "type", "n" };
-	private Context<?, ?> context;
 	
 	public FnAffix() {
 		

@@ -46,9 +46,9 @@ import ark.data.feature.FeatureNGramSentence;
 import ark.data.feature.FeatureNGramPoS;
 import ark.data.feature.FeatureStringForm;
 import ark.data.feature.FeatureTokenCount;
-import ark.data.feature.FeatureTokenSpanFnDataFilteredVocab;
 import ark.data.feature.FeatureTokenSpanFnDataVocab;
 import ark.data.feature.FeatureTokenSpanFnDataVocabTrie;
+import ark.data.feature.FeatureTokenSpanFnFilteredVocab;
 import ark.data.feature.fn.Fn;
 import ark.data.feature.fn.FnAffix;
 import ark.data.feature.fn.FnComposite;
@@ -268,7 +268,7 @@ public abstract class Datum<L> {
 			addGenericFeature(new FeatureStringForm<D, L>());
 			addGenericFeature(new FeatureGramCluster<D, L>());
 			addGenericFeature(new FeatureTokenSpanFnDataVocab<D, L>());
-			addGenericFeature(new FeatureTokenSpanFnDataFilteredVocab<D, L>());
+			addGenericFeature(new FeatureTokenSpanFnFilteredVocab<D, L>());
 			addGenericFeature(new FeatureTokenSpanFnDataVocabTrie<D, L>());
 			
 			addGenericModel(new SupervisedModelCreg<D, L>());

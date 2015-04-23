@@ -1,7 +1,6 @@
 package ark.data.feature;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -53,14 +52,13 @@ public class FeatureStringForm<D extends Datum<L>, L> extends Feature<D, L> {
 	
 	
 	@Override
-	public Map<Integer, Double> computeVector(D datum) {
+	public Map<Integer, Double> computeVector(D datum, int offset, Map<Integer, Double> vector) {
 		List<String> forms = computeForms(datum);
-		Map<Integer, Double> vector = new HashMap<Integer, Double>();
 		
 		for (String form : forms) {
 			if (!this.vocabulary.containsKey(form))
 				continue;
-			vector.put(this.vocabulary.get(form), 1.0);
+			vector.put(this.vocabulary.get(form) + offset, 1.0);
 		}
 		
 		return vector;
@@ -182,5 +180,11 @@ public class FeatureStringForm<D extends Datum<L>, L> extends Feature<D, L> {
 			AssignmentList internalAssignments) {
 		return internalAssignments;
 	}	
-
+	
+	@Override
+	protected boolean cloneHelper(Feature<D, L> clone) {
+		FeatureStringForm<D, L> cloneStrForm = (FeatureStringForm<D, L>)clone;
+		cloneStrForm.vocabulary = this.vocabulary;
+		return true;
+	}
 }

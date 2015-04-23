@@ -18,7 +18,6 @@
 
 package ark.data.feature;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -64,12 +63,11 @@ public class FeatureIdentity<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public Map<Integer, Double> computeVector(D datum) {
+	public Map<Integer, Double> computeVector(D datum, int offset, Map<Integer, Double> vector) {
 		double[] values = this.doubleExtractor.extract(datum);
-		Map<Integer, Double> vector = new HashMap<Integer, Double>();
 		for (int i = 0; i < this.vocabularySize; i++)
 			if (values[i] != 0)
-				vector.put(i, values[i]);
+				vector.put(i + offset, values[i]);
 		return vector;
 	}
 
@@ -139,5 +137,8 @@ public class FeatureIdentity<D extends Datum<L>, L> extends Feature<D, L> {
 		return internalAssignments;
 	}
 	
-	
+	@Override
+	protected boolean cloneHelper(Feature<D, L> clone) {
+		return true;
+	}
 }

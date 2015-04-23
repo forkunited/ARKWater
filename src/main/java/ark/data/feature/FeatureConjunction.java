@@ -83,12 +83,11 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	}
 
 	@Override
-	public Map<Integer, Double> computeVector(D datum) {
+	public Map<Integer, Double> computeVector(D datum, int offset, Map<Integer, Double> vector) {
 		Map<String, Double> unfilteredConjunction = conjunctionForDatum(datum);
-		Map<Integer, Double> vector = new HashMap<Integer, Double>();
 		for (Entry<String, Double> entry : unfilteredConjunction.entrySet()) {
 			if (this.vocabulary.containsKey(entry.getKey()))
-				vector.put(this.vocabulary.get(entry.getKey()), entry.getValue());
+				vector.put(this.vocabulary.get(entry.getKey()) + offset, entry.getValue());
 		}
 		
 		return vector;
@@ -99,7 +98,7 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 		conjunction.put("", 1.0);
 		for (int i = 0; i < this.featureReferences.length; i++) {
 			Feature<D, L> feature = this.dataSet.getFeatureByReferenceName(this.featureReferences[i]);
-			Map<Integer, Double> values = feature.computeVector(datum);
+			Map<Integer, Double> values = feature.computeVector(datum, 0, new HashMap<Integer, Double>());
 			Map<Integer, String> vocab = feature.getVocabularyForIndices(values.keySet());
 			Map<String, Double> nextConjunction = new HashMap<String, Double>();
 			
@@ -196,5 +195,12 @@ public class FeatureConjunction<D extends Datum<L>, L> extends Feature<D, L> {
 	protected AssignmentList toParseInternalHelper(
 			AssignmentList internalAssignments) {
 		return internalAssignments;
+	}
+
+	@Override
+	protected boolean cloneHelper(Feature<D, L> clone) {
+		FeatureConjunction<D, L> cloneConj = (FeatureConjunction<D, L>)clone;
+		cloneConj.vocabulary = this.vocabulary;
+		return true;
 	}
 }
