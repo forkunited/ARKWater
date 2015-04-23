@@ -187,7 +187,7 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	}
 	
 	public Feature<D, L> getFeature(int index) {
-		return this.features.get(index);
+		return this.featureList.get(index);
 	}
 	
 	public List<Feature<D, L>> getFeatures() {
