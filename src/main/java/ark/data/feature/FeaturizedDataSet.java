@@ -32,6 +32,7 @@ import org.platanios.learn.data.DataSetInMemory;
 import org.platanios.learn.data.PredictedDataInstance;
 import org.platanios.learn.math.matrix.SparseVector;
 import org.platanios.learn.math.matrix.Vector;
+import org.platanios.learn.math.matrix.Vector.VectorElement;
 
 import ark.data.Context;
 import ark.data.annotation.DataSet;
@@ -249,17 +250,22 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 	}
 	
 	public Map<Integer, Double> getFeatureVocabularyValuesAsMap(D datum) {
-		// FIXME Make this faster.
+		return getFeatureVocabularyValuesAsMap(datum, true);
+	}
+	
+	public Map<Integer, Double> getFeatureVocabularyValuesAsMap(D datum, boolean cacheValues) {
 		Map<Integer, Double> map = new HashMap<Integer, Double>();
-		Vector vector = getFeatureVocabularyValues(datum);
-		double[] denseArray = vector.getDenseArray();
-		for (int i = 0; i < denseArray.length; i++)
-			if (denseArray[i] > 0)
-				map.put(i, denseArray[i]);
+		Vector vector = getFeatureVocabularyValues(datum, cacheValues);
+		for (VectorElement vectorElement : vector)
+			map.put(vectorElement.index(), vectorElement.value());
 		return map;
 	}
 	
 	public Vector getFeatureVocabularyValues(D datum) {
+		return getFeatureVocabularyValues(datum, true);
+	}
+	
+	public Vector getFeatureVocabularyValues(D datum, boolean cacheValues) {
 		if (!this.data.containsKey(datum.getId()))
 			return null;
 		if (this.featureVocabularyValues.containsKey(datum.getId()))
@@ -272,7 +278,8 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 		
 		Vector vector = new SparseVector(getFeatureVocabularySize(), values);
 		
-		this.featureVocabularyValues.put(datum.getId(), vector);
+		if (cacheValues)
+			this.featureVocabularyValues.put(datum.getId(), vector);
 		
 		return vector;
 	}
@@ -385,13 +392,14 @@ public class FeaturizedDataSet<D extends Datum<L>, L> extends DataSet<D, L> {
 				public PredictedDataInstance<Vector, Double> apply(D datum) {
 					Vector vector = null;
 					if (infiniteVectorsWithBias) {
-						vector = new SparseVector(Integer.MAX_VALUE);
-						Map<Integer, Double> features = getFeatureVocabularyValuesAsMap(datum);
-						vector.set(0, 1.0);
-						for (Entry<Integer, Double> entry : features.entrySet())
-							vector.set(entry.getKey(), entry.getValue());
+						Vector features = getFeatureVocabularyValues(datum, false);
+						Map<Integer, Double> vectorMap = new HashMap<Integer, Double>();
+						vectorMap.put(0, 1.0);
+						for (VectorElement featureElement : features)
+							vectorMap.put(featureElement.index() + 1, featureElement.value());
+						vector = new SparseVector(Integer.MAX_VALUE, vectorMap);
 					} else {
-						vector =  getFeatureVocabularyValues(datum);
+						vector = getFeatureVocabularyValues(datum, false);
 					}
 					
 					Double label = null;

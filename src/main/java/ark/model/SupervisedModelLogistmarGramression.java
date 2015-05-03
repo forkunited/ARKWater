@@ -27,16 +27,15 @@ import org.platanios.learn.math.matrix.Vector.VectorElement;
 import org.platanios.learn.math.matrix.VectorNorm;
 import org.platanios.learn.optimization.AdaptiveGradientSolver;
 import org.platanios.learn.optimization.StochasticSolverStepSize;
-import org.platanios.learn.optimization.function.AbstractStochasticFunction;
 import org.platanios.learn.optimization.function.AbstractStochasticFunctionUsingDataSet;
 
 import ark.data.Context;
 import ark.data.annotation.Datum;
 import ark.data.annotation.Datum.Tools.LabelIndicator;
-import ark.data.annotation.nlp.TokenSpan;
 import ark.data.feature.Feature;
 import ark.data.feature.FeatureTokenSpanFnFilteredVocab;
 import ark.data.feature.FeaturizedDataSet;
+import ark.data.feature.FilteredVocabFeatureSet;
 import ark.data.feature.fn.Fn;
 import ark.data.feature.rule.RuleSet;
 import ark.model.evaluation.metric.SupervisedModelEvaluation;
@@ -63,56 +62,16 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 	
 	private Vector u;
 	private Map<Integer, String> nonZeroFeatureNamesF_0;
-	private Map<Integer, Integer> childToParentFeatureMap; // FIXME This should map to a list of integers to make it so that child can have multiple parents
-	private FeaturizedDataSet<D, L> constructedFeatures; // Features constructed through heuristic rules
+	private List<String> featureNamesConstructed;
+	private Map<Integer, List<Integer>> childToParentFeatureMap; 
+	private FilteredVocabFeatureSet<D, L> constructedFeatures; // Features constructed through heuristic rules
 	private int sizeF_0;
-
-	protected static class NonNegativeAdaptiveGradientSolver extends AdaptiveGradientSolver {
-		protected static abstract class AbstractBuilder<T extends AbstractBuilder<T>> extends AdaptiveGradientSolver.AbstractBuilder<T> {
-			public AbstractBuilder(AbstractStochasticFunction objective, Vector initialPoint) {
-				super(objective, initialPoint);
-			}
-
-			public NonNegativeAdaptiveGradientSolver build() {
-				return new NonNegativeAdaptiveGradientSolver(this);
-			}
-		}
-	
-		public static class Builder extends AbstractBuilder<Builder> {
-			public Builder(AbstractStochasticFunction objective, Vector initialPoint) {
-				super(objective, initialPoint);
-			}
-	
-			 @Override
-			 protected Builder self() {
-				 return this;
-			 }
-		}
-	
-		private NonNegativeAdaptiveGradientSolver(AbstractBuilder<?> builder) {
-			super(builder);
-		}
-		
-		@Override
-		public void updatePoint() {
-			super.updatePoint();
-			List<Integer> negativeIndices = new ArrayList<Integer>();
-			for (VectorElement element : currentPoint) {
-				if (Double.compare(element.value(), 0.0) < 0)
-					negativeIndices.add(element.index());
-			}
-			
-			for (Integer negativeIndex : negativeIndices)
-				currentPoint.set(negativeIndex, 0.0);
-		}
-	}
 	
 	protected class Likelihood extends AbstractStochasticFunctionUsingDataSet<LabeledDataInstance<Vector, Double>> {
-		// FIXME this will need to map to a list instead of a range when
-		// things are reimplement to account for multiple parents for the same feature
-		private Map<Integer, Pair<Integer, Integer>> expandedFeatures; 
+		private Map<Integer, List<Integer>> expandedFeatures; 
 		private FeaturizedDataSet<D, L> arkDataSet;
 		private Map<String, Integer> dataInstanceExtendedVectorSizes;
+		private Map<String, Integer> featureNames;
 		
 		@SuppressWarnings("unchecked")
 		public Likelihood(Random random, FeaturizedDataSet<D, L> arkDataSet) {
@@ -123,8 +82,13 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			
 			this.random = random;
 			// Features that have had heuristic rules applied mapped to the range of children indices (start-inclusive, end-exclusive)
-			this.expandedFeatures = new HashMap<Integer, Pair<Integer, Integer>>();
+			this.expandedFeatures = new HashMap<Integer, List<Integer>>();
 			this.dataInstanceExtendedVectorSizes = new HashMap<String, Integer>();
+			
+			this.featureNames = new HashMap<String, Integer>();
+			List<String> featureNameList = this.arkDataSet.getFeatureVocabularyNames();
+			for (int i = 0; i < featureNameList.size(); i++)
+				this.featureNames.put(featureNameList.get(i), i + 1); // Add one for bias
 		}
 
 		@Override
@@ -186,6 +150,9 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 					if (!this.expandedFeatures.containsKey(e_f.index())) {
 						if (!mapG_n.containsKey(e_f.index())) {
 							mapG_n.put(e_f.index(), 0.0);
+						}
+						
+						if (!mapG_p.containsKey(e_f.index())) {
 							mapG_p.put(e_f.index(), 0.0);
 						}
 						
@@ -202,6 +169,9 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				
 					if (!mapG_n.containsKey(expandedFeatureIndex)) {
 						mapG_n.put(expandedFeatureIndex, 0.0);
+					}
+					
+					if (!mapG_p.containsKey(expandedFeatureIndex)) {
 						mapG_p.put(expandedFeatureIndex, 0.0);
 					}
 
@@ -213,20 +183,6 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			return joinPosNeg(new SparseVector(Integer.MAX_VALUE, mapG_p), new SparseVector(Integer.MAX_VALUE, mapG_n));
 		}
 		
-		/*
-		 * Compute gradients for elements of c. 
-		 * 
-		 * FIXME: Note that the current implementation of this function assumes that
-		 * the all parents of a feature with index i have indices smaller than i.
-		 * This will be true for heuristics where each feature has a single parent,
-		 * which is true for most of the heuristics we currently consider.  The only
-		 * current exception is the n to n+1 gram heuristic which filters by subspan
-		 * (which can go something like "dog -> the dog -> the dog barks" and also
-		 * "dog -> dog barks -> the dog barks", but we currently treat "the dog barks"
-		 * resulting from two separate heuristic paths as two separate features.
-		 * This can be improved in the future by reimplementing the computation of
-		 * gC to take account of multiple paths to the same feature.
-		 */
 		private Pair<Vector, Vector> gC(int wrt_fI, boolean wrt_p, Vector c_p, Vector c_n, Vector u_p, Vector u_n) {
 			Map<Integer, Double> gC_p = new HashMap<Integer, Double>();
 			Map<Integer, Double> gC_n = new HashMap<Integer, Double>();
@@ -243,11 +199,13 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				}
 			} else {
 				// f not in F_0
-				Integer parentFeatureIndex = SupervisedModelLogistmarGramression.this.childToParentFeatureMap.get(wrt_fI);
+				List<Integer> parentFeatureIndices = SupervisedModelLogistmarGramression.this.childToParentFeatureMap.get(wrt_fI);
 				double maxValue = 0.0;
-				maxValue = Math.max(maxValue, c_p.get(parentFeatureIndex) - SupervisedModelLogistmarGramression.this.t);
-				maxValue = Math.max(maxValue, c_n.get(parentFeatureIndex) - SupervisedModelLogistmarGramression.this.t);
-	
+				for (Integer parentFeatureIndex : parentFeatureIndices) {
+					maxValue = Math.max(maxValue, c_p.get(parentFeatureIndex) - SupervisedModelLogistmarGramression.this.t);
+					maxValue = Math.max(maxValue, c_n.get(parentFeatureIndex) - SupervisedModelLogistmarGramression.this.t);
+				}
+				
 				if (Double.compare(maxValue, 0.0) != 0) {
 					if (wrt_p) {
 						gC_p.put(wrt_fI, maxValue);
@@ -261,18 +219,41 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			
 			// f != f', f\in H^*(f')
 			Queue<Integer> toVisit = new LinkedList<Integer>();
-			Pair<Integer, Integer> childRange = this.expandedFeatures.get(wrt_fI);
-			for (int i = childRange.getFirst(); i < childRange.getSecond(); i++)
-				toVisit.add(i);
+			if (this.expandedFeatures.containsKey(wrt_fI))
+				toVisit.addAll(this.expandedFeatures.get(wrt_fI));
 			
 			while (!toVisit.isEmpty()) {
 				Integer next_fI = toVisit.remove();
 				
-				Integer parentFeatureIndex = SupervisedModelLogistmarGramression.this.childToParentFeatureMap.get(next_fI);
-				double maxValue = 0.0;
-				int maxParentFeatureIndex = -1;
-				boolean maxP = true;
-				
+				gCHelper(next_fI, wrt_fI, wrt_p, c_p, c_n, u_p, u_n, gC_p, gC_n);
+	
+				if (this.expandedFeatures.containsKey(next_fI)) {
+					toVisit.addAll(this.expandedFeatures.get(next_fI));
+				}
+			}
+			
+			return new Pair<Vector, Vector>(new SparseVector(Integer.MAX_VALUE, gC_p), new SparseVector(Integer.MAX_VALUE, gC_n));
+		}
+
+		private void gCHelper(int fI, int wrt_fI, boolean wrt_p, Vector c_p, Vector c_n, Vector u_p, Vector u_n, Map<Integer, Double> gC_p, Map<Integer, Double> gC_n) {
+			int sizeF_0 = SupervisedModelLogistmarGramression.this.sizeF_0;
+			if (fI < sizeF_0)
+				return;
+			if (gC_p.containsKey(fI) || gC_n.containsKey(fI))
+				return;
+			
+			double u_p_i = u_p.get(fI);
+			double u_n_i = u_n.get(fI);
+			
+			if (Double.compare(u_p_i, 0.0) == 0 && Double.compare(u_n_i, 0.0) == 0)
+				return;
+			
+			List<Integer> parentFeatureIndices = SupervisedModelLogistmarGramression.this.childToParentFeatureMap.get(fI);
+			double maxValue = 0.0;
+			int maxParentFeatureIndex = -1;
+			boolean maxP = true;
+
+			for (Integer parentFeatureIndex : parentFeatureIndices) {
 				double value_p = c_p.get(parentFeatureIndex) - SupervisedModelLogistmarGramression.this.t;
 				if (value_p > maxValue) {
 					maxValue = value_p;
@@ -286,73 +267,123 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 					maxParentFeatureIndex = parentFeatureIndex;
 					maxP = false;
 				}
-				
-				if (maxParentFeatureIndex >= 0) {
-					double parentDerivative = (maxP) ? gC_p.get(maxParentFeatureIndex) : gC_n.get(maxParentFeatureIndex);
-					gC_p.put(next_fI, u_p.get(next_fI)*parentDerivative);
-					gC_n.put(next_fI, u_n.get(next_fI)*parentDerivative);
-				}
-				
-				if (this.expandedFeatures.containsKey(next_fI)) {
-					childRange = this.expandedFeatures.get(next_fI);
-					for (int i = childRange.getFirst(); i < childRange.getSecond(); i++)
-						toVisit.add(i);
-				}
 			}
 			
-			return new Pair<Vector, Vector>(new SparseVector(Integer.MAX_VALUE, gC_p), new SparseVector(Integer.MAX_VALUE, gC_n));
+			if (maxParentFeatureIndex >= 0) {
+				gCHelper(maxParentFeatureIndex, wrt_fI, wrt_p, c_p, c_n, u_p, u_n, gC_p, gC_n);
+				
+				double parentDerivative = 0.0;
+				if (maxP && gC_p.containsKey(maxParentFeatureIndex)) {
+					parentDerivative = gC_p.get(maxParentFeatureIndex);
+				} else if (gC_n.containsKey(maxParentFeatureIndex)) {
+					parentDerivative = gC_n.get(maxParentFeatureIndex);
+				}
+				
+				if (Double.compare(parentDerivative, 0.0) != 0) {
+					gC_p.put(fI, u_p_i*parentDerivative);
+					gC_n.put(fI, u_n_i*parentDerivative);
+				}
+			}
 		}
 		
-		// FIXME This should eventually include a mechanism for detecting duplicate features expanded
-		// through multiple heuristic paths
 		private void extendDataSet(Vector c_p, Vector c_n) {
 			Set<Integer> featuresToExpand = getFeaturesToExpand(c_p, c_n);
 			RuleSet<D, L> rules = SupervisedModelLogistmarGramression.this.rules;
-
-			int startVocabularyIndexBeforeExpansion = SupervisedModelLogistmarGramression.this.sizeF_0 + SupervisedModelLogistmarGramression.this.constructedFeatures.getFeatureVocabularySize();
+			int sizeF_0 = SupervisedModelLogistmarGramression.this.sizeF_0;
+			FilteredVocabFeatureSet<D, L> constructedFeatures = SupervisedModelLogistmarGramression.this.constructedFeatures;
+			Map<Integer, List<Integer>> childToParentFeatureMap = SupervisedModelLogistmarGramression.this.childToParentFeatureMap;
+			
+			int startVocabularyIndexBeforeExpansion = sizeF_0 + constructedFeatures.getFeatureVocabularySize();
 			int endVocabularyIndex = startVocabularyIndexBeforeExpansion;
 			for (Integer featureToExpand : featuresToExpand) {
-				FeaturizedDataSet<D, L> dataSet = (featureToExpand < SupervisedModelLogistmarGramression.this.sizeF_0) ? this.arkDataSet : SupervisedModelLogistmarGramression.this.constructedFeatures;
-				// Subtract 1 because bias entry
-				int dataSetIndex = (featureToExpand < SupervisedModelLogistmarGramression.this.sizeF_0) ? featureToExpand - 1 : featureToExpand - SupervisedModelLogistmarGramression.this.sizeF_0;
-				int featureStartIndex = dataSet.getFeatureStartVocabularyIndex(dataSetIndex);
-				Feature<D, L> featureObj = dataSet.getFeatureByVocabularyIndex(dataSetIndex); 
-				String featureVocabStr = featureObj.getVocabularyTerm(dataSetIndex - featureStartIndex);
-				Map<String, Obj> featureStrAssignment = new TreeMap<String, Obj>();
-				featureStrAssignment.put("FEATURE_STR", Obj.stringValue(featureVocabStr));
+				this.expandedFeatures.put(featureToExpand, new LinkedList<Integer>());
 				
-				Map<String, Obj> featureChildObjs = rules.applyRules(featureObj, featureStrAssignment);
-				int startVocabularyIndex = SupervisedModelLogistmarGramression.this.sizeF_0 + SupervisedModelLogistmarGramression.this.constructedFeatures.getFeatureVocabularySize();
+				int dataSetIndex = 0;
+				Feature<D, L> featureObj = null;
+				int featureStartIndex = 0;
+				if (featureToExpand < sizeF_0) {
+					dataSetIndex = featureToExpand - 1;
+					featureObj = this.arkDataSet.getFeatureByVocabularyIndex(dataSetIndex);
+					featureStartIndex = this.arkDataSet.getFeatureStartVocabularyIndex(dataSetIndex);
+				} else {
+					dataSetIndex = featureToExpand - sizeF_0;
+					featureObj = constructedFeatures.getFeatureByVocabularyIndex(dataSetIndex);
+					featureStartIndex = constructedFeatures.getFeatureStartVocabularyIndex(dataSetIndex);
+				}
+				
+				String featureVocabStr = featureObj.getVocabularyTerm(dataSetIndex - featureStartIndex);
+				
+				Map<String, Obj> featureStrAssignments = new TreeMap<String, Obj>();
+				featureStrAssignments.put("SRC_FEATURE", Obj.stringValue(featureObj.getReferenceName()));
+				featureStrAssignments.put("SRC_TERM", Obj.stringValue(featureVocabStr));
+				featureStrAssignments.put("SRC_FEATURE_TERM", Obj.stringValue(featureObj.getReferenceName() + "_" + featureVocabStr));
+				
+				Map<String, Obj> featureChildObjs = rules.applyRules(featureObj, featureStrAssignments);
+				int startVocabularyIndex = sizeF_0 + constructedFeatures.getFeatureVocabularySize();
 				endVocabularyIndex = startVocabularyIndex;
 				for (Entry<String, Obj> entry : featureChildObjs.entrySet()) {
 					Obj.Function featureChildFunction = (Obj.Function)entry.getValue();
 					FeatureTokenSpanFnFilteredVocab<D, L> featureChild = (FeatureTokenSpanFnFilteredVocab<D, L>)this.arkDataSet.getDatumTools().makeFeatureInstance(featureChildFunction.getName(), SupervisedModelLogistmarGramression.this.context);
 					
-					if (!featureChild.fromParse(new ArrayList<String>(), featureObj.getReferenceName() + "_" + featureVocabStr + "_" + entry.getKey(), featureChildFunction))
+					if (!featureChild.fromParse(new ArrayList<String>(), null, featureChildFunction))
 						throw new UnsupportedOperationException(); // FIXME Throw better exception on return false
 					
-					featureChild.setFnCacheMode(Fn.CacheMode.MANY); // Sets fn results to be cached for all training datums
+					featureChild.setFnCacheMode(Fn.CacheMode.ON); // Sets fn results to be cached for all training datums
 					
 					if (!featureChild.init(this.arkDataSet))
 						throw new UnsupportedOperationException(); // FIXME Throw better exception
 					
+					List<String> featureChildNames = featureChild.getSpecificShortNames(new ArrayList<String>());
+					Set<Integer> featureChildIndicesToRemove = new HashSet<Integer>();
+					for (int i = 0; i < featureChildNames.size(); i++) {
+						String featureChildName = featureChildNames.get(i);
+						if (this.featureNames.containsKey(featureChildName)) {
+							featureChildIndicesToRemove.add(i);
+							int existingFeatureIndex = this.featureNames.get(featureChildName);
+							if (existingFeatureIndex >= sizeF_0 && !pathExists(existingFeatureIndex, featureToExpand)) {
+								this.expandedFeatures.get(featureToExpand).add(existingFeatureIndex);
+								childToParentFeatureMap.get(existingFeatureIndex).add(featureToExpand);
+							}
+						} else {
+							this.expandedFeatures.get(featureToExpand).add(endVocabularyIndex);
+							if (!childToParentFeatureMap.containsKey(endVocabularyIndex))
+								childToParentFeatureMap.put(endVocabularyIndex, new LinkedList<Integer>());
+							childToParentFeatureMap.get(endVocabularyIndex).add(featureToExpand);
+							this.featureNames.put(featureChildName, endVocabularyIndex);
+							SupervisedModelLogistmarGramression.this.featureNamesConstructed.add(featureChildName);
+							
+							endVocabularyIndex++;
+						}
+					}
+					
+					featureChild = new FeatureTokenSpanFnFilteredVocab<D, L>(featureChild, featureChildIndicesToRemove);
+					
 					if (featureChild.getVocabularySize() == 0)
 						continue;
 					
-					endVocabularyIndex += featureChild.getVocabularySize();
-					
-					SupervisedModelLogistmarGramression.this.constructedFeatures.addFeature(featureChild, false); // FIXME Throw exception on false
+					constructedFeatures.addFeature(featureChild); 
 				
 					SupervisedModelLogistmarGramression.this.context.getDatumTools().getDataTools().getOutputWriter()
 					.debugWriteln("(" + this.arkDataSet.getName() + ") Feature " + featureToExpand + " (" + featureObj.getReferenceName() + "-" + featureVocabStr + ") c=(" + c_p.get(featureToExpand) + "," + c_n.get(featureToExpand) + ") expanded with rule " + entry.getKey() + "...");
 				}
-				
-				for (int i = startVocabularyIndex; i < endVocabularyIndex; i++) {
-					SupervisedModelLogistmarGramression.this.childToParentFeatureMap.put(i, featureToExpand);
-				}
-				
-				this.expandedFeatures.put(featureToExpand, new Pair<Integer, Integer>(startVocabularyIndex, endVocabularyIndex));
 			}
+		}
+		
+		private boolean pathExists(int startIndex, int endIndex) {
+			Queue<Integer> toVisit = new LinkedList<Integer>();
+			toVisit.add(startIndex);
+			
+			while (toVisit.size() > 0) {
+				int nextIndex = toVisit.remove();
+				
+				if (nextIndex == endIndex)
+					return true;
+				
+				if (this.expandedFeatures.containsKey(nextIndex))
+					toVisit.addAll(this.expandedFeatures.get(nextIndex));
+			}
+			
+			return false;
 		}
 		
 		private Set<Integer> getFeaturesToExpand(Vector c_p, Vector c_n) {
@@ -372,7 +403,7 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		}
 		
 		private void extendDataInstance(LabeledDataInstance<Vector, Double> dataInstance) {
-			FeaturizedDataSet<D, L> constructedFeatures = SupervisedModelLogistmarGramression.this.constructedFeatures;
+			FilteredVocabFeatureSet<D, L> constructedFeatures = SupervisedModelLogistmarGramression.this.constructedFeatures;
 			if (constructedFeatures.getFeatureVocabularySize() == 0)
 				return;
 			if (this.dataInstanceExtendedVectorSizes.containsKey(dataInstance.name()) &&
@@ -414,9 +445,10 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		}
 		
 		this.u = new SparseVector(Integer.MAX_VALUE);
-		this.childToParentFeatureMap = new HashMap<Integer, Integer>();
+		this.childToParentFeatureMap = new HashMap<Integer, List<Integer>>();
 		this.sizeF_0 = data.getFeatureVocabularySize() + 1; // Add 1 for bias term
-		this.constructedFeatures = new FeaturizedDataSet<D, L>("", data.getMaxThreads(), this.context.getDatumTools(), data.getLabelMapping());
+		this.constructedFeatures = new FilteredVocabFeatureSet<D, L>();
+		this.featureNamesConstructed = new ArrayList<String>();
 		
 		List<Double> initEvaluationValues = new ArrayList<Double>();
 		for (int i = 0; i < evaluations.size(); i++) {
@@ -431,7 +463,8 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				" iterations (maximum " + this.maxTrainingExamples + " examples over size " + this.batchSize + " batches."/*from " + plataniosData.size() + " examples)"*/);
 				
 		SupervisedModel<D, L> thisModel = this;
-		this.u = new NonNegativeAdaptiveGradientSolver.Builder(new Likelihood(data.getDatumTools().getDataTools().makeLocalRandom(), data), this.u)
+		this.u = new AdaptiveGradientSolver.Builder(new Likelihood(data.getDatumTools().getDataTools().makeLocalRandom(), data), this.u)
+						.lowerBound(0)
 						.sampleWithReplacement(false)
 						.maximumNumberOfIterations(maximumIterations)
 						.maximumNumberOfIterationsWithNoPointChange(5)
@@ -546,12 +579,6 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			nonZeroWeightIndices.add(e_n.index() - 1);
 		}
 		
-		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
-			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
-			feature.clearFnCaches();
-			feature.setFnCacheMode(Fn.CacheMode.NONE);
-		}
-		
 		this.nonZeroFeatureNamesF_0 = data.getFeatureVocabularyNamesForIndices(nonZeroWeightIndices);
 		
 		output.debugWriteln("Logistmar gramression (" + data.getName() + ") finished training."); 
@@ -575,18 +602,12 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		Pair<Vector, Vector> uPosNeg = splitPosNeg(this.u);
 		Pair<Vector, Vector> cPosNeg = c(uPosNeg.getFirst(), uPosNeg.getSecond());
 		
-		Set<Fn<List<TokenSpan>, List<String>>> fns = new HashSet<Fn<List<TokenSpan>, List<String>>>();
 		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
 			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
-			feature.clearFnCaches();
-			feature.setFnCacheMode(Fn.CacheMode.ONE);
-			fns.add(feature.getFn());
+			feature.setFnCacheMode(Fn.CacheMode.ON);
 		}
 		
 		for (PredictedDataInstance<Vector, Double> plataniosDatum : plataniosData) {
-			for (Fn<List<TokenSpan>, List<String>> fn : fns)
-				fn.clearCaches();
-			
 			int datumId = Integer.parseInt(plataniosDatum.name());
 			D datum = data.getDatumById(datumId);
 			Vector constructedF = this.constructedFeatures.computeFeatureVocabularyRange(datum, 0, this.constructedFeatures.getFeatureVocabularySize());
@@ -603,12 +624,6 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			posterior.put((L)(new Boolean(false)), 1.0-p);
 			
 			posteriors.put(datum, posterior);
-		}
-		
-		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
-			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
-			feature.clearFnCaches();
-			feature.setFnCacheMode(Fn.CacheMode.NONE);
 		}
 
 		return posteriors;
@@ -630,18 +645,12 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		Pair<Vector, Vector> uPosNeg = splitPosNeg(this.u);
 		Pair<Vector, Vector> cPosNeg = c(uPosNeg.getFirst(), uPosNeg.getSecond());
 		
-		Set<Fn<List<TokenSpan>, List<String>>> fns = new HashSet<Fn<List<TokenSpan>, List<String>>>();
 		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
 			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
-			feature.clearFnCaches();
-			feature.setFnCacheMode(Fn.CacheMode.ONE);
-			fns.add(feature.getFn());
+			feature.setFnCacheMode(Fn.CacheMode.ON);
 		}
 		
 		for (PredictedDataInstance<Vector, Double> plataniosDatum : plataniosData) {
-			for (Fn<List<TokenSpan>, List<String>> fn : fns)
-				fn.clearCaches();
-			
 			int datumId = Integer.parseInt(plataniosDatum.name());
 			D datum = data.getDatumById(datumId);
 			
@@ -659,12 +668,6 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				predictions.put(datum, true);
 			else 
 				predictions.put(datum, false);
-		}
-		
-		for (int i = 0; i < this.constructedFeatures.getFeatureCount(); i++) {
-			FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.constructedFeatures.getFeature(i);
-			feature.clearFnCaches();
-			feature.setFnCacheMode(Fn.CacheMode.NONE);
 		}
 		
 		return (Map<D, L>)predictions;
@@ -755,18 +758,17 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		u_pMap.put(0, Double.valueOf(biasArray.getStr(0)));
 		u_nMap.put(0, Double.valueOf(biasArray.getStr(1)));
 		
-		this.childToParentFeatureMap = new HashMap<Integer, Integer>();
-		this.constructedFeatures = new FeaturizedDataSet<D, L>("", 1, this.context.getDatumTools(), null); 
+		this.childToParentFeatureMap = new HashMap<Integer, List<Integer>>();
+		this.constructedFeatures = new FilteredVocabFeatureSet<D, L>(); 
 		for (int i = 0; i < internalAssignments.size(); i++) {
 			AssignmentTyped assignment = (AssignmentTyped)internalAssignments.get(i);
 			if (assignment.getType().equals(Context.FEATURE_STR)) {
 				Obj.Function fnObj = (Obj.Function)assignment.getValue();
-				Feature<D, L> feature = this.context.getDatumTools().makeFeatureInstance(fnObj.getName(), this.context);
+				FeatureTokenSpanFnFilteredVocab<D, L> feature = (FeatureTokenSpanFnFilteredVocab<D, L>)this.context.getDatumTools().makeFeatureInstance(fnObj.getName(), this.context);
 				String referenceName = assignment.getName();
 				if (!feature.fromParse(null, referenceName, fnObj))
 					return false;
-				if (!this.constructedFeatures.addFeature(feature, false))
-					return false;
+				this.constructedFeatures.addFeature(feature);
 			} else if (assignment.getName().startsWith("u-")) {
 				Obj.Array uArr = (Obj.Array)assignment.getValue();
 				int uIndex = Integer.valueOf(uArr.getStr(5));
@@ -776,8 +778,13 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 				u_nMap.put(uIndex, u_n);
 			} else if (assignment.getName().startsWith("cToP-")) {
 				int childIndex = Integer.valueOf(assignment.getName().substring(5));
-				int parentIndex = Integer.valueOf(((Obj.Value)assignment.getValue()).getStr());
-				this.childToParentFeatureMap.put(childIndex, parentIndex);
+				List<Integer> parentIndices = new ArrayList<Integer>();
+				
+				Obj.Array array = (Obj.Array)assignment.getValue();
+				for (int j = 0; j < array.size(); j++)
+					parentIndices.add(Integer.valueOf(array.getStr(j)));
+					
+				this.childToParentFeatureMap.put(childIndex, parentIndices);
 			}
 		}
 		
@@ -837,10 +844,9 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		Obj.Array bias = Obj.array(new String[] { String.valueOf(u_p.get(0)), String.valueOf(u_n.get(0)) });
 		internalAssignments.add(Assignment.assignmentTyped(null, Context.ARRAY_STR, "bias", bias));
 		
-		List<String> constructedFeatureVocabulary = this.constructedFeatures.getFeatureVocabularyNames();
 		for (Entry<Integer, Pair<Double, Double>> cEntry : cList) {
-			boolean constructedFeature = cEntry.getKey() < this.sizeF_0;
-			String feature_i = (!constructedFeature) ? this.nonZeroFeatureNamesF_0.get(cEntry.getKey() - 1) : constructedFeatureVocabulary.get(cEntry.getKey() - this.sizeF_0);
+			boolean constructedFeature = cEntry.getKey() >= this.sizeF_0;
+			String feature_i = (!constructedFeature) ? this.nonZeroFeatureNamesF_0.get(cEntry.getKey() - 1) : this.featureNamesConstructed.get(cEntry.getKey() - this.sizeF_0);
 			String i = String.valueOf(cEntry.getKey());
 			String u_p_i = String.valueOf(u_p.get(cEntry.getKey()));
 			String u_n_i = String.valueOf(u_n.get(cEntry.getKey()));
@@ -856,8 +862,12 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			internalAssignments.add(Assignment.assignmentTyped(null, Context.FEATURE_STR, feature.getReferenceName(), feature.toParse()));
 		}
 	
-		for (Entry<Integer, Integer> entry : this.childToParentFeatureMap.entrySet()) {
-			internalAssignments.add(Assignment.assignmentTyped(null, Context.VALUE_STR, "cToP-" + entry.getKey(), Obj.stringValue(String.valueOf(entry.getValue()))));
+		for (Entry<Integer, List<Integer>> entry : this.childToParentFeatureMap.entrySet()) {
+			Obj.Array array = Obj.array();
+			for (Integer parent : entry.getValue())
+				array.add(Obj.stringValue(parent.toString()));
+			
+			internalAssignments.add(Assignment.assignmentTyped(null, Context.ARRAY_STR, "cToP-" + entry.getKey(), array));
 		}
 		
 		this.nonZeroFeatureNamesF_0 = null; // Assumes convert toParse only once... add back in if memory issues
@@ -918,67 +928,58 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 		return new Pair<Vector, Vector>(new SparseVector(Integer.MAX_VALUE, map_p), new SparseVector(Integer.MAX_VALUE, map_n));
 	}
 	
-	// FIXME: Note that the current implementation of this function assumes that
-	// the all parents of a feature with index i have indices smaller than i.
-	// This will be true for heuristics where each feature has a single parent,
-	// which is true for most of the heuristics we currently consider.  The only
-	// current exception is the n to n+1 gram heuristic which filters by subspan
-	// (which can go something like "dog -> the dog -> the dog barks" and also
-	// "dog -> dog barks -> the dog barks", but we currently treat "the dog barks"
-	// resulting from two separate heuristic paths as two separate features.
-	// This can be improved in the future by reimplementing the computation of
-	// c to take account of multiple paths to the same feature.
 	private Pair<Vector, Vector> c(Vector u_p, Vector u_n) {
 		Map<Integer, Double> c_p = new HashMap<Integer, Double>(2*u_p.cardinality());
 		Map<Integer, Double> c_n = new HashMap<Integer, Double>(2*u_n.cardinality());
 		
-		Iterator<VectorElement> i_p = u_p.iterator();
-		Iterator<VectorElement> i_n = u_n.iterator();
+		for (VectorElement e_p : u_p) {
+			if (e_p.index() >= this.sizeF_0)
+				break;
+			c_p.put(e_p.index(), e_p.value());
+		}
 		
-		VectorElement e_p = null;
-		VectorElement e_n = null;
-		while (i_p.hasNext() || i_n.hasNext() || e_p != null || e_n != null) {
-			if (e_p == null && i_p.hasNext())
-				e_p = i_p.next();
-			if (e_n == null && i_n.hasNext())
-				e_n = i_n.next();
-			
-			boolean next_p = (e_n == null) || (e_p != null && e_p.index() <= e_n.index());
-			if (next_p) {
-				int index = e_p.index();
-				if (index < this.sizeF_0)
-					c_p.put(index, e_p.value());
-				else {
-					double maxValue = 0.0;
-					Integer parentIndex = this.childToParentFeatureMap.get(index);
-					if (c_p.containsKey(parentIndex))
-						maxValue = Math.max(c_p.get(parentIndex) - this.t, maxValue);
-					if (c_n.containsKey(parentIndex))
-						maxValue = Math.max(c_n.get(parentIndex) - this.t, maxValue);
-					
-					c_p.put(index, e_p.value()*maxValue);
-				}
-				e_p = null;
-			} else {
-				int index = e_n.index();
-				if (index < this.sizeF_0)
-					c_n.put(index, e_n.value());
-				else {
-					double maxValue = 0.0;
-					Integer parentIndex = this.childToParentFeatureMap.get(index);
-					
-					if (c_p.containsKey(parentIndex))
-						maxValue = Math.max(c_p.get(parentIndex) - this.t, maxValue);
-					if (c_n.containsKey(parentIndex))
-						maxValue = Math.max(c_n.get(parentIndex) - this.t, maxValue);
-					
-					c_n.put(index, e_n.value()*maxValue);
-				}
-				e_n = null;
-			}
+		for (VectorElement e_n : u_n) {
+			if (e_n.index() >= this.sizeF_0)
+				break;
+			c_n.put(e_n.index(), e_n.value());
+		}
+		
+		for (Integer childIndex : this.childToParentFeatureMap.keySet()) {
+			cHelper(childIndex, c_p, c_n, u_p, u_n);
 		}
 	
 		return new Pair<Vector, Vector>(new SparseVector(Integer.MAX_VALUE, c_p), new SparseVector(Integer.MAX_VALUE, c_n));
+	}
+	
+	private void cHelper(Integer index, Map<Integer, Double> c_p, Map<Integer, Double> c_n, Vector u_p, Vector u_n) {
+		if (index < this.sizeF_0)
+			return;
+		if (c_p.containsKey(index) || c_n.containsKey(index))
+			return;
+		
+		double u_p_i = u_p.get(index);
+		double u_n_i = u_n.get(index);
+		
+		if (Double.compare(u_p_i, 0.0) == 0 && Double.compare(u_n_i, 0.0) == 0)
+			return;
+		
+		double maxValue = 0.0;
+		for (Integer parentIndex : this.childToParentFeatureMap.get(index)) {
+			if (parentIndex >= this.sizeF_0)
+				cHelper(parentIndex, c_p, c_n, u_p, u_n);
+			
+			if (c_p.containsKey(parentIndex))
+				maxValue = Math.max(c_p.get(parentIndex) - this.t, maxValue);
+			if (c_n.containsKey(parentIndex))
+				maxValue = Math.max(c_n.get(parentIndex) - this.t, maxValue);
+		}
+		
+		if (Double.compare(maxValue, 0.0) != 0) {
+			if (Double.compare(u_p_i, 0.0) != 0)
+				c_p.put(index, u_p_i*maxValue);
+			if (Double.compare(u_n_i, 0.0) != 0)
+				c_n.put(index, u_n_i*maxValue);
+		}
 	}
 	
 	private double posteriorForDatum(LabeledDataInstance<Vector, Double> dataInstance, Vector c_p, Vector c_n) {

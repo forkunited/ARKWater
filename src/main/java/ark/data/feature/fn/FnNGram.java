@@ -1,14 +1,13 @@
 package ark.data.feature.fn;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 import ark.data.Context;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.AssignmentList;
 import ark.parse.Obj;
 
-public abstract class FnNGram extends Fn<List<TokenSpan>, List<TokenSpan>> {
+public abstract class FnNGram extends Fn<TokenSpan, TokenSpan> {
 	protected String[] parameterNames = { "n" };
 	protected int n = 1;
 	protected Context<?, ?> context;
@@ -44,16 +43,14 @@ public abstract class FnNGram extends Fn<List<TokenSpan>, List<TokenSpan>> {
 	}
 
 	@Override
-	public List<TokenSpan> compute(List<TokenSpan> input) {
-		List<TokenSpan> ngrams = new ArrayList<TokenSpan>();
-		
+	public <C extends Collection<TokenSpan>> C compute(Collection<TokenSpan> input, C output) {
 		for (TokenSpan tokenSpan : input)
-			getNGrams(tokenSpan, ngrams);
+			getNGrams(tokenSpan, output);
 		
-		return ngrams;
+		return output;
 	}
 	
-	protected abstract boolean getNGrams(TokenSpan tokenSpan, List<TokenSpan> ngrams);
+	protected abstract boolean getNGrams(TokenSpan tokenSpan, Collection<TokenSpan> ngrams);
 	
 
 	@Override

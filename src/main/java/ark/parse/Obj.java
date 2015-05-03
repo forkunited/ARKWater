@@ -142,7 +142,9 @@ public abstract class Obj extends Serializable {
 
 		@Override
 		public boolean resolveValues(Map<String, Obj> context) {
-			return this.parameters.resolveValues(context) && (this.internalAssignments == null || this.internalAssignments.resolveValues(context));
+			boolean resolved = this.parameters.resolveValues(context);
+			resolved = (this.internalAssignments == null || this.internalAssignments.resolveValues(context)) && resolved;
+			return resolved;
 		}
 
 		@Override
@@ -370,7 +372,7 @@ public abstract class Obj extends Serializable {
 			boolean resolved = true;
 			
 			for (Obj.Value value : this.values) {
-				resolved = resolved && value.resolveValues(context);
+				resolved = value.resolveValues(context) && resolved;
 			}
 			
 			return resolved;
@@ -438,7 +440,9 @@ public abstract class Obj extends Serializable {
 
 		@Override
 		public boolean resolveValues(Map<String, Obj> context) {
-			return this.source.resolveValues(context) && this.target.resolveValues(context);
+			boolean resolved = this.source.resolveValues(context);
+			resolved = this.target.resolveValues(context) && resolved;
+			return resolved;
 		}
 
 		@Override

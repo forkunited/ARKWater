@@ -53,6 +53,7 @@ import ark.data.feature.fn.Fn;
 import ark.data.feature.fn.FnAffix;
 import ark.data.feature.fn.FnComposite;
 import ark.data.feature.fn.FnFilter;
+import ark.data.feature.fn.FnGazetteerFilter;
 import ark.data.feature.fn.FnHead;
 import ark.data.feature.fn.FnNGramContext;
 import ark.data.feature.fn.FnNGramDocument;
@@ -216,9 +217,9 @@ public abstract class Datum<L> {
 		private Map<String, DatumStructureCollection<D, L>> genericDatumStructureCollections;
 		
 
-		private Map<String, List<Fn<List<TokenSpan>, List<TokenSpan>>>> genericTokenSpanFns;
-		private Map<String, List<Fn<List<TokenSpan>, List<String>>>> genericTokenSpanStrFns;
-		private Map<String, List<Fn<List<String>, List<String>>>> genericStrFns;
+		private Map<String, List<Fn<TokenSpan, TokenSpan>>> genericTokenSpanFns;
+		private Map<String, List<Fn<TokenSpan, String>>> genericTokenSpanStrFns;
+		private Map<String, List<Fn<String, String>>> genericStrFns;
 		
 		public Tools(DataTools dataTools) {
 			this.dataTools = dataTools;
@@ -235,9 +236,9 @@ public abstract class Datum<L> {
 			
 			this.genericDatumStructureCollections = new HashMap<String, DatumStructureCollection<D, L>>();
 			
-			this.genericTokenSpanFns = new HashMap<String, List<Fn<List<TokenSpan>, List<TokenSpan>>>>();
-			this.genericTokenSpanStrFns = new HashMap<String, List<Fn<List<TokenSpan>, List<String>>>>();
-			this.genericStrFns = new HashMap<String, List<Fn<List<String>, List<String>>>>();
+			this.genericTokenSpanFns = new HashMap<String, List<Fn<TokenSpan, TokenSpan>>>();
+			this.genericTokenSpanStrFns = new HashMap<String, List<Fn<TokenSpan, String>>>();
+			this.genericStrFns = new HashMap<String, List<Fn<String, String>>>();
 			
 			addLabelMapping(new LabelMapping<L>() {
 				public String toString() {
@@ -299,6 +300,7 @@ public abstract class Datum<L> {
 			addGenericStrFn(new FnComposite.FnCompositeStr());
 			addGenericStrFn(new FnAffix());
 			addGenericStrFn(new FnFilter());
+			addGenericStrFn(new FnGazetteerFilter());
 		}
 		
 		public DataTools getDataTools() {
@@ -347,38 +349,38 @@ public abstract class Datum<L> {
 			return this.genericDatumStructureCollections.get(genericCollectionName).makeInstance(data);
 		}
 		
-		public List<Fn<List<String>, List<String>>> makeStrFns(String genericStrFnName, Context<D, L> context) {
+		public List<Fn<String, String>> makeStrFns(String genericStrFnName, Context<D, L> context) {
 			if (!this.genericStrFns.containsKey(genericStrFnName))
-				return new ArrayList<Fn<List<String>, List<String>>>();
-			List<Fn<List<String>, List<String>>> genericStrFns = this.genericStrFns.get(genericStrFnName);
-			List<Fn<List<String>, List<String>>> strFns = new ArrayList<Fn<List<String>, List<String>>>(genericStrFns.size());
+				return new ArrayList<Fn<String, String>>();
+			List<Fn<String, String>> genericStrFns = this.genericStrFns.get(genericStrFnName);
+			List<Fn<String, String>> strFns = new ArrayList<Fn<String, String>>(genericStrFns.size());
 			
-			for (Fn<List<String>, List<String>> genericStrFn : genericStrFns)
+			for (Fn<String, String> genericStrFn : genericStrFns)
 				strFns.add(genericStrFn.makeInstance(context));
 			
 			return strFns;
 		}
 		
-		public List<Fn<List<TokenSpan>, List<TokenSpan>>> makeTokenSpanFns(String genericTokenSpanFnName, Context<D, L> context) {
+		public List<Fn<TokenSpan, TokenSpan>> makeTokenSpanFns(String genericTokenSpanFnName, Context<D, L> context) {
 			if (!this.genericTokenSpanFns.containsKey(genericTokenSpanFnName))
-				return new ArrayList<Fn<List<TokenSpan>, List<TokenSpan>>>();
+				return new ArrayList<Fn<TokenSpan, TokenSpan>>();
 			
-			List<Fn<List<TokenSpan>, List<TokenSpan>>> genericTokenSpanFns = this.genericTokenSpanFns.get(genericTokenSpanFnName);
-			List<Fn<List<TokenSpan>, List<TokenSpan>>> tokenSpanFns = new ArrayList<Fn<List<TokenSpan>, List<TokenSpan>>>(genericTokenSpanFns.size());
+			List<Fn<TokenSpan, TokenSpan>> genericTokenSpanFns = this.genericTokenSpanFns.get(genericTokenSpanFnName);
+			List<Fn<TokenSpan, TokenSpan>> tokenSpanFns = new ArrayList<Fn<TokenSpan, TokenSpan>>(genericTokenSpanFns.size());
 			
-			for (Fn<List<TokenSpan>, List<TokenSpan>> genericTokenSpanFn : genericTokenSpanFns)
+			for (Fn<TokenSpan, TokenSpan> genericTokenSpanFn : genericTokenSpanFns)
 				tokenSpanFns.add(genericTokenSpanFn.makeInstance(context));
 			
 			return tokenSpanFns;
 		}
 		
-		public List<Fn<List<TokenSpan>, List<String>>> makeTokenSpanStrFns(String genericTokenSpanStrFnName, Context<D, L> context) {
+		public List<Fn<TokenSpan, String>> makeTokenSpanStrFns(String genericTokenSpanStrFnName, Context<D, L> context) {
 			if (!this.genericTokenSpanStrFns.containsKey(genericTokenSpanStrFnName))
-				return new ArrayList<Fn<List<TokenSpan>, List<String>>>();
-			List<Fn<List<TokenSpan>, List<String>>> genericTokenSpanStrFns = this.genericTokenSpanStrFns.get(genericTokenSpanStrFnName);
-			List<Fn<List<TokenSpan>, List<String>>> tokenSpanStrFns = new ArrayList<Fn<List<TokenSpan>, List<String>>>(genericTokenSpanStrFns.size());
+				return new ArrayList<Fn<TokenSpan, String>>();
+			List<Fn<TokenSpan, String>> genericTokenSpanStrFns = this.genericTokenSpanStrFns.get(genericTokenSpanStrFnName);
+			List<Fn<TokenSpan, String>> tokenSpanStrFns = new ArrayList<Fn<TokenSpan, String>>(genericTokenSpanStrFns.size());
 			
-			for (Fn<List<TokenSpan>, List<String>> genericTokenSpanStrFn : genericTokenSpanStrFns)
+			for (Fn<TokenSpan, String> genericTokenSpanStrFn : genericTokenSpanStrFns)
 				tokenSpanStrFns.add(genericTokenSpanStrFn.makeInstance(context));
 			
 			return tokenSpanStrFns;
@@ -424,23 +426,23 @@ public abstract class Datum<L> {
 			return true;
 		}
 		
-		public boolean addGenericStrFn(Fn<List<String>, List<String>> strFn) {
+		public boolean addGenericStrFn(Fn<String, String> strFn) {
 			if (!this.genericStrFns.containsKey(strFn.getGenericName()))
-				this.genericStrFns.put(strFn.getGenericName(), new ArrayList<Fn<List<String>, List<String>>>());
+				this.genericStrFns.put(strFn.getGenericName(), new ArrayList<Fn<String, String>>());
 			this.genericStrFns.get(strFn.getGenericName()).add(strFn);
 			return true;
 		}
 		
-		public boolean addGenericTokenSpanFn(Fn<List<TokenSpan>, List<TokenSpan>> tokenSpanFn) {
+		public boolean addGenericTokenSpanFn(Fn<TokenSpan, TokenSpan> tokenSpanFn) {
 			if (!this.genericTokenSpanFns.containsKey(tokenSpanFn.getGenericName()))
-				this.genericTokenSpanFns.put(tokenSpanFn.getGenericName(), new ArrayList<Fn<List<TokenSpan>, List<TokenSpan>>>());
+				this.genericTokenSpanFns.put(tokenSpanFn.getGenericName(), new ArrayList<Fn<TokenSpan, TokenSpan>>());
 			this.genericTokenSpanFns.get(tokenSpanFn.getGenericName()).add(tokenSpanFn);
 			return true;
 		}
 		
-		public boolean addGenericTokenSpanStrFn(Fn<List<TokenSpan>, List<String>> tokenSpanStrFn) {
+		public boolean addGenericTokenSpanStrFn(Fn<TokenSpan, String> tokenSpanStrFn) {
 			if (!this.genericTokenSpanStrFns.containsKey(tokenSpanStrFn.getGenericName()))
-				this.genericTokenSpanStrFns.put(tokenSpanStrFn.getGenericName(), new ArrayList<Fn<List<TokenSpan>, List<String>>>());
+				this.genericTokenSpanStrFns.put(tokenSpanStrFn.getGenericName(), new ArrayList<Fn<TokenSpan, String>>());
 			this.genericTokenSpanStrFns.get(tokenSpanStrFn.getGenericName()).add(tokenSpanStrFn);
 			return true;
 		}

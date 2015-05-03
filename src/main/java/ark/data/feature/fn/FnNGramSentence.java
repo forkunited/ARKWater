@@ -1,9 +1,10 @@
 package ark.data.feature.fn;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 
 import ark.data.Context;
+import ark.data.annotation.Document;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.Obj;
 
@@ -22,12 +23,13 @@ public class FnNGramSentence extends FnNGram {
 	}
 	
 	@Override
-	protected boolean getNGrams(TokenSpan tokenSpan, List<TokenSpan> ngrams) {
+	protected boolean getNGrams(TokenSpan tokenSpan, Collection<TokenSpan> ngrams) {
 		int s = tokenSpan.getSentenceIndex();
-		int tokenCount = tokenSpan.getDocument().getSentenceTokenCount(s);
+		Document document = tokenSpan.getDocument();
+		int tokenCount = document.getSentenceTokenCount(s);
 		
 		for (int i = 0; i < tokenCount - this.n + 1; i++) {
-			TokenSpan ngram = new TokenSpan(tokenSpan.getDocument(), s, i, i + this.n);
+			TokenSpan ngram = new TokenSpan(document, s, i, i + this.n);
 			
 			if (!this.noSpan 
 					|| 
@@ -44,7 +46,7 @@ public class FnNGramSentence extends FnNGram {
 	}
 
 	@Override
-	public Fn<List<TokenSpan>, List<TokenSpan>> makeInstance(
+	public Fn<TokenSpan, TokenSpan> makeInstance(
 			Context<?, ?> context) {
 		return new FnNGramSentence(context);
 	}

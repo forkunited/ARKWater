@@ -44,7 +44,7 @@ public class FeatureTokenSpanFnDataVocab<D extends Datum<L>, L> extends Feature<
 	protected int minFeatureOccurrence;
 	protected Datum.Tools.TokenSpanExtractor<D, L> tokenExtractor;
 	protected Scale scale;
-	protected Fn<List<TokenSpan>, List<String>> fn;
+	protected Fn<TokenSpan, String> fn;
 	protected String[] parameterNames = {"minFeatureOccurrence", "tokenExtractor", "scale", "fn"};
 	
 	public FeatureTokenSpanFnDataVocab() {
@@ -87,7 +87,7 @@ public class FeatureTokenSpanFnDataVocab<D extends Datum<L>, L> extends Feature<
 
 	public Map<String, Integer> applyFnToDatum(D datum) {
 		List<TokenSpan> spans = Arrays.asList(this.tokenExtractor.extract(datum));
-		List<String> strs = this.fn.compute(spans);
+		List<String> strs = this.fn.listCompute(spans);
 
 		Map<String, Integer> results = new HashMap<String, Integer>();
 		

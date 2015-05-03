@@ -40,23 +40,33 @@ public class RuleSetTest {
 				"rule sentInc= (TokenSpanFnDataVocab(fn=(Filter() o ${str} o NGramSentence(n=[n],noSpan=true)))) " +
 				"->" + 
 				"(TokenSpanFnDataVocab(scale=NORMALIZED_TFIDF, minFeatureOccurrence=2, tokenExtractor=TokenSpan," +
-				"fn=(Filter(type=SUBSTRING, filter=${FEATURE_STR}) o ${str} o NGramSentence(n=${n++},noSpan=true))));\n" +
+				"fn=(Filter(type=SUBSTRING, filter=${FEATURE_STR}) o String(cleanFn=\"DefaultCleanFn\") o NGramSentence(n=${n++},noSpan=true))));\n" +
 				
 				"rule sentDoc= (TokenSpanFnDataVocab(fn=(Filter() o ${str} o NGramSentence(n=[n],noSpan=true)))) " +
 				"->" + 
 				"(TokenSpanFnDataVocab(scale=NORMALIZED_TFIDF, minFeatureOccurrence=2, tokenExtractor=TokenSpan, " +
-				"fn=(Filter(type=SUBSTRING, filter=${FEATURE_STR}) o ${str} o NGramDocument(n=${n},noSentence=true))));\n" +
+				"fn=(Filter(type=SUBSTRING, filter=${FEATURE_STR}) o String(cleanFn=\"DefaultCleanFn\") o NGramDocument(n=${n},noSentence=true))));\n" +
 				
 				"rule posaInc= (TokenSpanFnDataVocab(fn=(Filter() o ${pos} o NGramContext(n=[n], type=\"AFTER\")))) " +
 				"->" +
 				"(TokenSpanFnDataVocab(scale=\"INDICATOR\", minFeatureOccurrence=\"2\", tokenExtractor=\"TokenSpan\", " + 
-				"fn=(Filter(type=\"PREFIX\", filter=${FEATURE_STR}) o ${pos} o NGramContext(n=${n++}, type=\"AFTER\"))));" +
+				"fn=(Filter(type=\"PREFIX\", filter=${FEATURE_STR}) o PoS() o NGramContext(n=${n++}, type=\"AFTER\"))));" +
 				
 				"rule docInc= (TokenSpanFnDataVocab(fn=(Filter() o ${str} o NGramDocument(n=[n],noSentence=\"true\"))))" + 
 				"->" + 
 				"(TokenSpanFnDataVocab(scale=\"NORMALIZED_TFIDF\", minFeatureOccurrence=\"2\", " +
-				"fn=(Filter(type=SUBSTRING, filter=${FEATURE_STR}) o ${str} o NGramDocument(n=${n++},noSentence=\"true\"))));" +
+				"fn=(Filter(type=SUBSTRING, filter=${FEATURE_STR}) o String(cleanFn=\"DefaultCleanFn\") o NGramDocument(n=${n++},noSentence=\"true\"))));" +
 				
+				"rule sentDoc1New = (TokenSpanFnDataVocab(fn=(Filter() o ${str} o ${sent1})))" +
+				"->" +
+				"(TokenSpanFnFilteredVocab(" +
+					"vocabFeature=${fdoc1}, " +
+					"vocabFilterFn=Filter(filter=${FEATURE_STR}, type=\"EQUAL\"), " +
+					"vocabFilterInit=\"FULL\", " +
+					"fn=(${str} o ${sent1}), " +
+					"tokenExtractor=\"AllTokenSpans\") {" +
+						"value referenceName = ${RULE};" +
+					"});" +
 				
 				"};");
 		
@@ -67,16 +77,24 @@ public class RuleSetTest {
 		
 		Map<String, Obj> extraAssign = new HashMap<String, Obj>();
 		extraAssign.put("FEATURE_STR", Obj.stringValue("some"));
-		Map<String, Obj> resultingFeatureObjs = rules.applyRules(feature, extraAssign);
+		extraAssign.put("RULE", Obj.stringValue("new"));
 		
-		Assert.assertEquals(2, resultingFeatureObjs.size());
+		Map<String, Obj> resultingFeatureObjs = rules.applyRules(feature, extraAssign);
+		Assert.assertEquals(3, resultingFeatureObjs.size());
 		Assert.assertEquals("TokenSpanFnDataVocab(scale=\"NORMALIZED_TFIDF\", minFeatureOccurrence=\"2\", tokenExtractor=\"TokenSpan\", fn=Composite(Composite(Filter(type=\"SUBSTRING\", filter=\"some\"), String(cleanFn=\"DefaultCleanFn\")), NGramSentence(n=\"2\", noSpan=\"true\")))", resultingFeatureObjs.get("sentInc").toString());
 		Assert.assertEquals("TokenSpanFnDataVocab(scale=\"NORMALIZED_TFIDF\", minFeatureOccurrence=\"2\", tokenExtractor=\"TokenSpan\", fn=Composite(Composite(Filter(type=\"SUBSTRING\", filter=\"some\"), String(cleanFn=\"DefaultCleanFn\")), NGramDocument(n=\"1\", noSentence=\"true\")))", resultingFeatureObjs.get("sentDoc").toString());
 	
 		rules.applyRules(feature, extraAssign);	
-		Assert.assertEquals(2, resultingFeatureObjs.size());
+		Assert.assertEquals(3, resultingFeatureObjs.size());
 		Assert.assertEquals("TokenSpanFnDataVocab(scale=\"NORMALIZED_TFIDF\", minFeatureOccurrence=\"2\", tokenExtractor=\"TokenSpan\", fn=Composite(Composite(Filter(type=\"SUBSTRING\", filter=\"some\"), String(cleanFn=\"DefaultCleanFn\")), NGramSentence(n=\"2\", noSpan=\"true\")))", resultingFeatureObjs.get("sentInc").toString());
 		Assert.assertEquals("TokenSpanFnDataVocab(scale=\"NORMALIZED_TFIDF\", minFeatureOccurrence=\"2\", tokenExtractor=\"TokenSpan\", fn=Composite(Composite(Filter(type=\"SUBSTRING\", filter=\"some\"), String(cleanFn=\"DefaultCleanFn\")), NGramDocument(n=\"1\", noSentence=\"true\")))", resultingFeatureObjs.get("sentDoc").toString());
-	
+		Assert.assertEquals("TokenSpanFnFilteredVocab(" +
+					"vocabFeature=${fdoc1}, " +
+					"vocabFilterFn=Filter(filter=\"some\", type=\"EQUAL\"), " +
+					"vocabFilterInit=\"FULL\", " +
+					"fn=Composite(${str}, ${sent1}), " +
+					"tokenExtractor=\"AllTokenSpans\") {\n" +
+						"value referenceName=\"sentDoc1New\";\n" +
+					"}", resultingFeatureObjs.get("sentDoc1New").toString());
 	}
 }

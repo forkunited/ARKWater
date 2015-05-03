@@ -205,6 +205,8 @@ public class ValidationGSTBinary<T extends Datum<Boolean>, D extends Datum<L>, L
 		binaryLabels.add(true);
 		binaryLabels.add(false);
 		
+		output.debugWriteln("Running GSTBinary with max threads " + this.maxThreads + "...");
+
 		if (!this.trainData.getPrecomputedFeatures() 
 				|| !this.devData.getPrecomputedFeatures() 
 				|| (this.testData != null && !this.testData.getPrecomputedFeatures())) {

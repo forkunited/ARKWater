@@ -436,12 +436,17 @@ public class DataSet<D extends Datum<L>, L> implements Collection<D> {
 		return results;
 	}
 	
-	public boolean deserialize(BufferedReader reader) throws IOException {		
+	public boolean deserialize(BufferedReader reader, int idOffset) throws IOException {		
 		try {
 			String line = null;
+			int id = idOffset;
 			while ((line = reader.readLine()) != null) {
 				JSONObject json = new JSONObject(line);
 				D datum = this.datumTools.datumFromJSON(json);
+				
+				datum.id = id;
+				id++;
+				
 				if (!add(datum))
 					return false;
 			}

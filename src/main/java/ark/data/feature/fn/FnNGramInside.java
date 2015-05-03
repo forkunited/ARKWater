@@ -1,7 +1,7 @@
 package ark.data.feature.fn;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 
 import ark.data.Context;
 import ark.data.annotation.nlp.TokenSpan;
@@ -22,7 +22,7 @@ public class FnNGramInside extends FnNGram {
 	}
 	
 	@Override
-	protected boolean getNGrams(TokenSpan tokenSpan, List<TokenSpan> ngrams) {
+	protected boolean getNGrams(TokenSpan tokenSpan, Collection<TokenSpan> ngrams) {
 		int iteratorBound = (this.noHead) ? tokenSpan.getLength() - this.n : tokenSpan.getLength() - this.n + 1; 
 		
 		for (int i = 0; i < iteratorBound; i++) {
@@ -33,7 +33,7 @@ public class FnNGramInside extends FnNGram {
 	}
 
 	@Override
-	public Fn<List<TokenSpan>, List<TokenSpan>> makeInstance(
+	public Fn<TokenSpan, TokenSpan> makeInstance(
 			Context<?, ?> context) {
 		return new FnNGramInside(context);
 	}

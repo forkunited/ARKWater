@@ -192,13 +192,13 @@ public abstract class Feature<D extends Datum<L>, L> extends ARKParsableFunction
 	protected boolean fromParseInternal(AssignmentList internalAssignments) {
 		if (internalAssignments == null)
 			return true;
-		if (!internalAssignments.contains("vocabulary"))
-			return false;
 		
-		Obj.Array vocabulary = (Obj.Array)internalAssignments.get("vocabulary").getValue();
-		for (int i = 0; i < vocabulary.size(); i++) {
-			if (!setVocabularyTerm(i, vocabulary.getStr(i)))
-				return false;
+		if (internalAssignments.contains("vocabulary")) {
+			Obj.Array vocabulary = (Obj.Array)internalAssignments.get("vocabulary").getValue();
+			for (int i = 0; i < vocabulary.size(); i++) {
+				if (!setVocabularyTerm(i, vocabulary.getStr(i)))
+					return false;
+			}
 		}
 		
 		return fromParseInternalHelper(internalAssignments);

@@ -53,7 +53,7 @@ public class FnTest {
 	public void testFnString() {
 		FnString str = (FnString)this.context.getMatchTokenSpanStrFn(Obj.curlyBracedValue("str"));
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> datumStr = str.compute(datumSpan);
+		List<String> datumStr = str.listCompute(datumSpan);
 		
 		Assert.assertEquals(1, datumStr.size());
 		Assert.assertEquals("is_good_text", datumStr.get(0));
@@ -67,9 +67,9 @@ public class FnTest {
 		FnNGramInside ins3 = (FnNGramInside)this.context.getMatchTokenSpanFn(Obj.curlyBracedValue("ins3"));
 	
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> ins1Strs = str.compute(ins1.compute(datumSpan));
-		List<String> ins2Strs = str.compute(ins2.compute(datumSpan));
-		List<String> ins3Strs = str.compute(ins3.compute(datumSpan));
+		List<String> ins1Strs = str.listCompute(ins1.listCompute(datumSpan));
+		List<String> ins2Strs = str.listCompute(ins2.listCompute(datumSpan));
+		List<String> ins3Strs = str.listCompute(ins3.listCompute(datumSpan));
 		
 		Assert.assertEquals(2, ins1Strs.size());
 		Assert.assertEquals(1, ins2Strs.size());
@@ -87,8 +87,8 @@ public class FnTest {
 		FnNGramContext ctxa1 = (FnNGramContext)this.context.getMatchTokenSpanFn(Obj.curlyBracedValue("ctxa1"));
 	
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> ctxb1Strs = str.compute(ctxb1.compute(datumSpan));
-		List<String> ctxa1Strs = str.compute(ctxa1.compute(datumSpan));
+		List<String> ctxb1Strs = str.listCompute(ctxb1.listCompute(datumSpan));
+		List<String> ctxa1Strs = str.listCompute(ctxa1.listCompute(datumSpan));
 		
 		Assert.assertEquals(1, ctxb1Strs.size());
 		Assert.assertEquals(1, ctxa1Strs.size());
@@ -103,7 +103,7 @@ public class FnTest {
 		FnNGramSentence sent1 = (FnNGramSentence)this.context.getMatchTokenSpanFn(Obj.curlyBracedValue("sent1"));
 
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> sent1Strs = str.compute(sent1.compute(datumSpan));
+		List<String> sent1Strs = str.listCompute(sent1.listCompute(datumSpan));
 		
 		Assert.assertEquals(4, sent1Strs.size());
 		
@@ -119,7 +119,7 @@ public class FnTest {
 		FnNGramDocument doc2 = (FnNGramDocument)this.context.getMatchTokenSpanFn(Obj.curlyBracedValue("doc2"));
 
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> doc2Strs = str.compute(doc2.compute(datumSpan));
+		List<String> doc2Strs = str.listCompute(doc2.listCompute(datumSpan));
 		
 		Assert.assertEquals(7, doc2Strs.size());
 		
@@ -138,7 +138,7 @@ public class FnTest {
 		FnHead head = (FnHead)this.context.getMatchTokenSpanFn(Obj.curlyBracedValue("head"));
 
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> headStrs = str.compute(head.compute(datumSpan));
+		List<String> headStrs = str.listCompute(head.listCompute(datumSpan));
 		
 		Assert.assertEquals(1, headStrs.size());	
 		Assert.assertEquals("text", headStrs.get(0));
@@ -153,8 +153,8 @@ public class FnTest {
 
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
 		
-		List<String> prefixes = pre.compute(str.compute(sent1.compute(datumSpan)));
-		List<String> suffixes = suf.compute(str.compute(sent1.compute(datumSpan)));
+		List<String> prefixes = pre.listCompute(str.listCompute(sent1.listCompute(datumSpan)));
+		List<String> suffixes = suf.listCompute(str.listCompute(sent1.listCompute(datumSpan)));
 		Assert.assertEquals(1, prefixes.size());
 		Assert.assertEquals(1, suffixes.size());
 		
@@ -171,10 +171,10 @@ public class FnTest {
 		FnFilter filter_p = (FnFilter)this.context.getMatchStrFn(Obj.curlyBracedValue("filter_p"));
 		
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> doc2Strs = str.compute(doc2.compute(datumSpan));
-		List<String> filterStrs = filter.compute(doc2Strs);
-		List<String> filter_sStrs = filter_s.compute(doc2Strs);
-		List<String> filter_pStrs = filter_p.compute(doc2Strs);	
+		List<String> doc2Strs = str.listCompute(doc2.listCompute(datumSpan));
+		List<String> filterStrs = filter.listCompute(doc2Strs);
+		List<String> filter_sStrs = filter_s.listCompute(doc2Strs);
+		List<String> filter_pStrs = filter_p.listCompute(doc2Strs);	
 		
 		Assert.assertEquals(2, filterStrs.size());
 		Assert.assertEquals(1, filter_sStrs.size());
@@ -192,7 +192,7 @@ public class FnTest {
 		FnNGramSentence sent1 = (FnNGramSentence)this.context.getMatchTokenSpanFn(Obj.curlyBracedValue("sent1"));
 
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> sent1PoS = pos.compute(sent1.compute(datumSpan));
+		List<String> sent1PoS = pos.listCompute(sent1.listCompute(datumSpan));
 	
 		Assert.assertEquals(4, sent1PoS.size());
 		
@@ -204,9 +204,9 @@ public class FnTest {
 	
 	@Test
 	public void testFnComposite() {
-		Fn<List<TokenSpan>, List<String>> headDoc2 = this.context.getMatchTokenSpanStrFn(Obj.curlyBracedValue("headDoc2"));
+		Fn<TokenSpan, String> headDoc2 = this.context.getMatchTokenSpanStrFn(Obj.curlyBracedValue("headDoc2"));
 		List<TokenSpan> datumSpan = Arrays.asList(this.context.getDatumTools().getTokenSpanExtractor("TokenSpan").extract(this.testDatum));
-		List<String> headDoc2Strs = headDoc2.compute(datumSpan);
+		List<String> headDoc2Strs = headDoc2.listCompute(datumSpan);
 		
 		Assert.assertEquals(7, headDoc2Strs.size());
 		

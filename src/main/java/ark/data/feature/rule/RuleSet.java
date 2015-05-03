@@ -136,6 +136,8 @@ public class RuleSet<D extends Datum<L>, L> extends ARKParsableFunction {
 				if (extraAssignments != null)
 					matches.putAll(extraAssignments);
 				
+				matches.put("RULE", Obj.stringValue(ruleName));
+				
 				Obj target = rule.getTarget().clone();
 				
 				target.resolveValues(matches);

@@ -140,9 +140,10 @@ public class AssignmentList extends Obj {
 		
 		for (Assignment assignment : oldAssignments) {
 			Obj obj = assignment.getValue();
-			
+
 			if (obj.getObjType() != Obj.Type.VALUE || ((Obj.Value)obj).getType() != Obj.Value.Type.CURLY_BRACED) {
-				resolved = resolved && obj.resolveValues(context);
+				resolved = obj.resolveValues(context) && resolved;
+				
 				add(assignment);
 				continue;
 			}

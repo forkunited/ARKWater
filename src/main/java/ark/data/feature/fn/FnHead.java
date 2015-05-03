@@ -1,14 +1,13 @@
 package ark.data.feature.fn;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 import ark.data.Context;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.AssignmentList;
 import ark.parse.Obj;
 
-public class FnHead extends Fn<List<TokenSpan>, List<TokenSpan>> {
+public class FnHead extends Fn<TokenSpan, TokenSpan> {
 	private String[] parameterNames = {};
 	
 	public FnHead() {
@@ -35,19 +34,17 @@ public class FnHead extends Fn<List<TokenSpan>, List<TokenSpan>> {
 	}
 
 	@Override
-	public List<TokenSpan> compute(List<TokenSpan> input) {
-		List<TokenSpan> heads = new ArrayList<TokenSpan>(input.size());
-		
+	public <C extends Collection<TokenSpan>> C compute(Collection<TokenSpan> input, C output) {
 		for (TokenSpan span : input) {
 			if (span.getLength() > 0)
-				heads.add(span.getSubspan(span.getLength() - 1, span.getLength()));
+				output.add(span.getSubspan(span.getLength() - 1, span.getLength()));
 		}
 		
-		return heads;
+		return output;
 	}
 
 	@Override
-	public Fn<List<TokenSpan>, List<TokenSpan>> makeInstance(
+	public Fn<TokenSpan, TokenSpan> makeInstance(
 			Context<?, ?> context) {
 		return new FnHead(context);
 	}

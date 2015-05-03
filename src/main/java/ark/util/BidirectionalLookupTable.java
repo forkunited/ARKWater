@@ -21,6 +21,7 @@ package ark.util;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * BidirectionalLookupTable is a data-structure math maps objects 
@@ -77,5 +78,13 @@ public class BidirectionalLookupTable<S, T> {
 	
 	public int size() {
 		return this.forwardLookup.size();
+	}
+	
+	public Set<S> keySet() {
+		return this.forwardLookup.keySet();
+	}
+	
+	public Set<T> reverseKeySet() {
+		return this.reverseLookup.keySet();
 	}
 }

@@ -1,6 +1,6 @@
 package ark.data.feature.fn;
 
-import java.util.List;
+import java.util.Collection;
 
 import ark.data.Context;
 import ark.data.annotation.nlp.TokenSpan;
@@ -8,7 +8,7 @@ import ark.parse.AssignmentList;
 import ark.parse.Obj;
 
 public abstract class FnComposite<S, T, U> extends Fn<S, T> {
-	public static class FnCompositeTokenSpan extends FnComposite<List<TokenSpan>, List<TokenSpan>, List<TokenSpan>> {
+	public static class FnCompositeTokenSpan extends FnComposite<TokenSpan, TokenSpan, TokenSpan> {
 		public FnCompositeTokenSpan() {
 			super();
 		}
@@ -18,23 +18,23 @@ public abstract class FnComposite<S, T, U> extends Fn<S, T> {
 		}
 
 		@Override
-		protected Fn<List<TokenSpan>, List<TokenSpan>> constructParameterF(Obj parameterValue) {
+		protected Fn<TokenSpan, TokenSpan> constructParameterF(Obj parameterValue) {
 			return this.context.getMatchOrConstructTokenSpanFn(parameterValue);
 		}
 
 		@Override
-		protected Fn<List<TokenSpan>, List<TokenSpan>> constructParameterG(Obj parameterValue) {
+		protected Fn<TokenSpan, TokenSpan> constructParameterG(Obj parameterValue) {
 			return this.context.getMatchOrConstructTokenSpanFn(parameterValue);
 		}
 
 		@Override
-		public Fn<List<TokenSpan>, List<TokenSpan>> makeInstance(
+		public Fn<TokenSpan, TokenSpan> makeInstance(
 				Context<?, ?> context) {
 			return new FnCompositeTokenSpan(context);
 		}
 	}
 	
-	public static class FnCompositeStr extends FnComposite<List<String>, List<String>, List<String>> {
+	public static class FnCompositeStr extends FnComposite<String, String, String> {
 		public FnCompositeStr() {
 			super();
 		}
@@ -44,23 +44,23 @@ public abstract class FnComposite<S, T, U> extends Fn<S, T> {
 		}
 
 		@Override
-		protected Fn<List<String>, List<String>> constructParameterF(Obj parameterValue) {
+		protected Fn<String, String> constructParameterF(Obj parameterValue) {
 			return this.context.getMatchOrConstructStrFn(parameterValue);
 		}
 
 		@Override
-		protected Fn<List<String>, List<String>> constructParameterG(Obj parameterValue) {
+		protected Fn<String, String> constructParameterG(Obj parameterValue) {
 			return this.context.getMatchOrConstructStrFn(parameterValue);
 		}
 
 		@Override
-		public Fn<List<String>, List<String>> makeInstance(
+		public Fn<String, String> makeInstance(
 				Context<?, ?> context) {
 			return new FnCompositeStr(context);
 		}
 	}
 	
-	public static class FnCompositeTokenSpanTokenSpanStr extends FnComposite<List<TokenSpan>, List<String>, List<TokenSpan>> {
+	public static class FnCompositeTokenSpanTokenSpanStr extends FnComposite<TokenSpan, String, TokenSpan> {
 		public FnCompositeTokenSpanTokenSpanStr() {
 			super();
 		}
@@ -70,23 +70,23 @@ public abstract class FnComposite<S, T, U> extends Fn<S, T> {
 		}
 
 		@Override
-		protected Fn<List<TokenSpan>, List<String>> constructParameterF(Obj parameterValue) {
+		protected Fn<TokenSpan, String> constructParameterF(Obj parameterValue) {
 			return this.context.getMatchOrConstructTokenSpanStrFn(parameterValue);
 		}
 
 		@Override
-		protected Fn<List<TokenSpan>, List<TokenSpan>> constructParameterG(Obj parameterValue) {
+		protected Fn<TokenSpan, TokenSpan> constructParameterG(Obj parameterValue) {
 			return this.context.getMatchOrConstructTokenSpanFn(parameterValue);
 		}
 
 		@Override
-		public Fn<List<TokenSpan>, List<String>> makeInstance(
+		public Fn<TokenSpan, String> makeInstance(
 				Context<?, ?> context) {
 			return new FnCompositeTokenSpanTokenSpanStr(context);
 		}
 	}
 	
-	public static class FnCompositeTokenSpanStrStr extends FnComposite<List<TokenSpan>, List<String>, List<String>> {
+	public static class FnCompositeTokenSpanStrStr extends FnComposite<TokenSpan, String, String> {
 		public FnCompositeTokenSpanStrStr() {
 			super();
 		}
@@ -96,17 +96,17 @@ public abstract class FnComposite<S, T, U> extends Fn<S, T> {
 		}
 
 		@Override
-		protected Fn<List<String>, List<String>> constructParameterF(Obj parameterValue) {
+		protected Fn<String, String> constructParameterF(Obj parameterValue) {
 			return this.context.getMatchOrConstructStrFn(parameterValue);
 		}
 
 		@Override
-		protected Fn<List<TokenSpan>, List<String>> constructParameterG(Obj parameterValue) {
+		protected Fn<TokenSpan, String> constructParameterG(Obj parameterValue) {
 			return this.context.getMatchOrConstructTokenSpanStrFn(parameterValue);
 		}
 
 		@Override
-		public Fn<List<TokenSpan>, List<String>> makeInstance(
+		public Fn<TokenSpan, String> makeInstance(
 				Context<?, ?> context) {
 			return new FnCompositeTokenSpanStrStr(context);
 		}
@@ -129,8 +129,8 @@ public abstract class FnComposite<S, T, U> extends Fn<S, T> {
 	}
 	
 	@Override
-	public T compute(S input) {
-		return this.f.compute(this.g.compute(input));
+	public <C extends Collection<T>> C compute(Collection<S> input, C output) {
+		return this.f.compute(this.g.listCompute(input), output);
 	}
 
 	@Override

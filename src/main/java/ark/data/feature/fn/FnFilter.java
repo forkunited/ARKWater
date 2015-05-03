@@ -1,17 +1,17 @@
 package ark.data.feature.fn;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 import ark.data.Context;
 import ark.parse.AssignmentList;
 import ark.parse.Obj;
 
-public class FnFilter extends Fn<List<String>, List<String>> {
+public class FnFilter extends Fn<String, String> {
 	public enum Type {
 		SUFFIX,
 		PREFIX,
-		SUBSTRING
+		SUBSTRING,
+		EQUAL
 	}
 	
 	private String[] parameterNames = { "filter", "type" };
@@ -55,17 +55,20 @@ public class FnFilter extends Fn<List<String>, List<String>> {
 	}
 	
 	@Override
-	public List<String> compute(List<String> input) {
-		if (this.filter.length() == 0)
-			return input;
-		
-		List<String> filtered = new ArrayList<String>();
-		for (String str : input) {
-			if (matchesFilter(str))
-				filtered.add(str);
+	public <C extends Collection<String>> C compute(Collection<String> input, C output) {
+		if (this.filter.length() == 0 && this.type != Type.EQUAL) {
+			output.addAll(input);
+		} else if (this.type == Type.EQUAL) {
+			if (input.contains(this.filter))
+				output.add(this.filter);
+		} else {
+			for (String str : input) {
+				if (matchesFilter(str))
+					output.add(str);
+			}
 		}
-		
-		return filtered;
+			
+		return output;
 	}
 	
 	private boolean matchesFilter(String str) {
@@ -73,12 +76,14 @@ public class FnFilter extends Fn<List<String>, List<String>> {
 			return str.endsWith(this.filter);
 		else if (this.type == Type.PREFIX)
 			return str.startsWith(this.filter);
-		else 
+		else if (this.type == Type.SUBSTRING)
 			return str.contains(this.filter) && !str.equals(this.filter);
+		else
+			return str.equals(this.filter);
 	}
 
 	@Override
-	public Fn<List<String>, List<String>> makeInstance(Context<?, ?> context) {
+	public Fn<String, String> makeInstance(Context<?, ?> context) {
 		return new FnFilter(context);
 	}
 

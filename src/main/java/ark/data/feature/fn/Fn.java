@@ -1,91 +1,131 @@
 package ark.data.feature.fn;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import ark.parse.ARKParsableFunction;
 import ark.data.Context;
 
 public abstract class Fn<S, T> extends ARKParsableFunction {
+	private int CACHE_SIZE = 20000; // FIXME Set this elsewhere
+	
 	public enum CacheMode {
-		MANY,
-		ONE,
-		NONE
+		ON,
+		OFF
 	}
 	
-	private Map<String, T> manyCache;
-	private T oneCache;
+	private Map<String, List<T>> listCache;
+	private Map<String, Set<T>> setCache;
 	
-	protected void addToManyCache(String id, T output) {
-		this.manyCache.put(id, output);
+	protected void addToSetCache(String id, Set<T> output) {
+		this.setCache.put(id, output);
 	}
 	
-	protected T lookupManyCache(String id) {
-		return this.manyCache.get(id);
+	protected Set<T> lookupSetCache(String id) {
+		return this.setCache.get(id);
 	}
 	
-	protected void initializeManyCache() {
-		if (this.manyCache == null)
-			this.manyCache = new HashMap<String, T>();
+	protected void initializeSetCache() {
+		if (this.setCache == null) {
+			this.setCache = Collections.synchronizedMap(new LinkedHashMap<String, Set<T>>(CACHE_SIZE, .75F, false) {
+				private static final long serialVersionUID = 1L;
+	
+				// This method is called just after a new entry has been added
+			    public boolean removeEldestEntry(Map.Entry<String, Set<T>> eldest) {
+			        return size() > CACHE_SIZE;
+			    }
+			});
+		}
 	}
 	
-	protected void addToOneCache(T output) {
-		this.oneCache = output;
+	protected void addToListCache(String id, List<T> output) {
+		this.listCache.put(id, output);
 	}
 	
-	protected T lookupOneCache() {
-		return this.oneCache;
+	protected List<T> lookupListCache(String id) {
+		return this.listCache.get(id);
 	}
 	
-	protected void initializeOneCache() {
-
+	protected void initializeListCache() {
+		if (this.listCache == null) {
+			this.listCache = Collections.synchronizedMap(new LinkedHashMap<String, List<T>>(CACHE_SIZE, .75F, false) {
+				private static final long serialVersionUID = 1L;
+	
+				// This method is called just after a new entry has been added
+			    public boolean removeEldestEntry(Map.Entry<String, List<T>> eldest) {
+			        return size() > CACHE_SIZE;
+			    }
+			});
+		}
 	}
 	
-	public T manyCachedCompute(S input, String id) {
-		initializeManyCache();
+	public List<T> listCachedCompute(Collection<S> input, String id) {
+		initializeListCache();
 		
-		T output = lookupManyCache(id);
-		if (output == null)
-			output = compute(input);
+		List<T> output = lookupListCache(id);
+		if (output != null)
+			return output;
 		
-		addToManyCache(id, output);
+		output = listCompute(input);
+		
+		addToListCache(id, output);
 		
 		return output;
 	}
 	
-	public T oneCachedCompute(S input) {
-		initializeOneCache();
+	public Set<T> setCachedCompute(Collection<S> input, String id) {
+		initializeSetCache();
 		
-		T output = lookupOneCache();
-		if (output != null)
+		Set<T> output = lookupSetCache(id);
+		if (output != null) {
 			return output;
+		}
 		
-		output = compute(input);
+		output = setCompute(input);
 		
-		addToOneCache(output);
+		addToSetCache(id, output);
 		
 		return output;
 	}
 	
 	public void clearCaches() {
-		this.manyCache = null;
-		this.oneCache = null;
+		this.listCache = null;
+		this.setCache = null;
 	}
 	
-	public T compute(S input, String id, CacheMode cacheMode) {
-		if (cacheMode == CacheMode.MANY)
-			return manyCachedCompute(input, id);
-		else if (cacheMode == CacheMode.ONE)
-			return oneCachedCompute(input);
+	public List<T> listCompute(Collection<S> input, String id, CacheMode cacheMode) {
+		if (cacheMode == CacheMode.ON)
+			return listCachedCompute(input, id);
 		else
-			return compute(input);
+			return listCompute(input);
+	}
+
+	public Set<T> setCompute(Collection<S> input, String id, CacheMode cacheMode) {
+		if (cacheMode == CacheMode.ON)
+			return setCachedCompute(input, id);
+		else
+			return setCompute(input);
+	}
+
+	public List<T> listCompute(Collection<S> input) {
+		return this.compute(input, new ArrayList<T>());
+	}
+	
+	public Set<T> setCompute(Collection<S> input) {
+		return this.compute(input, new HashSet<T>());
 	}
 	
 	/**
 	 * @param input
 	 * @return output
 	 */
-	public abstract T compute(S input);
+	protected abstract <C extends Collection<T>> C compute(Collection<S> input, C output);
 	
 	/**
 	 * @param context

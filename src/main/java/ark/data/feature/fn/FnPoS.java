@@ -1,7 +1,6 @@
 package ark.data.feature.fn;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 import ark.cluster.ClustererTokenSpanPoSTag;
 import ark.data.Context;
@@ -9,7 +8,7 @@ import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.AssignmentList;
 import ark.parse.Obj;
 
-public class FnPoS extends Fn<List<TokenSpan>, List<String>> {
+public class FnPoS extends Fn<TokenSpan, String> {
 	private ClustererTokenSpanPoSTag clusterer = new ClustererTokenSpanPoSTag();
 	private String[] parameterNames = {  };
 	
@@ -36,18 +35,16 @@ public class FnPoS extends Fn<List<TokenSpan>, List<String>> {
 	}
 
 	@Override
-	public List<String> compute(List<TokenSpan> input) {
-		List<String> pos = new ArrayList<String>(input.size());
-		
+	public <C extends Collection<String>> C compute(Collection<TokenSpan> input, C output) {
 		for (TokenSpan tokenSpan : input) {
-			pos.addAll(this.clusterer.getClusters(tokenSpan));
+			output.addAll(this.clusterer.getClusters(tokenSpan));
 		}
 		
-		return pos;
+		return output;
 	}
 
 	@Override
-	public Fn<List<TokenSpan>, List<String>> makeInstance(Context<?, ?> context) {
+	public Fn<TokenSpan, String> makeInstance(Context<?, ?> context) {
 		return new FnPoS(context);
 	}
 

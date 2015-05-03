@@ -329,22 +329,28 @@ public class GridSearch<D extends Datum<L>, L> extends ARKParsableFunction {
 		this.gridEvaluation = new ArrayList<EvaluatedGridPosition>();
 		List<GridPosition> grid = constructGrid();
 		
-		ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
-		List<PositionThread> tasks = new ArrayList<PositionThread>();
- 		for (GridPosition position : grid) {
-			tasks.add(new PositionThread(position));
-		}
-		
 		try {
-			List<Future<List<EvaluatedGridPosition>>> results = threadPool.invokeAll(tasks);
-			threadPool.shutdown();
-			threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-			for (Future<List<EvaluatedGridPosition>> futureResult : results) {
-				List<EvaluatedGridPosition> result = futureResult.get();
-				if (result == null)
-					return null;
-				this.gridEvaluation.addAll(result);
-			}
+	 		if (maxThreads > 1) {
+	 			ExecutorService threadPool = Executors.newFixedThreadPool(maxThreads);
+	 			List<PositionThread> tasks = new ArrayList<PositionThread>();
+	 	 		for (GridPosition position : grid) {
+	 				tasks.add(new PositionThread(position));
+	 			}
+	 	 		
+				
+				List<Future<List<EvaluatedGridPosition>>> results = threadPool.invokeAll(tasks);
+				threadPool.shutdown();
+				threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+				for (Future<List<EvaluatedGridPosition>> futureResult : results) {
+					List<EvaluatedGridPosition> result = futureResult.get();
+					if (result == null)
+						return null;
+					this.gridEvaluation.addAll(result);
+				}
+	 		} else {
+	 			for (GridPosition position : grid)
+	 				this.gridEvaluation.addAll((new PositionThread(position)).call());
+	 		}
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
