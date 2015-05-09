@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import ark.data.Context;
-import ark.data.annotation.Document;
+import ark.data.annotation.nlp.DocumentNLP;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.Obj;
 
@@ -24,7 +24,7 @@ public class FnNGramDocument extends FnNGram {
 	
 	@Override
 	protected boolean getNGrams(TokenSpan tokenSpan, Collection<TokenSpan> ngrams) {
-		Document document = tokenSpan.getDocument();
+		DocumentNLP document = tokenSpan.getDocument();
 		int sentenceCount = document.getSentenceCount();
 		
 		for (int i = 0; i < sentenceCount; i++) {

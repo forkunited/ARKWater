@@ -16,15 +16,16 @@
  * under the License.
  */
 
-package ark.data.annotation;
+package ark.data.annotation.nlp;
 
 /**
- * Language specifies a language.
+ * Language specifies a natural language.
  * 
  * @author Bill McDowell
  */
 public enum Language {
 	English,
 	Spanish,
-	Russian
+	Russian,
+	Unknown
 }

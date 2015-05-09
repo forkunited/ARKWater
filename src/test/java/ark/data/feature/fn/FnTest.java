@@ -9,13 +9,13 @@ import org.junit.Assert;
 
 import ark.data.Context;
 import ark.data.DataTools;
-import ark.data.annotation.Document;
-import ark.data.annotation.DocumentInMemory;
-import ark.data.annotation.Language;
 import ark.data.annotation.TestDatum;
+import ark.data.annotation.nlp.DocumentNLP;
+import ark.data.annotation.nlp.DocumentNLPInMemory;
+import ark.data.annotation.nlp.Language;
 import ark.data.annotation.nlp.PoSTag;
 import ark.data.annotation.nlp.TokenSpan;
-import ark.model.annotator.nlp.NLPAnnotatorStanford;
+import ark.model.annotator.nlp.PipelineNLPStanford;
 import ark.parse.Obj;
 import ark.util.OutputWriter;
 
@@ -41,9 +41,10 @@ public class FnTest {
 	
 	
 	private TestDatum<String> constructTestDatum() {
-		Document testDocument = new DocumentInMemory("",
+		DocumentNLP testDocument = new DocumentNLPInMemory(new DataTools(new OutputWriter()),
+													 "",
 													 "This is some test text.  It is good text for testing.  Test it.", 
-													 Language.English, new NLPAnnotatorStanford());
+													 Language.English, new PipelineNLPStanford());
 		
 	
 		return new TestDatum<String>(1, new TokenSpan(testDocument, 1, 1, 4), ""); // Refers to "is good text"

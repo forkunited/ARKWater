@@ -30,6 +30,7 @@ import ark.cluster.Clusterer;
 import ark.cluster.ClustererString;
 import ark.cluster.ClustererTokenSpanPoSTag;
 import ark.data.Gazetteer;
+import ark.data.annotation.nlp.AnnotationTypeNLP;
 import ark.data.annotation.nlp.TokenSpan;
 
 /**
@@ -121,6 +122,8 @@ public class DataTools {
 	protected Map<String, Clusterer<String>> stringClusterers;
 	protected Map<String, Clusterer<TokenSpan>> tokenSpanClusterers;
 	protected Map<String, Path> paths;
+
+	protected Map<String, AnnotationTypeNLP<?>> annotationTypesNLP;
 	
 	protected long randomSeed;
 	protected Random globalRandom;
@@ -134,6 +137,7 @@ public class DataTools {
 		this.stringClusterers = new HashMap<String, Clusterer<String>>();
 		this.tokenSpanClusterers = new HashMap<String, Clusterer<TokenSpan>>();
 		this.paths = new HashMap<String, Path>();
+		this.annotationTypesNLP = new HashMap<String, AnnotationTypeNLP<?>>();
 		
 		this.outputWriter = outputWriter;
 		
@@ -164,6 +168,14 @@ public class DataTools {
 		this.tokenSpanClusterers.put("None", null);
 		this.globalRandom = new Random();
 		this.timer = new Timer();
+		
+		this.addAnnotationTypeNLP(AnnotationTypeNLP.LANGUAGE);
+		this.addAnnotationTypeNLP(AnnotationTypeNLP.TOKEN);
+		this.addAnnotationTypeNLP(AnnotationTypeNLP.POS);
+		this.addAnnotationTypeNLP(AnnotationTypeNLP.NER);
+		this.addAnnotationTypeNLP(AnnotationTypeNLP.COREF);
+		this.addAnnotationTypeNLP(AnnotationTypeNLP.DEPENDENCY_PARSE);
+		this.addAnnotationTypeNLP(AnnotationTypeNLP.CONSTITUENCY_PARSE);
 	}
 	
 	public Gazetteer getGazetteer(String name) {
@@ -186,9 +198,16 @@ public class DataTools {
 		return this.tokenSpanClusterers.get(name);
 	}
 	
-	
 	public Path getPath(String name) {
 		return this.paths.get(name);
+	}
+
+	public AnnotationTypeNLP<?> getAnnotationTypeNLP(String type) {
+		return this.annotationTypesNLP.get(type);
+	}
+	
+	public Collection<AnnotationTypeNLP<?>> getAnnotationTypesNLP() {
+		return this.annotationTypesNLP.values();
 	}
 	
 	public OutputWriter getOutputWriter() {
@@ -271,6 +290,11 @@ public class DataTools {
 		return true;
 	}
 
+	public boolean addAnnotationTypeNLP(AnnotationTypeNLP<?> type) {
+		this.annotationTypesNLP.put(type.getType(), type);
+		return true;
+	}
+	
 	public boolean setRandomSeed(long seed) {
 		this.randomSeed = seed;
 		this.globalRandom.setSeed(this.randomSeed);

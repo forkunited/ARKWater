@@ -26,7 +26,12 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
+import java.util.TreeMap;
+import java.util.Map.Entry;
 
+import edu.stanford.nlp.dcoref.CorefChain;
+import edu.stanford.nlp.dcoref.CorefChain.CorefMention;
+import edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.NamedEntityTagAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
@@ -35,6 +40,7 @@ import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.ling.IndexedWord;
 import edu.stanford.nlp.pipeline.Annotation;
+import edu.stanford.nlp.pipeline.Annotator;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.semgraph.SemanticGraph;
 import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.CollapsedCCProcessedDependenciesAnnotation;
@@ -42,15 +48,19 @@ import edu.stanford.nlp.trees.GrammaticalRelation;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
+import edu.stanford.nlp.util.IntPair;
 import ark.data.annotation.Document;
 import ark.data.annotation.Language;
 import ark.data.annotation.nlp.ConstituencyParse;
 import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.PoSTag;
+import ark.data.annotation.nlp.Token;
+import ark.data.annotation.nlp.AnnotationTypeTokenSpan;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.data.annotation.nlp.ConstituencyParse.Constituent;
 import ark.data.annotation.nlp.DependencyParse.Dependency;
 import ark.data.annotation.nlp.DependencyParse.Node;
+import ark.data.annotation.nlp.TokenSpanCluster;
 import ark.util.Pair;
 
 /**
@@ -75,10 +85,12 @@ import ark.util.Pair;
 public class NLPAnnotatorStanford extends NLPAnnotator {
 	private StanfordCoreNLP tokenPipeline;
 	private StanfordCoreNLP nlpPipeline;
-	private Annotation annotatedText;
 	private boolean disabledNer;
+	private boolean disabledCoref;
 	private int minSentenceAnnotationLength;
 	private int maxSentenceAnnotationLength;
+	
+	protected Annotation annotatedText;
 	
 	public NLPAnnotatorStanford() {
 		this(0, Integer.MAX_VALUE);
@@ -87,6 +99,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	public NLPAnnotatorStanford(int minSentenceAnnotationLength, int maxSentenceAnnotationLength) {
 		setLanguage(Language.English);
 		this.disabledNer = true;
+		this.disabledCoref = true;
 		this.minSentenceAnnotationLength = minSentenceAnnotationLength;
 		this.maxSentenceAnnotationLength = maxSentenceAnnotationLength;
 	}
@@ -96,6 +109,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		this.tokenPipeline = annotator.tokenPipeline;
 		this.nlpPipeline = annotator.nlpPipeline;
 		this.disabledNer = annotator.disabledNer;
+		this.disabledCoref = annotator.disabledCoref;
 		this.disabledConstituencyParses = annotator.disabledConstituencyParses;
 		this.disabledDependencyParses = annotator.disabledDependencyParses;
 		this.disabledPoSTags = annotator.disabledPoSTags;
@@ -107,6 +121,11 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	
 	public void enableNer() {
 		this.disabledNer = false;
+	}
+	
+	public void enableNerAndCoref() {
+		this.disabledNer = false;
+		this.disabledCoref = false;
 	}
 	
 	/**
@@ -126,7 +145,24 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	}
 	
 	public boolean initializePipeline() {
+		return initializePipeline(null);
+	}
+	
+	public boolean initializePipeline(Annotator tokenizer) {
 		Properties tokenProps = new Properties();
+		Properties props = new Properties();
+		
+		if (tokenizer != null) {
+			if (!tokenizer.requirementsSatisfied().containsAll(Annotator.TOKENIZE_AND_SSPLIT) || tokenizer.requirementsSatisfied().size() != 2)
+				return false;
+			
+			String tokenizerClass = tokenizer.getClass().getName();
+			tokenProps.put("customAnnotatorClass.tokenize", tokenizerClass);
+		    tokenProps.put("customAnnotatorClass.ssplit", tokenizerClass);
+		    props.put("customAnnotatorClass.tokenize", tokenizerClass);
+		    props.put("customAnnotatorClass.ssplit", tokenizerClass);
+		}
+		
 		tokenProps.put("annotators", "tokenize, ssplit");
 		this.tokenPipeline = new StanfordCoreNLP(tokenProps);
 		
@@ -137,8 +173,9 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 			propsStr = propsStr + ", lemma, parse";
 		if (!this.disabledNer)
 			propsStr = propsStr + ", ner";
+		if (!this.disabledCoref)
+			propsStr = propsStr + ", dcoref";
 		
-		Properties props = new Properties();
 		props.put("annotators", propsStr);
 		this.nlpPipeline = new StanfordCoreNLP(props);
 		
@@ -169,7 +206,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		
 		Annotation annotatedText = new Annotation(text);
 		this.tokenPipeline.annotate(annotatedText);
-		String[][] tokens = makeTokensInternal(annotatedText);
+		Token[][] tokens = makeTokensInternal(annotatedText);
 		
 		StringBuilder cleanTextBuilder = new StringBuilder();
 		for (int i = 0; i < tokens.length; i++) {
@@ -178,7 +215,7 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 			
 			int endSymbolsStartToken = tokens[i].length + 1;
 			for (int j = tokens[i].length - 1; j >= 0; j--) {
-				if (tokens[i][j].matches("[^A-Za-z0-9]+")) {
+				if (tokens[i][j].getStr().matches("[^A-Za-z0-9]+")) {
 					endSymbolsStartToken = j;
 				} else {
 					break;
@@ -201,19 +238,21 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 	 * @return an array of tokens for each segmented 
 	 * sentence of the text.
 	 */
-	public String[][] makeTokens() {
+	public Token[][] makeTokens() {
 		return makeTokensInternal(this.annotatedText);
 	}
 	
-	private String[][] makeTokensInternal(Annotation annotation) {
+	private Token[][] makeTokensInternal(Annotation annotation) {
 		List<CoreMap> sentences = annotation.get(SentencesAnnotation.class);
-		String[][] tokens = new String[sentences.size()][];
+		Token[][] tokens = new Token[sentences.size()][];
 		for(int i = 0; i < sentences.size(); i++) {
 			List<CoreLabel> sentenceTokens = sentences.get(i).get(TokensAnnotation.class);
-			tokens[i] = new String[sentenceTokens.size()];
+			tokens[i] = new Token[sentenceTokens.size()];
 			for (int j = 0; j < sentenceTokens.size(); j++) {
 				String word = sentenceTokens.get(j).get(TextAnnotation.class); 
-				tokens[i][j] = word;
+				int charSpanStart = sentenceTokens.get(j).beginPosition();
+				int charSpanEnd = sentenceTokens.get(j).endPosition();
+				tokens[i][j] = new Token(word, charSpanStart, charSpanEnd);
 			}
 		}
 		
@@ -236,6 +275,47 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 		}
 		
 		return ner;
+	}
+	
+	/**
+	 * @return an array of co-referring token span clusters
+	 */
+	public TokenSpanCluster[] makeCorefClusters() {
+		return makeCorefClusters(null);
+	}
+	
+	/**
+	 * @param document
+	 * @return an array of co-referring token span clusters
+	 */
+	public TokenSpanCluster[] makeCorefClusters(Document document) {
+		Map<Integer, CorefChain> corefGraph = this.annotatedText.get(CorefChainAnnotation.class);
+		TokenSpanCluster[] clusters = new TokenSpanCluster[corefGraph.size()];
+		int i = 0;
+		for (Entry<Integer, CorefChain> entry : corefGraph.entrySet()) {
+			CorefChain corefChain = entry.getValue();
+			CorefMention representativeMention = corefChain.getRepresentativeMention();
+			TokenSpan representativeSpan = new TokenSpan(document, 
+														 representativeMention.sentNum - 1,
+														 representativeMention.startIndex - 1,
+														 representativeMention.endIndex - 1);
+			
+			List<TokenSpan> spans = new ArrayList<TokenSpan>();
+			Map<IntPair, Set<CorefMention>> mentionMap = corefChain.getMentionMap();
+			for (Entry<IntPair, Set<CorefMention>> spanEntry : mentionMap.entrySet()) {
+				for (CorefMention mention : spanEntry.getValue()) {
+					spans.add(new TokenSpan(document,
+												mention.sentNum - 1,
+												mention.startIndex - 1,
+												mention.endIndex - 1));
+				}
+			}
+			
+			clusters[i] = new TokenSpanCluster(entry.getKey(), representativeSpan, spans);
+			i++;
+		}
+		
+		return clusters;
 	}
 	
 	/**
@@ -390,5 +470,54 @@ public class NLPAnnotatorStanford extends NLPAnnotator {
 			}
 		}
 		return false;
+	}
+
+	@Override
+	public Map<AnnotationTypeTokenSpan, Map<Integer, List<Pair<TokenSpan, Object>>>> makeOtherTokenSpanAnnotations(Document document) {
+		if (this.disabledNer)
+			return new TreeMap<AnnotationTypeTokenSpan, Map<Integer, List<Pair<TokenSpan, Object>>>>();
+
+		TreeMap<AnnotationTypeTokenSpan, Map<Integer, List<Pair<TokenSpan, Object>>>> annotations = new TreeMap<AnnotationTypeTokenSpan, Map<Integer, List<Pair<TokenSpan, Object>>>>();
+
+		String[][] ner = makeNerTags();
+		Map<Integer, List<Pair<TokenSpan, Object>>> nerAnnotations = new HashMap<Integer, List<Pair<TokenSpan, Object>>>();
+		for (int i = 0; i < ner.length; i++) {
+			for (int j = 0; j < ner[i].length; j++) {
+				if (ner[i][j] != null) {
+					int endTokenIndex = j + 1;
+					for (int k = j + 1; k < ner[i].length; k++) {
+						if (ner[i][k] == null || !ner[i][k].equals(ner[i][j])) {
+							endTokenIndex = k;
+							break;
+						}
+						ner[i][k] = null;
+					}
+					
+					if (!nerAnnotations.containsKey(i))
+						nerAnnotations.put(i, new ArrayList<Pair<TokenSpan, Object>>());
+					nerAnnotations.get(i).add(new Pair<TokenSpan, Object>(new TokenSpan(document, i, j, endTokenIndex), ner[i][j]));
+				}
+			}
+		}
+		
+		annotations.put(AnnotationTypeTokenSpan.NER, nerAnnotations);
+		
+		if (this.disabledCoref)
+			return annotations;
+		
+		Map<Integer, List<Pair<TokenSpan, Object>>> corefAnnotations = new HashMap<Integer, List<Pair<TokenSpan, Object>>>();
+		TokenSpanCluster[] corefClusters = makeCorefClusters(document);
+		for (TokenSpanCluster cluster : corefClusters) {
+			List<TokenSpan> spans = cluster.getTokenSpans();
+			for (TokenSpan span : spans) {
+				if (!corefAnnotations.containsKey(span.getSentenceIndex()))
+					corefAnnotations.put(span.getSentenceIndex(), new ArrayList<Pair<TokenSpan, Object>>(6));
+				corefAnnotations.get(span.getSentenceIndex()).add(new Pair<TokenSpan, Object>(span, cluster));
+			}
+		}
+		
+		annotations.put(AnnotationTypeTokenSpan.COREF, corefAnnotations);
+		
+		return annotations;
 	}
 }

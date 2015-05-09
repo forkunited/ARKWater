@@ -2,8 +2,7 @@ package ark.cluster;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import ark.data.annotation.Document;
+import ark.data.annotation.nlp.DocumentNLP;
 import ark.data.annotation.nlp.TokenSpan;
 
 public class ClustererTokenSpanPoSTag extends Clusterer<TokenSpan> {
@@ -15,7 +14,7 @@ public class ClustererTokenSpanPoSTag extends Clusterer<TokenSpan> {
 	public List<String> getClusters(TokenSpan tokenSpan) {
 		List<String> clusters = new ArrayList<String>();
 		StringBuilder compoundCluster = new StringBuilder();
-		Document document = tokenSpan.getDocument();
+		DocumentNLP document = tokenSpan.getDocument();
 		for (int i = tokenSpan.getStartTokenIndex(); i < tokenSpan.getEndTokenIndex(); i++) {
 			compoundCluster.append(document.getPoSTag(tokenSpan.getSentenceIndex(), i).toString()).append("_");
 		}

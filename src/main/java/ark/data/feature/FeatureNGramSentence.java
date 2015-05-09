@@ -25,7 +25,7 @@ import java.util.Map;
 
 import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Document;
+import ark.data.annotation.nlp.DocumentNLP;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.Obj;
 
@@ -72,7 +72,7 @@ public class FeatureNGramSentence<D extends Datum<L>, L> extends FeatureNGram<D,
 			if (tokenSpan.getSentenceIndex() < 0)
 				continue;
 			
-			Document document = tokenSpan.getDocument();
+			DocumentNLP document = tokenSpan.getDocument();
 			int sentenceIndex = tokenSpan.getSentenceIndex();
 			for (int i = 0; i < document.getSentenceTokenCount(sentenceIndex)-this.n+1; i++) {
 				if (this.noTokenSpan && (

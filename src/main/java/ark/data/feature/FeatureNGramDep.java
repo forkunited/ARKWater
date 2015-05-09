@@ -25,7 +25,7 @@ import java.util.Map;
 
 import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Document;
+import ark.data.annotation.nlp.DocumentNLP;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.data.annotation.nlp.DependencyParse;
 import ark.parse.Obj;
@@ -90,7 +90,7 @@ public class FeatureNGramDep<D extends Datum<L>, L> extends FeatureNGram<D, L> {
 			if (tokenSpan.getSentenceIndex() < 0)
 				continue;
 			
-			Document document = tokenSpan.getDocument();
+			DocumentNLP document = tokenSpan.getDocument();
 			int startIndex = tokenSpan.getStartTokenIndex();
 			int endIndex = tokenSpan.getEndTokenIndex();
 			DependencyParse dependencyParse = tokenSpan.getDocument().getDependencyParse(tokenSpan.getSentenceIndex());

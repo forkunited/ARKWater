@@ -29,33 +29,27 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
 import ark.util.MathUtil;
 
 /**
- * FIXME Finish this class when re-factoring. 
- * 
- * DocumentSet represents a collection of text documents with NLP
- * annotations.  This class is currently not used, and there are 
- * domain-specific versions of it in the projects that use ARKWater.
- * It is only partially implemented.
  * 
  * @author Bill McDowell
  *
  * @param Document type
  */
-public class DocumentSet<D extends Document> implements Collection<D> {
+public abstract class DocumentSet<D extends Document> implements Collection<D> {
 	private String name;
-	private Map<String, D> documents;
+	protected Map<String, D> documents;
 	
 	public DocumentSet(String name) {
-		this.name = name;
 		this.documents = new HashMap<String, D>();
 	}
 	
 	public String getName() {
 		return this.name;
 	}
+	
+	protected abstract DocumentSet<D> makeInstance(String name);
 	
 	public List<DocumentSet<D>> makePartition(int parts, Random random) {
 		double[] distribution = new double[parts];
@@ -92,7 +86,7 @@ public class DocumentSet<D extends Document> implements Collection<D> {
 			if (i == distribution.length - 1 && offset + partSize < documentList.size())
 				partSize = documentList.size() - offset;
 			
-			DocumentSet<D> part = new DocumentSet<D>(names[i]);
+			DocumentSet<D> part = makeInstance(names[i]);
 			for (int j = offset; j < offset + partSize; j++) {
 				part.add(documentList.get(documentPermutation.get(j)));
 			}
@@ -106,17 +100,17 @@ public class DocumentSet<D extends Document> implements Collection<D> {
 	
 	public boolean saveToJSONDirectory(String directoryPath) {
 		for (D document : this.documents.values()) {
-			document.saveToJSONFile(new File(directoryPath, document.getName() + ".json").getAbsolutePath());
+			if (!document.saveToJSONFile(new File(directoryPath, document.getName() + ".json").getAbsolutePath()))
+				return false;
 		}
 		
 		return true;
 	}
 	
-	
 	@SuppressWarnings("unchecked")
-	public static <D extends Document> DocumentSet<D> loadFromJSONDirectory(String name, String directoryPath, D genericDocument) {
+	public static <D extends Document, S extends DocumentSet<D>> S loadFromJSONDirectory(String name, String directoryPath, D genericDocument, S genericDataSet) {
 		File directory = new File(directoryPath);
-		DocumentSet<D> documentSet = new DocumentSet<D>(name);
+		DocumentSet<D> documentSet = genericDataSet.makeInstance(name);
 		try {
 			if (!directory.exists() || !directory.isDirectory())
 				throw new IllegalArgumentException("Invalid directory: " + directory.getAbsolutePath());
@@ -149,87 +143,102 @@ public class DocumentSet<D extends Document> implements Collection<D> {
 			return null;
 		}	
 		
-		return documentSet;
+		return (S)documentSet;
 	}
 	
-	////////////////////
-	
 	@Override
-	public boolean add(D e) {
-		// TODO Auto-generated method stub
-		return false;
+	public boolean add(D d) {
+		this.documents.put(d.getName(), d);
+		return true;
 	}
 
 	@Override
 	public boolean addAll(Collection<? extends D> c) {
-		// TODO Auto-generated method stub
-		return false;
+		for (D d : c)
+			if (!add(d))
+				return false;
+		return true;
 	}
 
 	@Override
 	public void clear() {
-		// TODO Auto-generated method stub
-		
+		this.documents.clear();
 	}
 
 	@Override
 	public boolean contains(Object o) {
-		// TODO Auto-generated method stub
-		return false;
+		Document d = (Document)o;
+		return this.documents.containsKey(d.getName());
 	}
 
 	@Override
 	public boolean containsAll(Collection<?> c) {
-		// TODO Auto-generated method stub
-		return false;
+		for (Object o : c) {
+			if (!contains(o))
+				return false;
+		}
+
+		return true;
 	}
 
 	@Override
 	public boolean isEmpty() {
-		// TODO Auto-generated method stub
-		return false;
+		return this.documents.isEmpty();
 	}
 
 	@Override
 	public Iterator<D> iterator() {
-		// TODO Auto-generated method stub
-		return null;
+		return this.documents.values().iterator();
 	}
 
 	@Override
 	public boolean remove(Object o) {
-		// TODO Auto-generated method stub
-		return false;
+		Document d = (Document)o;
+		if (!this.documents.containsKey(d.getName()))
+			return false;
+		
+		this.documents.remove(d.getName());
+		
+		return true;
 	}
 
 	@Override
 	public boolean removeAll(Collection<?> c) {
-		// TODO Auto-generated method stub
-		return false;
+		for (Object o : c)
+			if (!remove(o))
+				return false;
+		return true; 
 	}
 
 	@Override
 	public boolean retainAll(Collection<?> c) {
-		// TODO Auto-generated method stub
-		return false;
+		Map<String, D> retainedDocuments = new HashMap<String, D>();
+		
+		for (Object o : c) {
+			Document d = (Document)o;
+			if (this.documents.containsKey(d.getName()))
+				retainedDocuments.put(d.getName(), this.documents.get(d.getName()));
+		}
+		
+		boolean changed = retainedDocuments.size() != this.documents.size();
+		this.documents = retainedDocuments;
+		
+		return changed;
 	}
 
 	@Override
 	public int size() {
-		// TODO Auto-generated method stub
-		return 0;
+		return this.documents.size();
 	}
 
 	@Override
 	public Object[] toArray() {
-		// TODO Auto-generated method stub
-		return null;
+		return this.documents.values().toArray();
 	}
 
 	@Override
 	public <T> T[] toArray(T[] a) {
-		// TODO Auto-generated method stub
-		return null;
+		return this.documents.values().toArray(a);
 	}
 
 }

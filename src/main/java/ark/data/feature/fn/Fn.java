@@ -33,7 +33,7 @@ public abstract class Fn<S, T> extends ARKParsableFunction {
 	
 	protected void initializeSetCache() {
 		if (this.setCache == null) {
-			this.setCache = Collections.synchronizedMap(new LinkedHashMap<String, Set<T>>(CACHE_SIZE, .75F, false) {
+			this.setCache = Collections.synchronizedMap(new LinkedHashMap<String, Set<T>>(CACHE_SIZE, .75F, true) {
 				private static final long serialVersionUID = 1L;
 	
 				// This method is called just after a new entry has been added
@@ -54,7 +54,7 @@ public abstract class Fn<S, T> extends ARKParsableFunction {
 	
 	protected void initializeListCache() {
 		if (this.listCache == null) {
-			this.listCache = Collections.synchronizedMap(new LinkedHashMap<String, List<T>>(CACHE_SIZE, .75F, false) {
+			this.listCache = Collections.synchronizedMap(new LinkedHashMap<String, List<T>>(CACHE_SIZE, .75F, true) {
 				private static final long serialVersionUID = 1L;
 	
 				// This method is called just after a new entry has been added

@@ -660,8 +660,10 @@ public class SupervisedModelLogistmarGramression<D extends Datum<L>, L> extends 
 			}
 			
 			Vector constructedF = this.constructedFeatures.computeFeatureVocabularyRange(datum, 0, this.constructedFeatures.getFeatureVocabularySize());
+			
 			if (this.constructedFeatures.getFeatureVocabularySize() != 0)
 				plataniosDatum.features().set(this.sizeF_0, this.sizeF_0 + this.constructedFeatures.getFeatureVocabularySize() - 1, constructedF);
+			
 			double p = posteriorForDatum(plataniosDatum, cPosNeg.getFirst(), cPosNeg.getSecond());
 			
 			if (p >= this.classificationThreshold)

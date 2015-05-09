@@ -22,16 +22,14 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import ark.data.annotation.nlp.ConstituencyParse;
-import ark.data.annotation.nlp.DependencyParse;
-import ark.data.annotation.nlp.PoSTag;
+import ark.data.DataTools;
 import ark.util.FileUtil;
+import ark.util.JSONSerializable;
 
 /**
  * 
@@ -47,20 +45,21 @@ import ark.util.FileUtil;
  * @author Bill McDowell
  *
  */
-public abstract class Document {
+public abstract class Document implements JSONSerializable {
+	protected DataTools dataTools;
 	protected String name;
-	protected Language language;
-	protected String nlpAnnotator;
 	
-	public Document() {
-		
+	public Document(DataTools dataTools) {
+		this.dataTools = dataTools;
 	}
 	
-	public Document(JSONObject json) {
+	public Document(DataTools dataTools, JSONObject json) {
+		this(dataTools);
 		fromJSON(json);
 	}
 	
-	public Document(String jsonPath) {
+	public Document(DataTools dataTools, String jsonPath) {
+		this(dataTools);
 		BufferedReader r = FileUtil.getFileReader(jsonPath);
 		String line = null;
 		StringBuffer lines = new StringBuffer();
@@ -83,30 +82,6 @@ public abstract class Document {
 		return this.name;
 	}
 	
-	public Language getLanguage() {
-		return this.language;
-	}
-	
-	public String getNLPAnnotator() {
-		return this.nlpAnnotator;
-	}
-	
-	public List<String> getSentenceTokens(int sentenceIndex) {
-		int sentenceTokenCount = getSentenceTokenCount(sentenceIndex);
-		List<String> sentenceTokens = new ArrayList<String>(sentenceTokenCount);
-		for (int i = 0; i < sentenceTokenCount; i++)
-			sentenceTokens.add(getToken(sentenceIndex, i));
-		return sentenceTokens;
-	}
-	
-	public List<PoSTag> getSentencePoSTags(int sentenceIndex) {
-		int sentenceTokenCount = getSentenceTokenCount(sentenceIndex);
-		List<PoSTag> sentencePoSTags = new ArrayList<PoSTag>(sentenceTokenCount);
-		for (int i = 0; i < sentenceTokenCount; i++)
-			sentencePoSTags.add(getPoSTag(sentenceIndex, i));
-		return sentencePoSTags;
-	}
-	
 	public boolean saveToJSONFile(String path) {
 		try {
 			BufferedWriter w = new BufferedWriter(new FileWriter(path));
@@ -122,15 +97,15 @@ public abstract class Document {
 		return true;
 	}
 	
-	public abstract int getSentenceCount();
-	public abstract int getSentenceTokenCount(int sentenceIndex);
-	public abstract String getText();
-	public abstract String getSentence(int sentenceIndex);
-	public abstract String getToken(int sentenceIndex, int tokenIndex);
-	public abstract PoSTag getPoSTag(int sentenceIndex, int tokenIndex);
-	public abstract ConstituencyParse getConstituencyParse(int sentenceIndex);
-	public abstract DependencyParse getDependencyParse(int sentenceIndex);
-	public abstract JSONObject toJSON();
+	public boolean meetsAnnotatorRequirements(AnnotationType<?>[] requirements) {
+		for (AnnotationType<?> type : requirements)
+			if (!hasAnnotationType(type))
+				return false;
+		return true;
+	}
+	
 	public abstract Document makeInstanceFromJSONFile(String path);
-	protected abstract boolean fromJSON(JSONObject json);
+	public abstract String getAnnotatorName(AnnotationType<?> annotationType);
+	public abstract boolean hasAnnotationType(AnnotationType<?> annotationType);
+	public abstract Collection<AnnotationType<?>> getAnnotationTypes();
 }

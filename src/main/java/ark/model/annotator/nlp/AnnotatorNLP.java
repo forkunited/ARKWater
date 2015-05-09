@@ -23,6 +23,7 @@ import ark.data.annotation.Language;
 import ark.data.annotation.nlp.ConstituencyParse;
 import ark.data.annotation.nlp.DependencyParse;
 import ark.data.annotation.nlp.PoSTag;
+import ark.data.annotation.nlp.Token;
 
 /**
  * NLPAnnotator is an abstract parent for classes that 
@@ -43,7 +44,7 @@ import ark.data.annotation.nlp.PoSTag;
  * @author Bill McDowell
  *
  */
-public abstract class NLPAnnotator {
+public abstract class AnnotatorNLP implements AnnotatorToken, AnnotatorTokenSpan, AnnotatorSentence {
 	protected Language language; // language of the text
 	protected String text; // text to annotate
 	
@@ -75,7 +76,7 @@ public abstract class NLPAnnotator {
 	 * @return an array of tokens for each segmented 
 	 * sentence of the text.
 	 */
-	public abstract String[][] makeTokens();
+	public abstract Token[][] makeTokens();
 	
 	/**
 	 * @return an array of pos-tags for each segmented 

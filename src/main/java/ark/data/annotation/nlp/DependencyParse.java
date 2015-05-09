@@ -22,8 +22,8 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import ark.data.annotation.Document;
 import ark.util.Pair;
+import ark.util.StringSerializable;
 
 /**
  * DependencyParse represents a typed dependency parse for a sentence 
@@ -44,7 +44,7 @@ import ark.util.Pair;
  * @author Bill McDowell
  *
  */
-public class DependencyParse {
+public class DependencyParse implements StringSerializable {
 	private static Pattern dependencyPattern = Pattern.compile("(.+)\\((.+)\\-([0-9']+), (.+)\\-([0-9']+)\\)");
 	
 	public class Node {
@@ -222,19 +222,19 @@ public class DependencyParse {
 		}
 	}
 
-	private Document document;
+	private DocumentNLP document;
 	private int sentenceIndex;
 	private Node root;
 	private Node[] tokenNodes;
 	
-	public DependencyParse(Document document, int sentenceIndex, Node root, Node[] tokenNodes) {
+	public DependencyParse(DocumentNLP document, int sentenceIndex, Node root, Node[] tokenNodes) {
 		this.document = document;
 		this.sentenceIndex = sentenceIndex;
 		this.root = (root != null) ? root : new Node(-1, new Dependency[0], new Dependency[0]);
 		this.tokenNodes = tokenNodes; 
 	}
 	
-	public DependencyParse(Document document, int sentenceIndex) {
+	public DependencyParse(DocumentNLP document, int sentenceIndex) {
 		this(document, sentenceIndex, null, null);
 	}
 	
@@ -246,7 +246,7 @@ public class DependencyParse {
 		return this.tokenNodes[tokenIndex];
 	}
 	
-	public Document getDocument() {
+	public DocumentNLP getDocument() {
 		return this.document;
 	}
 	
@@ -318,7 +318,7 @@ public class DependencyParse {
 		Node node = getNode(index);
 		List<Dependency> governors = new ArrayList<Dependency>();		
 		// FIXME: Temporary fix... node should never be null but it is when the dependency 
-		// parse is empty sometimes for unknown reasons
+		// parse is empty sometimes
 		if (node == null)
 			return governors;
 
@@ -332,7 +332,7 @@ public class DependencyParse {
 		Node node = getNode(index);
 		List<Dependency> dependencies = new ArrayList<Dependency>();
 		// FIXME: Temporary fix... node should never be null but it is when the dependency 
-		// parse is empty sometimes for unknown reasons
+		// parse is empty sometimes
 		if (node == null)
 			return dependencies;
 		
@@ -357,19 +357,19 @@ public class DependencyParse {
 		return str.toString();
 	}
 	
-	public static DependencyParse fromString(String str, Document document, int sentenceIndex) {
+	@Override
+	public boolean fromString(String str) {
 		if (str.trim().length() == 0)
-			return new DependencyParse(document, sentenceIndex);
+			return true;
 		
 		String[] strParts = str.split("\n");
 		Map<Integer, Pair<List<Dependency>, List<Dependency>>> nodesToDeps = new HashMap<Integer, Pair<List<Dependency>, List<Dependency>>>();
-		DependencyParse parse = new DependencyParse(document, sentenceIndex, null, null);
 
 		int maxIndex = -1;
 		for (int i = 0; i < strParts.length; i++) {
-			Dependency dependency = (parse.new Dependency()).fromString(strParts[i]);
+			Dependency dependency = (this.new Dependency()).fromString(strParts[i]);
 			if (dependency == null)
-				return new DependencyParse(document, sentenceIndex);
+				return true;
 			
 			int govIndex = dependency.getGoverningTokenIndex();
 			int depIndex = dependency.getDependentTokenIndex();
@@ -388,19 +388,26 @@ public class DependencyParse {
 		Node[] tokenNodes = new Node[maxIndex+1];
 		for (int i = 0; i < tokenNodes.length; i++)
 			if (nodesToDeps.containsKey(i))
-				tokenNodes[i] = parse.new Node(i, nodesToDeps.get(i).getFirst().toArray(new Dependency[0]), nodesToDeps.get(i).getSecond().toArray(new Dependency[0]));
+				tokenNodes[i] = this.new Node(i, nodesToDeps.get(i).getFirst().toArray(new Dependency[0]), nodesToDeps.get(i).getSecond().toArray(new Dependency[0]));
 
 		if (!nodesToDeps.containsKey(-1)) {
-			throw new IllegalArgumentException("Failed to get root for " + document.getName() + " " + sentenceIndex);
+			throw new IllegalArgumentException("Failed to get root for " + this.document.getName() + " " + this.sentenceIndex);
 		}
 			
-		parse.root =  parse.new Node(-1, new Dependency[0], nodesToDeps.get(-1).getSecond().toArray(new Dependency[0]));
-		parse.tokenNodes = tokenNodes;
+		this.root =  this.new Node(-1, new Dependency[0], nodesToDeps.get(-1).getSecond().toArray(new Dependency[0]));
+		this.tokenNodes = tokenNodes;
 				
+		return true;
+	}
+	
+	public static DependencyParse fromString(String str, DocumentNLP document, int sentenceIndex) {
+		DependencyParse parse = new DependencyParse(document, sentenceIndex);
+		if (!parse.fromString(str))
+			return null;
 		return parse;
 	}
 	
-	public DependencyParse clone(Document document) {
+	public DependencyParse clone(DocumentNLP document) {
 		return new DependencyParse(document, this.sentenceIndex, this.root, this.tokenNodes);
 	}
 }

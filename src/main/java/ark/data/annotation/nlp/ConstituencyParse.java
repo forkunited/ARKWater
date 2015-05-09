@@ -24,9 +24,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
-
-import ark.data.annotation.Document;
 import ark.util.Pair;
+import ark.util.StringSerializable;
 
 /**
  * Constituency parse represents a constituency parse for 
@@ -36,7 +35,7 @@ import ark.util.Pair;
  * @author Bill McDowell
  * 
  */
-public class ConstituencyParse {
+public class ConstituencyParse implements StringSerializable {
 	public class Constituent {
 		private Constituent parent;
 		private TokenSpan tokenSpan;
@@ -157,21 +156,21 @@ public class ConstituencyParse {
 		}
 	}
 
-	private Document document;
+	private DocumentNLP document;
 	private int sentenceIndex;
 	private Constituent root;
 	
-	public ConstituencyParse(Document document, int sentenceIndex, Constituent root) {
+	public ConstituencyParse(DocumentNLP document, int sentenceIndex, Constituent root) {
 		this.document = document;
 		this.sentenceIndex = sentenceIndex;
 		this.root = root;
 	}
 	
-	public ConstituencyParse(Document document, int sentenceIndex) {
+	public ConstituencyParse(DocumentNLP document, int sentenceIndex) {
 		this(document, sentenceIndex, null);
 	}
 	
-	public Document getDocument() {
+	public DocumentNLP getDocument() {
 		return this.document;
 	}
 	
@@ -328,17 +327,15 @@ public class ConstituencyParse {
 		return str.toString();
 	}
 	
-	public static ConstituencyParse fromString(String str, Document document, int sentenceIndex) {
+	@Override
+	public boolean fromString(String str) {
 		if (str.trim().equals(""))
-			return new ConstituencyParse(document, sentenceIndex);
+			return true;
 		
 		// NOTE: This code is pretty illegible...  but it's written in such a way that
 		// only one pass over the input string is necessary
-		ConstituencyParse parse = new ConstituencyParse(document, sentenceIndex, null);
-		parse.document = document;
-		parse.sentenceIndex = sentenceIndex;
-		
 		Stack<Pair<String, List<Constituent>>> constituents = new Stack<Pair<String, List<Constituent>>>();
+		
 		// Number of non-paren/whitespace terms read in row.  
 		// Keeps track of whether type or token
 		int leafStartTokenIndex = 0;
@@ -369,14 +366,14 @@ public class ConstituencyParse {
 				Constituent constituent = null;
 				if (leafStartTokenIndex != leafEndTokenIndex) {
 					TokenSpan leafTokenSpan = new TokenSpan(document, sentenceIndex, leafStartTokenIndex, leafEndTokenIndex);
-					constituent = parse.new Constituent(constituentParts.getFirst(), leafTokenSpan);			
+					constituent = this.new Constituent(constituentParts.getFirst(), leafTokenSpan);			
 					leafStartTokenIndex = leafEndTokenIndex;
 				} else {
-					constituent = parse.new Constituent(constituentParts.getFirst(), constituentParts.getSecond().toArray(new Constituent[0]));
+					constituent = this.new Constituent(constituentParts.getFirst(), constituentParts.getSecond().toArray(new Constituent[0]));
 				}
 				
 				if (constituents.isEmpty())
-					parse.root = constituent;
+					this.root = constituent;
 				else
 					constituents.peek().getSecond().add(constituent);
 			} else {
@@ -384,10 +381,17 @@ public class ConstituencyParse {
 			}
 		}
 		
+		return true;
+	}
+	
+	public static ConstituencyParse fromString(String str, DocumentNLP document, int sentenceIndex) {
+		ConstituencyParse parse = new ConstituencyParse(document, sentenceIndex);
+		if (!parse.fromString(str))
+			return null;
 		return parse;
 	}
 	
-	public ConstituencyParse clone(Document document) {
+	public ConstituencyParse clone(DocumentNLP document) {
 		return new ConstituencyParse(document, this.sentenceIndex, this.root);
 	}
 }

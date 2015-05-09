@@ -25,7 +25,7 @@ import java.util.List;
 import ark.cluster.Clusterer;
 import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Document;
+import ark.data.annotation.nlp.DocumentNLP;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.Obj;
 
@@ -82,7 +82,7 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 		this.parameterNames[this.parameterNames.length - 1] = "n";
 	}
 
-	protected List<String> getCleanNGramsAtPosition(Document document, int sentenceIndex, int startTokenIndex) {
+	protected List<String> getCleanNGramsAtPosition(DocumentNLP document, int sentenceIndex, int startTokenIndex) {
 		if (this.clusterer != null) {
 			TokenSpan ngramSpan = new TokenSpan(document, sentenceIndex, startTokenIndex, startTokenIndex + this.n);
 			List<String> clusters = this.clusterer.getClusters(ngramSpan);
@@ -95,7 +95,7 @@ public abstract class FeatureNGram<D extends Datum<L>, L> extends FeatureGram<D,
 		List<String> ngrams = new ArrayList<String>();
 		StringBuilder ngram = new StringBuilder();		
 		for (int i = startTokenIndex; i < startTokenIndex + this.n; i++) {
-			String cleanGram = this.cleanFn.transform(document.getToken(sentenceIndex, i));
+			String cleanGram = this.cleanFn.transform(document.getTokenStr(sentenceIndex, i));
 			if (cleanGram.length() == 0)
 				return ngrams;
 			ngram.append(cleanGram).append("_");

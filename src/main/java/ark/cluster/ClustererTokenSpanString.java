@@ -21,11 +21,11 @@ public class ClustererTokenSpanString extends Clusterer<TokenSpan> {
 		if (tokenSpan.getLength() == 0)
 			return new ArrayList<String>();
 		else if (tokenSpan.getLength() == 1)
-			return this.stringClusterer.getClusters(tokenSpan.getDocument().getToken(tokenSpan.getSentenceIndex(), tokenSpan.getStartTokenIndex()));
+			return this.stringClusterer.getClusters(tokenSpan.getDocument().getTokenStr(tokenSpan.getSentenceIndex(), tokenSpan.getStartTokenIndex()));
 		
 		StringBuilder compoundCluster = new StringBuilder();
 		for (int i = tokenSpan.getStartTokenIndex(); i < tokenSpan.getEndTokenIndex(); i++) {
-			List<String> clusters = this.stringClusterer.getClusters(tokenSpan.getDocument().getToken(tokenSpan.getSentenceIndex(), i));
+			List<String> clusters = this.stringClusterer.getClusters(tokenSpan.getDocument().getTokenStr(tokenSpan.getSentenceIndex(), i));
 			if (clusters != null && clusters.size() == 0) {
 				String cluster = clusters.get(0);
 				compoundCluster.append(cluster);

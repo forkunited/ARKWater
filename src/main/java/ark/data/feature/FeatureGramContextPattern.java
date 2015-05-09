@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 import ark.data.Context;
 import ark.data.Gazetteer;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Document;
+import ark.data.annotation.nlp.DocumentNLP;
 import ark.data.annotation.nlp.PoSTag;
 import ark.data.annotation.nlp.PoSTagClass;
 import ark.data.annotation.nlp.TokenSpan;
@@ -142,11 +142,11 @@ public class FeatureGramContextPattern<D extends Datum<L>, L> extends FeatureGra
 	
 	protected String buildContextString(TokenSpan tokenSpan, CapturePart capturePart) {
 		StringBuilder str = new StringBuilder();
-		Document document = tokenSpan.getDocument();
+		DocumentNLP document = tokenSpan.getDocument();
 		int sentenceIndex = tokenSpan.getSentenceIndex();
 		if (capturePart == CapturePart.BEFORE) {
 			for (int i = 0; i < tokenSpan.getStartTokenIndex(); i++) {
-				str.append(this.cleanFn.transform(document.getToken(sentenceIndex, i)))
+				str.append(this.cleanFn.transform(document.getTokenStr(sentenceIndex, i)))
 				   .append("/")
 				   .append(document.getPoSTag(sentenceIndex, i))
 				   .append(" ");
@@ -154,7 +154,7 @@ public class FeatureGramContextPattern<D extends Datum<L>, L> extends FeatureGra
 		} else {
 			int numSentenceTokens = document.getSentenceTokenCount(sentenceIndex);
 			for (int i = tokenSpan.getEndTokenIndex(); i < numSentenceTokens; i++) {
-				str.append(this.cleanFn.transform(document.getToken(sentenceIndex, i)))
+				str.append(this.cleanFn.transform(document.getTokenStr(sentenceIndex, i)))
 				   .append("/")
 				   .append(document.getPoSTag(sentenceIndex, i))
 				   .append(" ");

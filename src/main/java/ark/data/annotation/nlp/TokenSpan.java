@@ -20,7 +20,6 @@ package ark.data.annotation.nlp;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import ark.data.annotation.Document;
 
 /**
  * TokenSpan represents a contiguous span of tokens in a document.  
@@ -28,12 +27,22 @@ import ark.data.annotation.Document;
  * @author Bill
  */
 public class TokenSpan {
-	private Document document;
+	public static final Relation[] ANY_RELATION = new Relation[] { Relation.CONTAINS, Relation.CONTAINED_BY, Relation.EQUAL, Relation.OVERLAPS };
+	
+	public enum Relation {
+		CONTAINS,
+		CONTAINED_BY,
+		EQUAL,
+		OVERLAPS,
+		NONE
+	}
+	
+	private DocumentNLP document;
 	private int sentenceIndex;
 	private int startTokenIndex; // 0-based token index (inclusive)
 	private int endTokenIndex; // 0-based token index (exclusive)
 	
-	public TokenSpan(Document document, int sentenceIndex, int startTokenIndex, int endTokenIndex) {
+	public TokenSpan(DocumentNLP document, int sentenceIndex, int startTokenIndex, int endTokenIndex) {
 		this.document = document;
 		this.sentenceIndex = sentenceIndex;
 		this.startTokenIndex = startTokenIndex;
@@ -73,7 +82,7 @@ public class TokenSpan {
 		return true;
 	}
 	
-	public Document getDocument() {
+	public DocumentNLP getDocument() {
 		return this.document;
 	}
 	
@@ -95,6 +104,25 @@ public class TokenSpan {
 	
 	public TokenSpan getSubspan(int startIndex, int endIndex) {
 		return new TokenSpan(this.document, this.sentenceIndex, this.startTokenIndex + startIndex, this.startTokenIndex + endIndex);
+	}
+	
+	public Relation getRelationTo(TokenSpan tokenSpan) {
+		if (!this.document.getName().equals(tokenSpan.getDocument().getName())
+				|| getSentenceIndex() != tokenSpan.getSentenceIndex())
+			return Relation.NONE;
+		
+		if (this.startTokenIndex == tokenSpan.startTokenIndex && this.endTokenIndex == tokenSpan.endTokenIndex)
+			return Relation.EQUAL;
+		else if (this.startTokenIndex <= tokenSpan.startTokenIndex && this.endTokenIndex >= tokenSpan.endTokenIndex)
+			return Relation.CONTAINS;
+		else if (this.startTokenIndex >= tokenSpan.startTokenIndex && this.endTokenIndex <= tokenSpan.endTokenIndex)
+			return Relation.CONTAINED_BY;
+		else if (this.startTokenIndex < tokenSpan.startTokenIndex && this.endTokenIndex >= tokenSpan.startTokenIndex)
+			return Relation.OVERLAPS;
+		else if (this.startTokenIndex < tokenSpan.endTokenIndex && this.endTokenIndex > tokenSpan.endTokenIndex)
+			return Relation.OVERLAPS;
+		else
+			return Relation.NONE;
 	}
 	
 	public String toString() {
@@ -125,7 +153,7 @@ public class TokenSpan {
 		return json;
 	}
 	
-	public static TokenSpan fromJSON(JSONObject json, Document document, int sentenceIndex) {
+	public static TokenSpan fromJSON(JSONObject json, DocumentNLP document, int sentenceIndex) {
 		try {
 			return new TokenSpan(
 				document,
@@ -140,7 +168,7 @@ public class TokenSpan {
 		return null;
 	}
 	
-	public static TokenSpan fromJSON(JSONObject json, Document document) {
+	public static TokenSpan fromJSON(JSONObject json, DocumentNLP document) {
 		return fromJSON(json, document, -1);
 	}
 }

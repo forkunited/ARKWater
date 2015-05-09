@@ -4,7 +4,7 @@ import java.util.Collection;
 
 import ark.data.Context;
 import ark.data.DataTools;
-import ark.data.annotation.Document;
+import ark.data.annotation.nlp.DocumentNLP;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.AssignmentList;
 import ark.parse.Obj;
@@ -51,9 +51,9 @@ public class FnString extends Fn<TokenSpan, String> {
 		for (TokenSpan tokenSpan : input) {
 			StringBuilder str = new StringBuilder();
 			int s = tokenSpan.getSentenceIndex();
-			Document document = tokenSpan.getDocument();
+			DocumentNLP document = tokenSpan.getDocument();
 			for (int i = 0; i < tokenSpan.getLength(); i++) {
-				String tStr = document.getToken(s, i + tokenSpan.getStartTokenIndex());
+				String tStr = document.getTokenStr(s, i + tokenSpan.getStartTokenIndex());
 				if (this.cleanFn != null)
 					tStr = this.cleanFn.transform(tStr);
 				

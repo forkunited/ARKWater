@@ -97,12 +97,12 @@ public class FeatureNGramPoS<D extends Datum<L>, L> extends Feature<D, L> {
 				if (tokenIndex < tokenSpan.getStartTokenIndex() && (tokensBeforeTokenSpan == -1 || 
 						tokenSpan.getStartTokenIndex() - tokenIndex <= tokensBeforeTokenSpan)){
 					if (tokenSpan.getDocument().getPoSTag(sentIndex, tokenIndex).toString().equals(PoS)){
-						nGramPoS.add(tokenSpan.getDocument().getToken(sentIndex, tokenIndex));
+						nGramPoS.add(tokenSpan.getDocument().getTokenStr(sentIndex, tokenIndex));
 					}
 				} else if(tokenIndex > tokenSpan.getEndTokenIndex() && (tokensAfterTokenSpan == -1 || 
 						tokenIndex - tokenSpan.getEndTokenIndex() <= tokensAfterTokenSpan)){
 					if (tokenSpan.getDocument().getPoSTag(sentIndex, tokenIndex).toString().equals(PoS)){
-						nGramPoS.add(tokenSpan.getDocument().getToken(sentIndex, tokenIndex));
+						nGramPoS.add(tokenSpan.getDocument().getTokenStr(sentIndex, tokenIndex));
 					}
 				}
 

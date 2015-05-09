@@ -185,17 +185,17 @@ public class FeatureTokenSpanFnFilteredVocab<D extends Datum<L>, L> extends Feat
 		if (strs.size() < this.vocabulary.size()) {
 			for (String str : strs) {
 				if (this.vocabulary.containsKey(str)) {
-					int index = this.vocabulary.get(str) + offset;
+					int index = this.vocabulary.get(str);
 					if (index >= minIndex && index < maxIndex)
-						vector.put(index, 1.0);
+						vector.put(index + offset, 1.0);
 				}
 			}
 		} else {
 			for (String str : this.vocabulary.keySet()) {
 				if (strs.contains(str)) {
-					int index = this.vocabulary.get(str) + offset;
+					int index = this.vocabulary.get(str);
 					if (index >= minIndex && index < maxIndex)
-						vector.put(index, 1.0);
+						vector.put(index + offset, 1.0);
 				}
 			}
 		}
@@ -274,7 +274,7 @@ public class FeatureTokenSpanFnFilteredVocab<D extends Datum<L>, L> extends Feat
 			);
 			
 			internalAssignments.add(
-					Assignment.assignmentTyped(new ArrayList<String>(), Context.ARRAY_STR, "indices", vocabulary)
+					Assignment.assignmentTyped(new ArrayList<String>(), Context.ARRAY_STR, "indices", indices)
 			);
 		}
 		

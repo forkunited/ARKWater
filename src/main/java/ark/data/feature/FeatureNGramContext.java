@@ -26,7 +26,7 @@ import java.util.Map;
 
 import ark.data.Context;
 import ark.data.annotation.Datum;
-import ark.data.annotation.Document;
+import ark.data.annotation.nlp.DocumentNLP;
 import ark.data.annotation.nlp.TokenSpan;
 import ark.parse.Obj;
 
@@ -82,7 +82,7 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 			if (tokenSpan.getSentenceIndex() < 0)
 				continue;
 			
-			Document document = tokenSpan.getDocument();
+			DocumentNLP document = tokenSpan.getDocument();
 			int startIndex = 0, endIndex = 0;
 			if (this.mode == Mode.BEFORE) {
 				startIndex = Math.max(0, tokenSpan.getStartTokenIndex() - this.maxGramDistance);
@@ -108,7 +108,7 @@ public class FeatureNGramContext<D extends Datum<L>, L> extends FeatureNGram<D, 
 	}
 	
 	// All n-grams in window between startTokenIndex (inclusive) and endTokenIndex (exclusive) (whole n-gram must fit in window)
-	private List<String> getNGramsInWindow(Document document, int sentenceIndex, int startTokenIndex, int endTokenIndex) {
+	private List<String> getNGramsInWindow(DocumentNLP document, int sentenceIndex, int startTokenIndex, int endTokenIndex) {
 		List<String> ngrams = new ArrayList<String>();
 		for (int i = startTokenIndex; i < endTokenIndex - this.n + 1; i++) {		
 			List<String> ngramsAtPosition = getCleanNGramsAtPosition(document, sentenceIndex, i);
